@@ -1,0 +1,104 @@
+{
+  "id": "the_returning_guard",
+  "title": "The Returning Guard",
+  "start": "gate",
+  "macros": {},
+  "nodes": {
+    "gate": {
+      "text": "A guard blocks the city gate. You have met him before, though he may not remember you.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "city",
+            "gate",
+            "guard"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "greet",
+          "text": "Greet him warmly",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "greet",
+                "guard",
+                "friendliness"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_action",
+              "from": "meeting_guard",
+              "to": "greet"
+            }
+          ],
+          "goto": "response"
+        },
+        {
+          "id": "threaten",
+          "text": "Threaten him",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "threaten",
+                "guard",
+                "intimidation"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_action",
+              "from": "meeting_guard",
+              "to": "threaten"
+            }
+          ],
+          "goto": "response"
+        }
+      ]
+    },
+    "response": {
+      "text": [
+        {
+          "if": {
+            "type": "association",
+            "a": "player",
+            "b": "friendliness",
+            "min": 2
+          },
+          "value": "The guard recognises your manner and relaxes. 'Good to see you again.'"
+        },
+        {
+          "if": {
+            "type": "association",
+            "a": "player",
+            "b": "intimidation",
+            "min": 2
+          },
+          "value": "The guard remembers your threats. His hand moves towards his sword."
+        },
+        {
+          "value": "The guard watches you, trying to decide what sort of person you are."
+        }
+      ],
+      "choices": [
+        {
+          "id": "leave",
+          "text": "Move on",
+          "goto": "end"
+        }
+      ]
+    },
+    "end": {
+      "text": "The encounter is over. The graph retains the memory for the next meeting or session.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

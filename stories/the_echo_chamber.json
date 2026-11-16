@@ -1,0 +1,182 @@
+{
+  "id": "the_echo_chamber",
+  "title": "The Echo Chamber",
+  "start": "door",
+  "macros": {},
+  "nodes": {
+    "door": {
+      "text": "Three doors stand before you. The symbols are a raven, a key and a crown.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "raven",
+            "key",
+            "crown",
+            "chamber"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "raven",
+          "text": "Open the raven door",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "raven",
+                "flight",
+                "warning"
+              ]
+            }
+          ],
+          "goto": "echo"
+        },
+        {
+          "id": "key",
+          "text": "Open the key door",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "key",
+                "access",
+                "secrets"
+              ]
+            }
+          ],
+          "goto": "echo"
+        },
+        {
+          "id": "crown",
+          "text": "Open the crown door",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "crown",
+                "power",
+                "ambition"
+              ]
+            }
+          ],
+          "goto": "echo"
+        }
+      ]
+    },
+    "echo": {
+      "text": "The chamber repeats a word from your past. It is not necessarily the word you chose.",
+      "onEnter": [
+        {
+          "type": "activate",
+          "starts": [
+            "chamber",
+            "raven",
+            "key",
+            "crown"
+          ],
+          "options": {
+            "depth": 2,
+            "decay": 0.65,
+            "limit": 20
+          },
+          "storeAs": "echoes"
+        }
+      ],
+      "choices": [
+        {
+          "id": "follow_warning",
+          "text": "Follow the warning",
+          "showIf": {
+            "type": "activation",
+            "starts": [
+              "chamber"
+            ],
+            "contains": "warning",
+            "min": 0.1,
+            "options": {
+              "depth": 3,
+              "decay": 0.65
+            }
+          },
+          "goto": "warning"
+        },
+        {
+          "id": "seek_secrets",
+          "text": "Seek the secrets",
+          "showIf": {
+            "type": "activation",
+            "starts": [
+              "chamber"
+            ],
+            "contains": "secrets",
+            "min": 0.1,
+            "options": {
+              "depth": 3,
+              "decay": 0.65
+            }
+          },
+          "goto": "secret"
+        },
+        {
+          "id": "claim_power",
+          "text": "Claim the power",
+          "showIf": {
+            "type": "activation",
+            "starts": [
+              "chamber"
+            ],
+            "contains": "power",
+            "min": 0.1,
+            "options": {
+              "depth": 3,
+              "decay": 0.65
+            }
+          },
+          "goto": "power"
+        },
+        {
+          "id": "leave",
+          "text": "Leave the chamber",
+          "goto": "end"
+        }
+      ]
+    },
+    "warning": {
+      "text": "A raven cries overhead. You sense that the chamber has connected the symbol to a warning.",
+      "choices": [
+        {
+          "id": "finish_warning",
+          "text": "Continue",
+          "goto": "end"
+        }
+      ]
+    },
+    "secret": {
+      "text": "A hidden drawer opens. The key symbol has led you to something concealed.",
+      "choices": [
+        {
+          "id": "finish_secret",
+          "text": "Continue",
+          "goto": "end"
+        }
+      ]
+    },
+    "power": {
+      "text": "A stone crown rises from the floor. The chamber has followed the associations around your chosen symbol.",
+      "choices": [
+        {
+          "id": "finish_power",
+          "text": "Continue",
+          "goto": "end"
+        }
+      ]
+    },
+    "end": {
+      "text": "The chamber falls silent.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

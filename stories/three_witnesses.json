@@ -1,0 +1,221 @@
+{
+  "id": "three_witnesses",
+  "title": "Three Witnesses",
+  "start": "crime",
+  "macros": {
+    "playerMerciful": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "mercy",
+        "min": 1
+      }
+    },
+    "playerHonest": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "honesty",
+        "min": 1
+      }
+    },
+    "playerViolent": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "violence",
+        "min": 1
+      }
+    }
+  },
+  "nodes": {
+    "crime": {
+      "text": "A merchant has been attacked. Three witnesses saw different parts of the event.",
+      "choices": [
+        {
+          "id": "protect_merchant",
+          "text": "Help the injured merchant",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "help",
+                "merchant",
+                "mercy"
+              ]
+            }
+          ],
+          "goto": "priest"
+        },
+        {
+          "id": "take_purse",
+          "text": "Steal the merchant's purse",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "steal",
+                "merchant",
+                "greed"
+              ]
+            }
+          ],
+          "goto": "priest"
+        },
+        {
+          "id": "attack_witness",
+          "text": "Silence a witness",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "attack",
+                "witness",
+                "violence"
+              ]
+            }
+          ],
+          "goto": "priest"
+        }
+      ]
+    },
+    "priest": {
+      "text": "The priest approaches. 'I care about mercy. What did you do?'",
+      "choices": [
+        {
+          "id": "confess",
+          "text": "Tell him what happened",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "confess",
+                "priest",
+                "honesty"
+              ]
+            }
+          ],
+          "goto": "merchant"
+        },
+        {
+          "id": "deny",
+          "text": "Deny everything",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "deny",
+                "priest",
+                "deception"
+              ]
+            }
+          ],
+          "goto": "merchant"
+        }
+      ]
+    },
+    "merchant": {
+      "text": "The merchant has recovered enough to speak. 'I care about whether you are honest.'",
+      "choices": [
+        {
+          "id": "tell_merchant_truth",
+          "text": "Tell the truth",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "truth",
+                "merchant",
+                "honesty"
+              ]
+            }
+          ],
+          "goto": "hunter"
+        }
+      ]
+    },
+    "hunter": {
+      "text": "The hunter blocks the exit. 'I care about violence. Have you caused any?'",
+      "choices": [
+        {
+          "id": "admit",
+          "text": "Admit what you did",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "admit",
+                "hunter",
+                "honesty"
+              ]
+            }
+          ],
+          "goto": "verdict"
+        }
+      ]
+    },
+    "verdict": {
+      "text": [
+        {
+          "if": {
+            "type": "all",
+            "conditions": [
+              {
+                "type": "macroCondition",
+                "name": "playerMerciful"
+              },
+              {
+                "type": "macroCondition",
+                "name": "playerHonest"
+              },
+              {
+                "type": "not",
+                "condition": {
+                  "type": "macroCondition",
+                  "name": "playerViolent"
+                }
+              }
+            ]
+          },
+          "value": "The witnesses agree: you showed mercy and told the truth. They let you go."
+        },
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "playerViolent"
+          },
+          "value": "The hunter steps forward. Your violence is the one thing none of them can overlook."
+        },
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "playerHonest"
+          },
+          "value": "Your honesty earns some trust, though the witnesses disagree about your actions."
+        },
+        {
+          "value": "The witnesses cannot agree on who you are. You leave under suspicion."
+        }
+      ],
+      "choices": [
+        {
+          "id": "finish",
+          "text": "Accept the verdict",
+          "goto": "end"
+        }
+      ]
+    },
+    "end": {
+      "text": "Each witness judged a different part of your remembered behaviour.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

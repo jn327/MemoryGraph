@@ -1,0 +1,1549 @@
+{
+  "id": "the_village_remembers",
+  "title": "The Village Remembers",
+  "start": "arrival",
+  "macros": {
+    "hasMercy": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "mercy",
+        "min": 2
+      }
+    },
+    "hasViolence": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "violence",
+        "min": 2
+      }
+    },
+    "hasHonesty": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "honesty",
+        "min": 2
+      }
+    },
+    "hasDeception": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "deception",
+        "min": 1
+      }
+    },
+    "helpedMira": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "mira",
+        "min": 1
+      }
+    },
+    "helpedTomas": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "tomas",
+        "min": 1
+      }
+    },
+    "knowsSecret": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "secret",
+        "min": 1
+      }
+    },
+    "hasEvidence": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "evidence",
+        "min": 1
+      }
+    }
+  },
+  "nodes": {
+    "arrival": {
+      "text": "Rain follows you into Brackenridge. The village sits between a black forest and a flooded river. A bell rings once, though nobody is near the tower.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "brackenridge",
+            "village",
+            "rain",
+            "bell",
+            "forest",
+            "river"
+          ],
+          "metadata": {
+            "chapter": 1,
+            "event": "arrival"
+          }
+        }
+      ],
+      "choices": [
+        {
+          "id": "market",
+          "text": "Go to the market",
+          "goto": "market"
+        },
+        {
+          "id": "chapel",
+          "text": "Visit the chapel",
+          "goto": "chapel"
+        },
+        {
+          "id": "river",
+          "text": "Walk to the river",
+          "goto": "riverbank"
+        },
+        {
+          "id": "inn",
+          "text": "Find the inn",
+          "goto": "inn"
+        }
+      ]
+    },
+    "market": {
+      "text": "The market is nearly empty. Mira, the baker, is arguing with a guard over a sack of flour.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "market",
+            "mira",
+            "baker",
+            "guard",
+            "flour"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "help_mira",
+          "text": "Help Mira carry the flour",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "help",
+                "mira",
+                "kindness",
+                "mercy"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_route",
+              "from": "market",
+              "to": "help_mira"
+            }
+          ],
+          "goto": "mira_thanks"
+        },
+        {
+          "id": "steal_flour",
+          "text": "Steal a handful of flour while they argue",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "steal",
+                "mira",
+                "flour",
+                "greed"
+              ]
+            }
+          ],
+          "goto": "market_exit"
+        },
+        {
+          "id": "accuse_guard",
+          "text": "Accuse the guard of extortion",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "accuse",
+                "guard",
+                "defiance"
+              ]
+            }
+          ],
+          "goto": "guard_warning"
+        },
+        {
+          "id": "leave_market",
+          "text": "Walk away",
+          "goto": "market_exit"
+        }
+      ]
+    },
+    "mira_thanks": {
+      "text": "Mira wipes flour from her hands. 'People here have stopped helping one another. I won't forget this.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "mira",
+            "gratitude",
+            "player",
+            "trust"
+          ],
+          "metadata": {
+            "relationship": "mira"
+          }
+        }
+      ],
+      "choices": [
+        {
+          "id": "ask_mira",
+          "text": "Ask why the village is afraid",
+          "goto": "mira_secret"
+        },
+        {
+          "id": "leave_mira",
+          "text": "Let her return to work",
+          "goto": "market_exit"
+        }
+      ]
+    },
+    "mira_secret": {
+      "text": "Mira lowers her voice. 'The bell rings before someone disappears. My brother Tomas heard it three nights ago. He came back... different.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "mira",
+            "tomas",
+            "bell",
+            "disappearance",
+            "secret",
+            "fear"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "promise_help",
+          "text": "Promise to help Tomas",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "promise",
+                "tomas",
+                "mira",
+                "loyalty"
+              ]
+            }
+          ],
+          "goto": "market_exit"
+        },
+        {
+          "id": "dismiss_story",
+          "text": "Tell her it is superstition",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "dismiss",
+                "mira",
+                "skepticism"
+              ]
+            }
+          ],
+          "goto": "market_exit"
+        }
+      ]
+    },
+    "market_exit": {
+      "text": "The market's shutters rattle in the wind. Somewhere beyond the rooftops, the bell tower stands silent.",
+      "choices": [
+        {
+          "id": "to_square",
+          "text": "Go to the village square",
+          "goto": "square"
+        },
+        {
+          "id": "to_inn",
+          "text": "Find the inn",
+          "goto": "inn"
+        }
+      ]
+    },
+    "guard_warning": {
+      "text": "The guard steps close. 'Careful, stranger. The reeve dislikes questions.'",
+      "choices": [
+        {
+          "id": "back_down",
+          "text": "Back down",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "retreat",
+                "guard",
+                "caution"
+              ]
+            }
+          ],
+          "goto": "market_exit"
+        },
+        {
+          "id": "stand_firm",
+          "text": "Stand your ground",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "defy",
+                "guard",
+                "courage"
+              ]
+            }
+          ],
+          "goto": "market_exit"
+        }
+      ]
+    },
+    "chapel": {
+      "text": "The chapel smells of wet stone and candle smoke. Sister Anwen is tending a cracked statue with a strip of linen.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "chapel",
+            "anwen",
+            "sister",
+            "faith",
+            "statue"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "help_anwen",
+          "text": "Help repair the statue",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "help",
+                "anwen",
+                "faith",
+                "mercy"
+              ]
+            }
+          ],
+          "goto": "anwen_trust"
+        },
+        {
+          "id": "question_anwen",
+          "text": "Ask about the bell",
+          "goto": "anwen_bell"
+        },
+        {
+          "id": "take_candles",
+          "text": "Take a candle without asking",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "steal",
+                "chapel",
+                "greed"
+              ]
+            }
+          ],
+          "goto": "chapel_exit"
+        }
+      ]
+    },
+    "anwen_trust": {
+      "text": "Anwen studies you. 'Kindness is scarce here. The bell is not a warning, exactly. It is an invitation.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "anwen",
+            "player",
+            "trust",
+            "bell",
+            "invitation",
+            "mystery"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "ask_invitation",
+          "text": "An invitation to what?",
+          "goto": "anwen_bell"
+        },
+        {
+          "id": "leave_chapel",
+          "text": "Leave her to pray",
+          "goto": "chapel_exit"
+        }
+      ]
+    },
+    "anwen_bell": {
+      "text": "Anwen says the bell calls those who have broken a promise. 'It rings for the thing you most wish to forget.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "bell",
+            "promise",
+            "guilt",
+            "memory",
+            "anwen",
+            "secret"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "confess",
+          "text": "Confess a lie you have told",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "confess",
+                "lie",
+                "honesty",
+                "guilt"
+              ]
+            }
+          ],
+          "goto": "chapel_exit"
+        },
+        {
+          "id": "lie_anwen",
+          "text": "Tell Anwen you have no secrets",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "lie",
+                "anwen",
+                "deception"
+              ]
+            }
+          ],
+          "goto": "chapel_exit"
+        }
+      ]
+    },
+    "chapel_exit": {
+      "text": "The chapel door closes softly behind you.",
+      "choices": [
+        {
+          "id": "square",
+          "text": "Go to the square",
+          "goto": "square"
+        },
+        {
+          "id": "inn_from_chapel",
+          "text": "Visit the inn",
+          "goto": "inn"
+        }
+      ]
+    },
+    "riverbank": {
+      "text": "The river has swallowed half the old footbridge. Tomas sits on a stone, staring into the current. His hands are trembling.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "river",
+            "tomas",
+            "bridge",
+            "water",
+            "fear"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "help_tomas",
+          "text": "Sit beside Tomas and listen",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "help",
+                "tomas",
+                "patience",
+                "mercy"
+              ]
+            }
+          ],
+          "goto": "tomas_story"
+        },
+        {
+          "id": "demand_answers",
+          "text": "Demand to know what happened",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "demand",
+                "tomas",
+                "pressure"
+              ]
+            }
+          ],
+          "goto": "tomas_story"
+        },
+        {
+          "id": "push_tomas",
+          "text": "Push him into the river",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "violence",
+                "tomas",
+                "river"
+              ]
+            }
+          ],
+          "goto": "river_aftermath"
+        }
+      ]
+    },
+    "tomas_story": {
+      "text": "Tomas looks up. 'I heard my own voice from the bell tower. It told me to bring it a name. I gave it my mother's.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "tomas",
+            "bell",
+            "voice",
+            "mother",
+            "name",
+            "secret",
+            "trauma"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "comfort_tomas",
+          "text": "Tell him he can make things right",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "comfort",
+                "tomas",
+                "hope",
+                "mercy"
+              ]
+            }
+          ],
+          "goto": "tomas_clue"
+        },
+        {
+          "id": "ask_name",
+          "text": "Ask what happened to his mother",
+          "goto": "tomas_clue"
+        },
+        {
+          "id": "promise_silence",
+          "text": "Promise not to tell anyone",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "promise",
+                "tomas",
+                "loyalty"
+              ]
+            }
+          ],
+          "goto": "tomas_clue"
+        }
+      ]
+    },
+    "tomas_clue": {
+      "text": "Tomas gives you a small iron key. 'The old records are beneath the bell tower. The reeve keeps the entrance locked.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "player",
+            "key",
+            "tomas",
+            "bell_tower",
+            "records",
+            "evidence"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "thank_tomas",
+          "text": "Thank him",
+          "goto": "square"
+        }
+      ]
+    },
+    "river_aftermath": {
+      "text": "Tomas disappears beneath the dark water. The river carries away the sound. The village will hear of this.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "tomas",
+            "death",
+            "river",
+            "violence",
+            "guilt"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "flee_river",
+          "text": "Leave quickly",
+          "goto": "square"
+        }
+      ]
+    },
+    "inn": {
+      "text": "The inn is warm and crowded. The innkeeper, Jory, watches everyone. A traveller in a red scarf sits alone by the fire.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "inn",
+            "jory",
+            "traveller",
+            "red_scarf",
+            "fire"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "talk_jory",
+          "text": "Ask Jory about the village",
+          "goto": "jory_story"
+        },
+        {
+          "id": "talk_traveller",
+          "text": "Speak to the traveller",
+          "goto": "traveller_story"
+        },
+        {
+          "id": "steal_ledger",
+          "text": "Steal the ledger from the desk",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "steal",
+                "jory",
+                "ledger",
+                "deception"
+              ]
+            }
+          ],
+          "goto": "inn_exit"
+        }
+      ]
+    },
+    "jory_story": {
+      "text": "Jory says the reeve has been buying names from desperate villagers. 'A name is worth more than gold here.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "jory",
+            "reeve",
+            "names",
+            "bargain",
+            "secret"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "ask_ledger",
+          "text": "Ask about the ledger",
+          "goto": "ledger_clue"
+        },
+        {
+          "id": "offer_coin",
+          "text": "Offer Jory a coin for information",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "bribe",
+                "jory",
+                "greed"
+              ]
+            }
+          ],
+          "goto": "ledger_clue"
+        }
+      ]
+    },
+    "ledger_clue": {
+      "text": "Jory admits the ledger records every bargain made at the tower. He can distract the guard if you help him first.",
+      "choices": [
+        {
+          "id": "help_jory",
+          "text": "Help repair the inn's broken sign",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "help",
+                "jory",
+                "trust",
+                "craft"
+              ]
+            }
+          ],
+          "goto": "jory_helped"
+        },
+        {
+          "id": "refuse_jory",
+          "text": "Refuse",
+          "goto": "inn_exit"
+        }
+      ]
+    },
+    "jory_helped": {
+      "text": "Jory gives you a charcoal rubbing of the tower lock. 'The key is old. The lock is older.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "player",
+            "jory",
+            "lock",
+            "rubbing",
+            "evidence"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "leave_jory",
+          "text": "Thank him",
+          "goto": "inn_exit"
+        }
+      ]
+    },
+    "traveller_story": {
+      "text": "The traveller says, 'I came here to forget my sister. The bell made sure I remembered.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "traveller",
+            "sister",
+            "bell",
+            "memory",
+            "grief",
+            "secret"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "share_grief",
+          "text": "Share a painful memory of your own",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "share",
+                "traveller",
+                "honesty",
+                "trust"
+              ]
+            }
+          ],
+          "goto": "traveller_reveal"
+        },
+        {
+          "id": "press_traveller",
+          "text": "Demand the traveller's real name",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "pressure",
+                "traveller",
+                "suspicion"
+              ]
+            }
+          ],
+          "goto": "traveller_reveal"
+        }
+      ]
+    },
+    "traveller_reveal": {
+      "text": "The traveller reveals that the bell does not steal people. It stores the names they surrender, and uses them to call others.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "bell",
+            "names",
+            "store",
+            "call",
+            "truth",
+            "evidence"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "ask_tower",
+          "text": "Ask how to reach the tower",
+          "goto": "inn_exit"
+        }
+      ]
+    },
+    "inn_exit": {
+      "text": "The fire sinks low. The red-scarfed traveller has gone.",
+      "choices": [
+        {
+          "id": "to_square_inn",
+          "text": "Go to the square",
+          "goto": "square"
+        }
+      ]
+    },
+    "square": {
+      "text": "At the village square, the reeve addresses a small crowd. The bell tower rises behind him. He asks whether you have been asking questions.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "square",
+            "reeve",
+            "crowd",
+            "bell_tower",
+            "authority"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "tell_truth_reeve",
+          "text": "Tell him what you know",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "hasHonesty"
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "truth",
+                "reeve",
+                "honesty"
+              ]
+            }
+          ],
+          "goto": "reeve_response"
+        },
+        {
+          "id": "lie_reeve",
+          "text": "Pretend you know nothing",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "lie",
+                "reeve",
+                "deception"
+              ]
+            }
+          ],
+          "goto": "reeve_response"
+        },
+        {
+          "id": "accuse_reeve",
+          "text": "Accuse him publicly",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "hasEvidence"
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "accuse",
+                "reeve",
+                "courage"
+              ]
+            }
+          ],
+          "goto": "reeve_response"
+        },
+        {
+          "id": "stay_silent",
+          "text": "Say nothing",
+          "goto": "reeve_response"
+        }
+      ]
+    },
+    "reeve_response": {
+      "text": [
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "hasEvidence"
+          },
+          "value": "The reeve sees the evidence in your hands and falters. The crowd begins to murmur."
+        },
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "hasDeception"
+          },
+          "value": "The reeve studies your face. He recognises the careful shape of a lie."
+        },
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "hasMercy"
+          },
+          "value": "The reeve seems unsettled by your calm. 'You think kindness will save this village?'"
+        },
+        {
+          "value": "The reeve dismisses you, but his guards begin to follow."
+        }
+      ],
+      "choices": [
+        {
+          "id": "tower_now",
+          "text": "Go to the bell tower",
+          "goto": "tower_gate"
+        },
+        {
+          "id": "rally_crowd",
+          "text": "Ask the villagers to stand with you",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "hasMercy"
+          },
+          "goto": "crowd"
+        },
+        {
+          "id": "escape",
+          "text": "Slip away into the alleys",
+          "goto": "alleys"
+        }
+      ]
+    },
+    "crowd": {
+      "text": "Mira, Anwen and Jory emerge from the crowd. They have heard what you did. Each has their own reason to stand beside you.",
+      "choices": [
+        {
+          "id": "mira_support",
+          "text": "Ask Mira to speak",
+          "showIf": {
+            "type": "association",
+            "a": "player",
+            "b": "mira",
+            "min": 1
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "mira",
+                "support",
+                "player",
+                "community"
+              ]
+            }
+          ],
+          "goto": "tower_gate"
+        },
+        {
+          "id": "anwen_support",
+          "text": "Ask Anwen to speak",
+          "showIf": {
+            "type": "association",
+            "a": "player",
+            "b": "anwen",
+            "min": 1
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "anwen",
+                "support",
+                "player",
+                "faith"
+              ]
+            }
+          ],
+          "goto": "tower_gate"
+        },
+        {
+          "id": "jory_support",
+          "text": "Ask Jory to speak",
+          "showIf": {
+            "type": "association",
+            "a": "player",
+            "b": "jory",
+            "min": 1
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "jory",
+                "support",
+                "player",
+                "community"
+              ]
+            }
+          ],
+          "goto": "tower_gate"
+        },
+        {
+          "id": "go_alone",
+          "text": "Go without them",
+          "goto": "tower_gate"
+        }
+      ]
+    },
+    "alleys": {
+      "text": "You escape into the narrow alleys. The bell rings again. This time, you hear your own name inside it.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "player",
+            "name",
+            "bell",
+            "fear",
+            "call"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "continue_alley",
+          "text": "Follow the sound",
+          "goto": "tower_gate"
+        },
+        {
+          "id": "hide",
+          "text": "Hide until dawn",
+          "goto": "dawn"
+        }
+      ]
+    },
+    "dawn": {
+      "text": "At dawn the village is quiet. The tower door stands open, as if it has been waiting for you.",
+      "choices": [
+        {
+          "id": "enter_at_dawn",
+          "text": "Enter the tower",
+          "goto": "tower_inside"
+        }
+      ]
+    },
+    "tower_gate": {
+      "text": "The bell tower door is bound with iron. The lock has a narrow slot shaped like a key.",
+      "choices": [
+        {
+          "id": "use_iron_key",
+          "text": "Use Tomas's iron key",
+          "showIf": {
+            "type": "association",
+            "a": "player",
+            "b": "key",
+            "min": 1
+          },
+          "goto": "tower_inside"
+        },
+        {
+          "id": "use_rubbing",
+          "text": "Use Jory's rubbing to pick the lock",
+          "showIf": {
+            "type": "association",
+            "a": "player",
+            "b": "rubbing",
+            "min": 1
+          },
+          "goto": "tower_inside"
+        },
+        {
+          "id": "break_gate",
+          "text": "Break the door",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "hasViolence"
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "violence",
+                "tower",
+                "force"
+              ]
+            }
+          ],
+          "goto": "tower_inside"
+        },
+        {
+          "id": "find_another_way",
+          "text": "Search for another entrance",
+          "goto": "crypt"
+        }
+      ]
+    },
+    "crypt": {
+      "text": "Beneath the tower you find a flooded crypt. Names are carved into the stones, including one you recognise from the traveller's story.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "crypt",
+            "names",
+            "memory",
+            "evidence",
+            "secret"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "copy_names",
+          "text": "Copy the names into your journal",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "copy",
+                "names",
+                "evidence"
+              ]
+            }
+          ],
+          "goto": "tower_inside"
+        },
+        {
+          "id": "free_names",
+          "text": "Speak each name aloud and release it",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "free",
+                "names",
+                "mercy",
+                "courage"
+              ]
+            }
+          ],
+          "goto": "tower_inside"
+        }
+      ]
+    },
+    "tower_inside": {
+      "text": "Inside the tower, the bell hangs above a mechanism of brass rings. Each ring bears a name. The reeve stands beside a book bound in black leather.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "tower",
+            "bell",
+            "reeve",
+            "book",
+            "names",
+            "mechanism"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "take_book",
+          "text": "Take the book",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "book",
+                "evidence",
+                "truth"
+              ]
+            }
+          ],
+          "goto": "reeve_confrontation"
+        },
+        {
+          "id": "question_reeve",
+          "text": "Ask the reeve why he did this",
+          "goto": "reeve_confrontation"
+        },
+        {
+          "id": "strike_reeve",
+          "text": "Attack the reeve",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "violence",
+                "reeve",
+                "attack"
+              ]
+            }
+          ],
+          "goto": "reeve_confrontation"
+        },
+        {
+          "id": "touch_bell",
+          "text": "Touch the bell",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "bell",
+                "memory",
+                "risk"
+              ]
+            }
+          ],
+          "goto": "bell_vision"
+        }
+      ]
+    },
+    "bell_vision": {
+      "text": "The bell shows you a memory that is not yours: the reeve giving his daughter's name to save the village from famine. The bell has been collecting names ever since.",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "reeve",
+            "daughter",
+            "sacrifice",
+            "famine",
+            "guilt",
+            "truth"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "forgive_reeve",
+          "text": "Tell the reeve you understand his grief",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "forgive",
+                "reeve",
+                "mercy"
+              ]
+            }
+          ],
+          "goto": "reeve_confrontation"
+        },
+        {
+          "id": "condemn_reeve",
+          "text": "Tell him his grief does not excuse him",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "condemn",
+                "reeve",
+                "justice"
+              ]
+            }
+          ],
+          "goto": "reeve_confrontation"
+        }
+      ]
+    },
+    "reeve_confrontation": {
+      "text": [
+        {
+          "if": {
+            "type": "all",
+            "conditions": [
+              {
+                "type": "macroCondition",
+                "name": "hasEvidence"
+              },
+              {
+                "type": "macroCondition",
+                "name": "hasMercy"
+              }
+            ]
+          },
+          "value": "You hold the book but do not raise a weapon. The reeve sees that you know the truth and have not come only to punish him."
+        },
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "hasViolence"
+          },
+          "value": "The reeve reaches for the bell rope. He believes force is the only language left to him."
+        },
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "hasHonesty"
+          },
+          "value": "The reeve looks at you as if truth itself is an unfamiliar visitor."
+        },
+        {
+          "value": "The reeve waits for you to make the first move."
+        }
+      ],
+      "choices": [
+        {
+          "id": "destroy_bell",
+          "text": "Destroy the bell",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "destroy",
+                "bell",
+                "freedom",
+                "risk"
+              ]
+            }
+          ],
+          "goto": "ending_destroy"
+        },
+        {
+          "id": "release_names",
+          "text": "Release every name",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "release",
+                "names",
+                "mercy",
+                "freedom"
+              ]
+            }
+          ],
+          "goto": "ending_release"
+        },
+        {
+          "id": "take_control",
+          "text": "Take control of the bell",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "control",
+                "bell",
+                "power",
+                "ambition"
+              ]
+            }
+          ],
+          "goto": "ending_control"
+        },
+        {
+          "id": "bargain",
+          "text": "Offer your own name in exchange",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "sacrifice",
+                "name",
+                "love",
+                "risk"
+              ]
+            }
+          ],
+          "goto": "ending_sacrifice"
+        }
+      ]
+    },
+    "ending_destroy": {
+      "text": "You bring a stone down upon the bell. Its sound cracks the clouds. Every stolen name returns at once, but the tower begins to collapse.",
+      "choices": [
+        {
+          "id": "save_people",
+          "text": "Help the villagers escape",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "hasMercy"
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "save",
+                "village",
+                "mercy",
+                "courage"
+              ]
+            }
+          ],
+          "goto": "final_free"
+        },
+        {
+          "id": "flee_alone",
+          "text": "Save yourself",
+          "goto": "final_cost"
+        }
+      ]
+    },
+    "ending_release": {
+      "text": "You read the names aloud. One by one, the brass rings turn. The bell grows quiet as the names return to those who gave them.",
+      "choices": [
+        {
+          "id": "comfort_reeve",
+          "text": "Comfort the reeve",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "hasMercy"
+          },
+          "goto": "final_reconcile"
+        },
+        {
+          "id": "leave_reeve",
+          "text": "Leave him to face the village",
+          "goto": "final_free"
+        }
+      ]
+    },
+    "ending_control": {
+      "text": "The bell accepts your hand. You can call any name in Brackenridge. The village falls silent, waiting for your command.",
+      "choices": [
+        {
+          "id": "use_power",
+          "text": "Use the bell to rule",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "rule",
+                "power",
+                "fear"
+              ]
+            }
+          ],
+          "goto": "final_rule"
+        },
+        {
+          "id": "ring_once",
+          "text": "Ring it once, then walk away",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "renounce",
+                "power",
+                "restraint"
+              ]
+            }
+          ],
+          "goto": "final_free"
+        }
+      ]
+    },
+    "ending_sacrifice": {
+      "text": "You offer your name. The bell takes it. For a moment nobody in the village remembers you, but every other name is released.",
+      "choices": [
+        {
+          "id": "accept_erasure",
+          "text": "Accept being forgotten",
+          "goto": "final_sacrifice"
+        }
+      ]
+    },
+    "final_free": {
+      "text": "Brackenridge wakes to a morning without the bell. Some remember your face; others remember only what you did. The village will tell the story differently for generations.",
+      "ending": true,
+      "choices": []
+    },
+    "final_cost": {
+      "text": "You escape the collapsing tower. Behind you, the village is free, but many are hurt. Your choices will be remembered unevenly.",
+      "ending": true,
+      "choices": []
+    },
+    "final_reconcile": {
+      "text": "The reeve weeps. The village does not forgive him immediately, but it begins the harder work of understanding what happened. Mira opens her bakery at sunrise.",
+      "ending": true,
+      "choices": []
+    },
+    "final_rule": {
+      "text": "You become the new keeper of the bell. Brackenridge is safe, orderly and afraid. The names are no longer stolen; they are collected by your permission.",
+      "ending": true,
+      "choices": []
+    },
+    "final_sacrifice": {
+      "text": "Years later, a child asks who saved Brackenridge. Nobody knows your name. But the bell never rings again.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

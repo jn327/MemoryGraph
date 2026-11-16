@@ -1,0 +1,143 @@
+{
+  "id": "the_locked_archive",
+  "title": "The Locked Archive",
+  "start": "hall",
+  "macros": {
+    "hasKeyMemory": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "key",
+        "min": 1
+      }
+    },
+    "knowsPassword": {
+      "condition": {
+        "type": "association",
+        "a": "player",
+        "b": "password",
+        "min": 1
+      }
+    }
+  },
+  "nodes": {
+    "hall": {
+      "text": "A locked archive door blocks your way. A brass key hangs in a nearby cabinet; a clerk watches from the desk.",
+      "choices": [
+        {
+          "id": "take_key",
+          "text": "Take the brass key",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "key",
+                "archive",
+                "access"
+              ]
+            }
+          ],
+          "goto": "door"
+        },
+        {
+          "id": "ask_clerk",
+          "text": "Ask the clerk for help",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "clerk",
+                "ask",
+                "politeness"
+              ]
+            }
+          ],
+          "goto": "clerk"
+        },
+        {
+          "id": "force_door",
+          "text": "Try to force the door",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "force",
+                "door",
+                "noise"
+              ]
+            }
+          ],
+          "goto": "door"
+        }
+      ]
+    },
+    "clerk": {
+      "text": "The clerk leans closer. 'The password is ASTROLABE. Please don't tell anyone.'",
+      "onEnter": [
+        {
+          "type": "remember",
+          "concepts": [
+            "player",
+            "clerk",
+            "password",
+            "astrolabe",
+            "trust"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "thank_clerk",
+          "text": "Thank the clerk",
+          "goto": "door"
+        }
+      ]
+    },
+    "door": {
+      "text": "The archive door waits. You consider what you have learned.",
+      "choices": [
+        {
+          "id": "use_key",
+          "text": "Use the key",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "hasKeyMemory"
+          },
+          "goto": "inside"
+        },
+        {
+          "id": "say_password",
+          "text": "Whisper ASTROLABE",
+          "showIf": {
+            "type": "macroCondition",
+            "name": "knowsPassword"
+          },
+          "goto": "inside"
+        },
+        {
+          "id": "try_again",
+          "text": "Return to the hall",
+          "goto": "hall"
+        }
+      ]
+    },
+    "inside": {
+      "text": "The lock clicks. The archive opens onto shelves of forbidden histories.",
+      "choices": [
+        {
+          "id": "leave_archive",
+          "text": "Leave",
+          "goto": "end"
+        }
+      ]
+    },
+    "end": {
+      "text": "You have entered using knowledge or an object you acquired earlier.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

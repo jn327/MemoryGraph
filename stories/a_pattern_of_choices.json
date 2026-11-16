@@ -1,0 +1,202 @@
+{
+  "id": "pattern_of_choices",
+  "title": "A Pattern of Choices",
+  "start": "start",
+  "macros": {},
+  "nodes": {
+    "start": {
+      "text": "A travelling merchant offers you a choice. You will face the same dilemma three times.",
+      "choices": [
+        {
+          "id": "begin",
+          "text": "Begin",
+          "goto": "round1"
+        }
+      ]
+    },
+    "round1": {
+      "text": "A coin lies unattended on a table. What do you do?",
+      "choices": [
+        {
+          "id": "take_coin",
+          "text": "Take it",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "take",
+                "coin",
+                "self_interest"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_choice",
+              "from": "coin_dilemma",
+              "to": "take"
+            }
+          ],
+          "goto": "round2"
+        },
+        {
+          "id": "return_coin",
+          "text": "Hand it to the merchant",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "return",
+                "coin",
+                "honesty"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_choice",
+              "from": "coin_dilemma",
+              "to": "return"
+            }
+          ],
+          "goto": "round2"
+        }
+      ]
+    },
+    "round2": {
+      "text": "A purse has fallen from a traveller's bag. Nobody seems to have noticed.",
+      "choices": [
+        {
+          "id": "take_purse",
+          "text": "Take it",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "take",
+                "purse",
+                "self_interest"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_choice",
+              "from": "purse_dilemma",
+              "to": "take"
+            }
+          ],
+          "goto": "round3"
+        },
+        {
+          "id": "return_purse",
+          "text": "Return it",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "return",
+                "purse",
+                "honesty"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_choice",
+              "from": "purse_dilemma",
+              "to": "return"
+            }
+          ],
+          "goto": "round3"
+        }
+      ]
+    },
+    "round3": {
+      "text": "The merchant deliberately gives you too much change. He hasn't realised.",
+      "choices": [
+        {
+          "id": "keep_change",
+          "text": "Keep the extra money",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "take",
+                "change",
+                "self_interest"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_choice",
+              "from": "change_dilemma",
+              "to": "take"
+            }
+          ],
+          "goto": "assessment"
+        },
+        {
+          "id": "correct_merchant",
+          "text": "Point out the mistake",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "return",
+                "change",
+                "honesty"
+              ]
+            },
+            {
+              "type": "learnTransition",
+              "transitionType": "player_choice",
+              "from": "change_dilemma",
+              "to": "return"
+            }
+          ],
+          "goto": "assessment"
+        }
+      ]
+    },
+    "assessment": {
+      "text": [
+        {
+          "if": {
+            "type": "association",
+            "a": "player",
+            "b": "honesty",
+            "min": 3
+          },
+          "value": "The merchant smiles. 'You have a habit of doing the right thing, even when nobody is watching.'"
+        },
+        {
+          "if": {
+            "type": "association",
+            "a": "player",
+            "b": "self_interest",
+            "min": 3
+          },
+          "value": "The merchant narrows his eyes. 'You seem to look after yourself first.'"
+        },
+        {
+          "value": "The merchant studies you, still unsure what sort of person you are."
+        }
+      ],
+      "choices": [
+        {
+          "id": "finish",
+          "text": "Leave the market",
+          "goto": "end"
+        }
+      ]
+    },
+    "end": {
+      "text": "The merchant remembers your choices. So does the road ahead.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "id": "the_looping_dream",
+  "title": "The Looping Dream",
+  "start": "wake",
+  "macros": {},
+  "nodes": {
+    "wake": {
+      "text": "You wake in the same room again. A note on the table reads: 'The door is not the way out.'",
+      "onEnter": [
+        {
+          "type": "inc",
+          "variable": "loops",
+          "amount": 1
+        },
+        {
+          "type": "remember",
+          "concepts": [
+            "room",
+            "dream",
+            "loop"
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "id": "door",
+          "text": "Try the door",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "door",
+                "escape_attempt"
+              ]
+            }
+          ],
+          "goto": "room"
+        },
+        {
+          "id": "mirror",
+          "text": "Look in the mirror",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "mirror",
+                "self"
+              ]
+            }
+          ],
+          "goto": "room"
+        },
+        {
+          "id": "note",
+          "text": "Read the note again",
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "note",
+                "message"
+              ]
+            }
+          ],
+          "goto": "room"
+        }
+      ]
+    },
+    "room": {
+      "text": "The room folds in on itself. You have been here before.",
+      "choices": [
+        {
+          "id": "wake_again",
+          "text": "Wake up",
+          "showIf": {
+            "type": "variable",
+            "name": "loops",
+            "operator": "lt",
+            "value": 4
+          },
+          "goto": "wake"
+        },
+        {
+          "id": "break_loop",
+          "text": "Remember that this is a dream",
+          "showIf": {
+            "type": "variable",
+            "name": "loops",
+            "operator": "gte",
+            "value": 4
+          },
+          "do": [
+            {
+              "type": "remember",
+              "concepts": [
+                "player",
+                "recognition",
+                "dream",
+                "awareness"
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    },
+    "end": {
+      "text": "The walls dissolve. You escape not by finding a new door, but by recognising the pattern.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}
