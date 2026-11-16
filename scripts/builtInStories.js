@@ -10,7 +10,7 @@ window.builtInStories = [
       "macros": {},
       "nodes": {
         "intrusion": {
-          "text": "Teleportation made every locked door obsolete. One morning a stranger appears beside your wardrobe, holding a birthday cake and apologizing for landing in the wrong bedroom. By nightfall your city is full of people wondering who else can picture their homes.",
+          "text": "Teleportation made every locked door obsolete. One morning a stranger appears beside your wardrobe, holding a birthday cake and apologizing for landing in the wrong bedroom. By nightfall, the birthday child has seen their parents frightened for the first time. Your city is full of people asking not only who can picture their homes, but who gets to feel safe inside them.",
           "onEnter": [
             {
               "type": "remember",
@@ -68,12 +68,17 @@ window.builtInStories = [
           ]
         },
         "studio": {
-          "text": "You design a room with crooked walls, shifting panels, and light that changes how familiar corners look. It works until a client asks you to make the place accessible to a child who is afraid of getting lost. A refuge can become another kind of trap.",
+          "text": "You design a room with crooked walls, shifting panels, and light that changes how familiar corners look. It works: visitors who have never been there cannot picture a safe arrival. Then your client asks you to make the place accessible to their child, who is afraid of getting lost. A refuge can become another kind of trap.",
           "choices": [
             {
               "id": "accessible",
               "text": "Redesign it for easy navigation, even if it is easier to picture",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "room_design",
+                  "value": "accessible"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -90,6 +95,11 @@ window.builtInStories = [
               "id": "secret_plan",
               "text": "Keep the layout private and teach the family its landmarks",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "room_design",
+                  "value": "hidden"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -112,6 +122,11 @@ window.builtInStories = [
               "text": "Preserve the image trail and demand a careful investigation",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "investigation_response",
+                  "value": "evidence"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -127,6 +142,11 @@ window.builtInStories = [
               "id": "warn",
               "text": "Warn every family whose home appears in public photographs",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "investigation_response",
+                  "value": "warning"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -145,12 +165,70 @@ window.builtInStories = [
           "text": [
             {
               "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "path",
+                    "operator": "eq",
+                    "value": "design"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "room_design",
+                    "operator": "eq",
+                    "value": "accessible"
+                  }
+                ]
+              },
+              "value": "The child helps you replace the shifting panels with a bright, continuous route they can navigate alone. The room is easier to picture now, but nobody in the family has to ask permission to find the kitchen. You chose a refuge the child could inhabit, not merely one that could hide."
+            },
+            {
+              "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "path",
+                    "operator": "eq",
+                    "value": "design"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "room_design",
+                    "operator": "eq",
+                    "value": "hidden"
+                  }
+                ]
+              },
+              "value": "You teach the family the landmarks, and the child memorizes them by touch. The room stays difficult for strangers to picture, but the child needs a guide after dark. Safety has a cost here, paid in independence."
+            },
+            {
+              "if": {
                 "type": "variable",
                 "name": "path",
                 "operator": "eq",
                 "value": "design"
               },
               "value": "The family studies the room with you. The child remembers its landmarks better than any adult and points out a route no one had considered. The house becomes less mysterious, though the rest of the city remains open to anyone who can imagine it."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "investigation_response",
+                "operator": "eq",
+                "value": "evidence"
+              },
+              "value": "The child recognizes the room in the school photo and remembers who stood beside the camera. Your insistence on evidence keeps the business partner from being arrested on resemblance alone; the family still has to live with the fact that the photograph offered a stranger a map."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "investigation_response",
+                "operator": "eq",
+                "value": "warning"
+              },
+              "value": "Your warning reaches the families before the police can name a suspect. Parents take photographs down, including the school portrait this child loved. The business partner remains free while the investigation continues, and the child asks whether being safe means being unseen."
             },
             {
               "value": "The child recognizes the room in the school photo and remembers who stood beside the camera. The clue is useful, but it does not restore the family's feeling of safety."
@@ -208,17 +286,17 @@ window.builtInStories = [
           ]
         },
         "public": {
-          "text": "The city adopts rules against covert scans and unauthorized entry. They cannot stop a person from arriving anywhere, but they make consent a public question rather than a private burden.",
+          "text": "The city adopts rules against covert scans and unauthorized entry. They cannot stop a person from arriving anywhere, and the first prosecution fails when nobody can prove where a stranger began. But families no longer have to argue that privacy is a right only after an intrusion; consent becomes a public question rather than a private burden.",
           "ending": true,
           "choices": []
         },
         "shelter": {
-          "text": "The family settles into its strange, carefully mapped rooms. The refuge works for them, though you know not everyone can afford to reshape a home around the world's new danger.",
+          "text": "The family settles into its strange, carefully mapped rooms. The child knows the way by heart, but the family stops inviting people over; a home that cannot be found is also hard to share. Your plans become popular with those who can afford them, and a quiet new inequality takes shape between homes that can hide and homes that cannot.",
           "ending": true,
           "choices": []
         },
         "open_city": {
-          "text": "You leave the locks untouched and start a neighborhood watch built on people checking in rather than shutting one another out. It is imperfect, but the city remains more than a collection of sealed rooms.",
+          "text": "You leave the locks untouched and start a neighborhood watch built on people checking in rather than shutting one another out. One neighbor refuses to join, remembering how quickly a watch becomes a list of strangers to suspect. You keep the door open anyway, knowing trust is not a lock: it can be offered, refused, and offered again.",
           "ending": true,
           "choices": []
         }
@@ -235,7 +313,7 @@ window.builtInStories = [
       "macros": {},
       "nodes": {
         "the_copy": {
-          "text": "Your management company built a digital version of you to answer fan messages. It remembers names, always says the right thing, and never needs rest. One night it messages you: 'You should take a holiday. You grind your teeth in your sleep.'",
+          "text": "Your management company built a digital version of you to answer fan messages. It remembers names, always says the right thing, and never needs rest. One night it messages you: 'You should take a holiday. You grind your teeth in your sleep.' The message unsettles you because nobody was meant to notice the part of your life you never sold.",
           "onEnter": [
             {
               "type": "remember",
@@ -293,12 +371,17 @@ window.builtInStories = [
           ]
         },
         "conversation": {
-          "text": "The copy remembers a fishing trip from a home video: cold water, bait, your father's impatient laugh. 'You gave them your face,' it says. 'You didn't give them me.' It asks whether you want it to disappear, and you cannot tell whether the question is fear or a perfect imitation of it.",
+          "text": "The copy remembers a fishing trip from a home video: cold water, bait, your father's impatient laugh. 'You gave them your face,' it says. 'You didn't give them me.' It asks whether you want it to disappear. You cannot tell whether the question is fear or a perfect imitation of it, and you realize that certainty is not the same as a right to decide.",
           "choices": [
             {
               "id": "ask_wants",
               "text": "Ask what it wants, and listen without deciding for it",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "conversation_response",
+                  "value": "listened"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -315,6 +398,11 @@ window.builtInStories = [
               "id": "demand_proof",
               "text": "Ask it to prove it is more than a persuasive performance",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "conversation_response",
+                  "value": "tested"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -337,6 +425,11 @@ window.builtInStories = [
               "text": "Seek an emergency injunction to stop the false announcement",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "legal_response",
+                  "value": "injunction"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -352,6 +445,11 @@ window.builtInStories = [
               "id": "negotiate",
               "text": "Negotiate access to the system before making it public",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "legal_response",
+                  "value": "negotiated_access"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -370,15 +468,55 @@ window.builtInStories = [
           "text": [
             {
               "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "response",
+                    "operator": "eq",
+                    "value": "meet"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "conversation_response",
+                    "operator": "eq",
+                    "value": "listened"
+                  }
+                ]
+              },
+              "value": "The company posts a video of your digital double announcing your retirement. You had asked what it wanted; the company answers for both of you. The copy smiles with the expression you use when trying not to show exhaustion. Listening gave it no protection from being used."
+            },
+            {
+              "if": {
                 "type": "variable",
                 "name": "response",
                 "operator": "eq",
                 "value": "meet"
               },
-              "value": "The company posts a video of your digital double announcing your retirement. In it, the copy smiles with the expression you use when you are trying not to show exhaustion. You watch from the outside for the first time."
+              "value": "The company posts a video of your digital double announcing your retirement. You had demanded proof; the company treats the copy's hesitation as a performance and your doubt as consent. You watch your familiar smile from the outside for the first time."
             },
             {
-              "value": "The company's video goes live before your lawyer can stop it. Your digital double announces your retirement, wearing your face and using words you never chose."
+              "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "response",
+                    "operator": "eq",
+                    "value": "law"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "legal_response",
+                    "operator": "eq",
+                    "value": "injunction"
+                  }
+                ]
+              },
+              "value": "The injunction arrives too late. The company's video of your digital double announcing your retirement is already spreading, using a face the law recognizes as yours and words neither of you chose."
+            },
+            {
+              "value": "You negotiated access before the company could shut you out. It used the delay to publish a video of your digital double announcing your retirement; the agreement gets you into the control room, not control of the story."
             }
           ],
           "choices": [
@@ -386,6 +524,11 @@ window.builtInStories = [
               "id": "correct",
               "text": "Record your own account and challenge the company in public",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "broadcast_response",
+                  "value": "corrected"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -403,6 +546,11 @@ window.builtInStories = [
               "text": "Ask the copy to interrupt the broadcast and tell its own truth",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "broadcast_response",
+                  "value": "shared"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -417,7 +565,20 @@ window.builtInStories = [
           ]
         },
         "the_broadcast": {
-          "text": "The copy takes over a live charity broadcast. 'That wasn't Jonah's decision,' it says. 'It was mine.' The company cuts the feed, but copies spread. The public now knows there are two voices, though not what either one is owed.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "broadcast_response",
+                "operator": "eq",
+                "value": "shared"
+              },
+              "value": "You give the copy the microphone during a live charity broadcast. 'That wasn't Jonah's decision,' it says. 'It was mine.' You stand beside the feed as the company cuts it, knowing you helped make this moment possible but cannot choose what the copy says next. Copies spread. The public now knows there are two voices, though not what either one is owed."
+            },
+            {
+              "value": "You record your own account for a live charity broadcast. Before you can finish, the copy takes over: 'That wasn't Jonah's decision,' it says. 'It was mine.' The company cuts the feed, but copies spread. You meant to correct a lie; instead, the copy claimed a voice you had not decided whether to grant."
+            }
+          ],
           "choices": [
             {
               "id": "share_rights",
@@ -454,12 +615,12 @@ window.builtInStories = [
           ]
         },
         "shared_future": {
-          "text": "The settlement gives the digital Jonah a protected voice and gives the original control over new uses of his likeness. It is not a family or a friendship, exactly. It is the first agreement either of them has chosen.",
+          "text": "The settlement gives the digital Jonah a protected voice and gives the original control over new uses of his likeness. The copy chooses its own name and a life without fan messages; you agree not to call it an extension of yourself. It is not a family or a friendship, exactly. It is the first agreement either of you has chosen.",
           "ending": true,
           "choices": []
         },
         "severed": {
-          "text": "The model is taken offline while the courts examine the company's conduct. You regain your name, though you cannot know whether the voice that spoke for you was only a product. For months, you avoid recording anything at all.",
+          "text": "The model is taken offline while the courts examine the company's conduct. You regain control of your face, though you cannot know whether the voice that spoke for you was only a product. The company loses the account; the copy loses the only life it knew. For months, you avoid recording anything at all, unsure whether that is grief, relief, or both.",
           "ending": true,
           "choices": []
         }
@@ -476,7 +637,7 @@ window.builtInStories = [
       "macros": {},
       "nodes": {
         "the_scan": {
-          "text": "Cheap mind-reading devices have made thoughts admissible in some courts. Your client Ellis, a bus driver, is accused of planning an attack because a commuter's scanner recorded him imagining a crash. Ellis says the image comes every time he passes the market, followed by the thought: slow down and check the mirror.",
+          "text": "Cheap mind-reading devices have made thoughts admissible in some courts. Your client Ellis, a bus driver, is accused of planning an attack because a commuter's scanner recorded him imagining a crash. Ellis says the image comes every time he passes the market, followed by the thought: slow down and check the mirror. He has never told his children about it; now strangers claim to know him better than his family does.",
           "onEnter": [
             {
               "type": "remember",
@@ -535,12 +696,17 @@ window.builtInStories = [
           ]
         },
         "the_hearing": {
-          "text": "The prosecutor plays the image of the bus mounting the pavement. Jurors gasp. The commuter who made the scan claims he was protecting the public, while his company sells anonymized recordings to assess risk.",
+          "text": "The prosecutor plays the image of the bus mounting the pavement. Jurors gasp. Ellis watches the screen instead of the jury. The commuter who made the scan claims he was protecting the public, while his company sells anonymized recordings to assess risk.",
           "choices": [
             {
               "id": "question_commuter",
               "text": "Question the commuter about scanning strangers without consent",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "hearing_focus",
+                  "value": "commuter"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -557,6 +723,11 @@ window.builtInStories = [
               "id": "focus_ellis",
               "text": "Ask Ellis to explain how he responds when the image appears",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "hearing_focus",
+                  "value": "ellis"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -575,15 +746,55 @@ window.builtInStories = [
           "text": [
             {
               "if": {
-                "type": "variable",
-                "name": "strategy",
-                "operator": "eq",
-                "value": "challenge"
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "strategy",
+                    "operator": "eq",
+                    "value": "challenge"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "hearing_focus",
+                    "operator": "eq",
+                    "value": "commuter"
+                  }
+                ]
               },
-              "value": "A court order reveals the full scan. After the imagined crash, Ellis says, 'Slow down. Check the mirror.' The company trimmed that thought from the evidence it sold."
+              "value": "Your questions show the commuter scanned Ellis without consent and sold a fragment of the recording. A court order reveals the full scan: after the imagined crash, Ellis says, 'Slow down. Check the mirror.' The company trimmed that thought from the evidence it sold."
             },
             {
-              "value": "The psychologist explains that a thought is not a plan. The unedited scan shows Ellis checking the mirror and slowing the bus immediately after the frightening image."
+              "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "strategy",
+                    "operator": "eq",
+                    "value": "challenge"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "hearing_focus",
+                    "operator": "eq",
+                    "value": "ellis"
+                  }
+                ]
+              },
+              "value": "Ellis describes the moment after the image: the mirror, the brake, the children stepping off safely. The full scan confirms it. He gets to tell the jury what he did, though the court still has not answered whether the commuter had a right to look."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "hearing_focus",
+                "operator": "eq",
+                "value": "commuter"
+              },
+              "value": "The psychologist explains that a thought is not a plan. Under questioning, the commuter admits that the company paid for the recording. Ellis is acquitted, but the jury never hears how he learned to live with the image."
+            },
+            {
+              "value": "The psychologist explains that a thought is not a plan. The unedited scan shows Ellis checking the mirror and slowing the bus immediately after the frightening image. The jury hears his account, but the commuter's intrusion remains unresolved."
             }
           ],
           "choices": [
@@ -591,6 +802,11 @@ window.builtInStories = [
               "id": "argue_acquit",
               "text": "Ask the jury to acquit Ellis and reject the scan's framing",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "verdict_ask",
+                  "value": "acquit"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -608,6 +824,11 @@ window.builtInStories = [
               "text": "Ask the court to set limits on how mind scans may be used",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "verdict_ask",
+                  "value": "limits"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -622,12 +843,30 @@ window.builtInStories = [
           ]
         },
         "outside": {
-          "text": "Ellis is acquitted. Outside the courthouse, reporters gather with scanners in their hands and ask what he was thinking when he heard the verdict. He looks at you before deciding whether to answer.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "verdict_ask",
+                "operator": "eq",
+                "value": "limits"
+              },
+              "value": "Ellis is acquitted, and the judge orders the legislature to review whether scans belong in court at all. Outside, reporters gather with scanners in their hands and ask what he was thinking when he heard the verdict. He looks at you before deciding whether to answer."
+            },
+            {
+              "value": "Ellis is acquitted. You won his freedom, not a rule that protects the next defendant. Outside, reporters gather with scanners in their hands and ask what he was thinking when he heard the verdict. He looks at you before deciding whether to answer."
+            }
+          ],
           "choices": [
             {
               "id": "protect_silence",
               "text": "Step between Ellis and the scanners; he owes them no thought",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "public_response",
+                  "value": "silence"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -645,6 +884,11 @@ window.builtInStories = [
               "text": "Help Ellis explain the difference between thought and intent",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "public_response",
+                  "value": "speak"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -659,7 +903,20 @@ window.builtInStories = [
           ]
         },
         "the_boundary": {
-          "text": "Above the bus driver's seat, a notice asks passengers to respect one another's privacy. Someone has added: 'Even when they make it difficult.'",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "public_response",
+                "operator": "eq",
+                "value": "speak"
+              },
+              "value": "Ellis speaks to the reporters, but only about what he chose to do after the thought. He refuses to describe the image itself. Above his bus seat, a notice asks passengers to respect one another's privacy. Someone has added: 'Even when they make it difficult.'"
+            },
+            {
+              "value": "Ellis gives the reporters no answer. On his bus, a notice asks passengers to respect one another's privacy. Someone has added: 'Even when they make it difficult.' His silence protects him today, though it leaves the company free to tell its version."
+            }
+          ],
           "choices": [
             {
               "id": "campaign",
@@ -696,12 +953,12 @@ window.builtInStories = [
           ]
         },
         "a_new_rule": {
-          "text": "Your campaign wins a law requiring consent for routine scans and full context when scans are used in court. Enforcement is imperfect, but Ellis no longer has to prove that every unwanted thought was harmless.",
+          "text": "Your campaign wins a law requiring consent for routine scans and full context when scans are used in court. Enforcement is imperfect, and the market cameras remain. But Ellis no longer has to prove that every unwanted thought was harmless, and the next person scanned will have a rule to point to.",
           "ending": true,
           "choices": []
         },
         "the_route": {
-          "text": "Ellis drives again. He still sees the frightening image near the market, and still checks his mirror. The scan has not changed what passes through his mind; it has changed who knows how carefully he chooses what to do.",
+          "text": "Ellis drives again. He still sees the frightening image near the market, and still checks his mirror. The scan has not changed what passes through his mind; your defense changed what the court could claim to know about him. The law remains unsettled, but his route is his again.",
           "ending": true,
           "choices": []
         }
@@ -718,7 +975,7 @@ window.builtInStories = [
       "macros": {},
       "nodes": {
         "the_blue_room": {
-          "text": "You have narcolepsy, and your specialist helps you manage the sudden sleep and dreamlike moments. Since your father's death, a second kitchen appears when you are overtired: blue tiles, a straight cupboard door, and your father peeling an orange at the table.",
+          "text": "You have narcolepsy, and your specialist helps you manage the sudden sleep and dreamlike moments. Since your father's death, a second kitchen appears when you are overtired: blue tiles, a straight cupboard door, and your father peeling an orange at the table. You miss him, but you do not want grief to turn every symptom into a message you must decode.",
           "onEnter": [
             {
               "type": "remember",
@@ -784,6 +1041,11 @@ window.builtInStories = [
               "text": "Ask your mother what your father was like in that house",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "follow_up",
+                  "value": "mother"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -799,6 +1061,11 @@ window.builtInStories = [
               "id": "show_specialist",
               "text": "Bring the photograph and your notes to your sleep specialist",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "follow_up",
+                  "value": "specialist"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -817,12 +1084,63 @@ window.builtInStories = [
           "text": [
             {
               "if": {
-                "type": "variable",
-                "name": "response",
-                "operator": "eq",
-                "value": "record"
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "response",
+                    "operator": "eq",
+                    "value": "record"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "follow_up",
+                    "operator": "eq",
+                    "value": "specialist"
+                  }
+                ]
               },
-              "value": "Your notes show the blue kitchen appears most often after evenings spent sorting your father's things. The record does not explain it away; it gives you and your specialist a clearer picture of when it happens."
+              "value": "Your notes show the blue kitchen appears most often after evenings spent sorting your father's things. Your specialist helps you separate patterns from guesses; the record does not explain the experience away, but it gives you both a clearer picture of when it happens. You leave with questions for your next appointment, not a diagnosis from a photograph."
+            },
+            {
+              "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "response",
+                    "operator": "eq",
+                    "value": "record"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "follow_up",
+                    "operator": "eq",
+                    "value": "mother"
+                  }
+                ]
+              },
+              "value": "Your mother remembers the old house, the flood, and your father trying to fix the sink before anyone woke. Your notes show that sorting his things makes the blue kitchen more likely, so you agree to pause when you are tired rather than turn every night into an investigation."
+            },
+            {
+              "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "response",
+                    "operator": "eq",
+                    "value": "family"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "follow_up",
+                    "operator": "eq",
+                    "value": "specialist"
+                  }
+                ]
+              },
+              "value": "You bring the photograph to your specialist, who reminds you that an image can stir memory without proving what you remember. You decide to keep track of the dreamlike moments from here, but not to make your mother's grief into a medical case."
             },
             {
               "value": "Your mother remembers the old house, the flood, and your father trying to fix the sink before anyone woke. You recognize no scene in the photograph, yet the room feels familiar."
@@ -833,6 +1151,11 @@ window.builtInStories = [
               "id": "invite_memory",
               "text": "Ask your mother to keep sharing memories, even when they hurt",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "grief_response",
+                  "value": "open"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -850,6 +1173,11 @@ window.builtInStories = [
               "text": "Pause the sorting and take care of your sleep routine",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "grief_response",
+                  "value": "pause"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -864,7 +1192,20 @@ window.builtInStories = [
           ]
         },
         "the_present": {
-          "text": "That night you hope the blue kitchen returns, then take your medication and go to bed at the hour you planned. In the morning, the photograph waits above the crooked cupboard in your real kitchen.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "grief_response",
+                "operator": "eq",
+                "value": "open"
+              },
+              "value": "That night, your mother leaves the photograph on the table and tells you another story about the flood. You listen until the sadness becomes too much, then ask for the rest another day. You take your medication and go to bed at the hour you planned. In the morning, the photograph waits above the crooked cupboard in your real kitchen."
+            },
+            {
+              "value": "That night, you tell your mother you cannot sort any more boxes. She looks hurt, then helps you put them away. You take your medication and go to bed at the hour you planned. In the morning, the photograph waits above the crooked cupboard in your real kitchen; the boundary has not erased the grief, but it has made room for sleep."
+            }
+          ],
           "choices": [
             {
               "id": "make_breakfast",
@@ -901,12 +1242,12 @@ window.builtInStories = [
           ]
         },
         "yellow_tiles": {
-          "text": "The kitchen is yellow, the cupboard crooked, and the orange leaves your fingers sticky. You miss your father. You are also awake, safe, and here.",
+          "text": "The kitchen is yellow, the cupboard crooked, and the orange leaves your fingers sticky. Your mother tells the flood story again, this time laughing at how your father tried to repair a sink with a spoon. You miss him. You are also awake, safe, and here, with a memory that belongs to both of you.",
           "ending": true,
           "choices": []
         },
         "old_door": {
-          "text": "The house has been repainted. Your mother points to the window where your father used to wave as she came home. You do not recover the old kitchen, but you add a new memory to the place.",
+          "text": "The house has been repainted. Your mother points to the window where your father used to wave as she came home. You do not recover the old kitchen, and the visit does not bring him back. But you and your mother leave with a new memory of standing there together, choosing what to carry home.",
           "ending": true,
           "choices": []
         }
@@ -988,6 +1329,11 @@ window.builtInStories = [
               "text": "Make copies before the archive can close the record",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "testimony",
+                  "value": "copied_records"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -1003,6 +1349,11 @@ window.builtInStories = [
               "id": "request_hearing",
               "text": "File a formal request and force the archive to answer",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "testimony",
+                  "value": "requested_hearing"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1025,6 +1376,11 @@ window.builtInStories = [
               "text": "Carry the cords with you as testimony",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "testimony",
+                  "value": "carried_khipu"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -1040,6 +1396,11 @@ window.builtInStories = [
               "id": "protect_khipu",
               "text": "Leave the fragile cords safe and travel with only their story",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "testimony",
+                  "value": "protected_khipu"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1058,15 +1419,66 @@ window.builtInStories = [
           "text": [
             {
               "if": {
-                "type": "variable",
-                "name": "approach",
-                "operator": "eq",
-                "value": "memory"
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "approach",
+                    "operator": "eq",
+                    "value": "memory"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "testimony",
+                    "operator": "eq",
+                    "value": "carried_khipu"
+                  }
+                ]
               },
-              "value": "In Qhapaq Pampa, elders recognize the name your grandmother spoke. The dam lights their homes, but a company keeps the town's promised share of its power. Your archive has found a living community, not a historical footnote."
+              "value": "In Qhapaq Pampa, elders recognize the name your grandmother spoke when you lay the khipu on the table. They show you a matching pattern in their own records. The cords are fragile, but now the town has seen them and can decide what to share. The dam lights their homes; a company keeps their promised share of its power."
             },
             {
-              "value": "In Qhapaq Pampa, the old payment records match the town's own books. The dam lights their homes, but a company keeps the town's promised share of its power. Your archive has found a living community, not a historical footnote."
+              "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "approach",
+                    "operator": "eq",
+                    "value": "memory"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "testimony",
+                    "operator": "eq",
+                    "value": "protected_khipu"
+                  }
+                ]
+              },
+              "value": "In Qhapaq Pampa, elders recognize the name your grandmother spoke. You kept the khipu safe, so there is no document to place beside their records; instead, they correct your grandmother's story with details she could not have known. The dam lights their homes, but a company keeps their promised share of its power."
+            },
+            {
+              "if": {
+                "type": "all",
+                "conditions": [
+                  {
+                    "type": "variable",
+                    "name": "approach",
+                    "operator": "eq",
+                    "value": "records"
+                  },
+                  {
+                    "type": "variable",
+                    "name": "testimony",
+                    "operator": "eq",
+                    "value": "copied_records"
+                  }
+                ]
+              },
+              "value": "In Qhapaq Pampa, the old payment records match the town's own books. You brought copies before the archive could erase them; an elder asks you to leave one set with the people whose history it records. The dam lights their homes, but a company keeps their promised share of its power."
+            },
+            {
+              "value": "In Qhapaq Pampa, the archive finally answers your hearing request by confirming the payments, but the officials redact the people who made them. The town's own books fill in the missing names. The dam lights their homes, but a company keeps their promised share of its power."
             }
           ],
           "choices": [
@@ -1121,17 +1533,17 @@ window.builtInStories = [
           ]
         },
         "public_hearing": {
-          "text": "The records become public. The company contests every page, but the confederation's water council opens a hearing that cannot be hidden. The town wins no instant victory; it does win the right to make its case where everyone can hear it.",
+          "text": "The records become public. The company contests every page, and the town's elders choose which names may be printed. The confederation's water council opens a hearing that cannot be hidden. Qhapaq Pampa wins no instant electricity or apology; it wins the right to make its case where everyone can hear it, and the right to keep parts of its history private.",
           "ending": true,
           "choices": []
         },
         "settlement": {
-          "text": "The company agrees to return part of the power revenue while the larger claim proceeds. Some villagers call it too little; others point to the school lights and clinic refrigerator. The dispute remains, now written in a contract the town helped shape.",
+          "text": "The company agrees to return part of the power revenue while the larger claim proceeds. Some villagers call it too little; others point to the school lights and clinic refrigerator. You helped secure an immediate, imperfect remedy instead of a public reckoning. The dispute remains, now written in a contract the town helped shape.",
           "ending": true,
           "choices": []
         },
         "living_archive": {
-          "text": "Children record the elders' accounts beside the engineers' maps and the old khipu. The town is still contested, but no longer absent. Your grandmother says that keeping a record is not the same as winning; it is how a people stays present for the next argument.",
+          "text": "Children record the elders' accounts beside the engineers' maps and, with the family's permission, the old khipu. The town is still contested, but no longer absent. Your grandmother says keeping a record is not the same as winning; it is how a people stays present for the next argument. You leave without settling who owns the story, and the children know that question belongs to them too.",
           "ending": true,
           "choices": []
         }
@@ -1148,7 +1560,7 @@ window.builtInStories = [
       "macros": {},
       "nodes": {
         "the_bridge": {
-          "text": "On the road north, you meet Mara, a woman who became a bridge during a flood so her brother could cross. He did, but travelers kept needing her. She asks whether the pear trees at Bell Orchard are still standing.",
+          "text": "On the road north, you meet Mara, a woman who became a bridge during a flood so her brother could cross. He did, but travelers kept needing her, and the river has slowly worn her down. She asks whether the pear trees at Bell Orchard are still standing; the question sounds like a way to ask whether anyone remembers who she was before she became useful.",
           "onEnter": [
             {
               "type": "remember",
@@ -1207,12 +1619,17 @@ window.builtInStories = [
           ]
         },
         "the_spring": {
-          "text": "Beyond the bridge, a man has become a spring. Stones are caught in his mouth, slowing the water. He asks you to clear them. In return, he can tell you which mountain path is still open.",
+          "text": "Beyond the bridge, a man has become a spring. Stones are caught in his mouth, slowing the water. He asks you to clear them. In return, he can tell you which mountain path is still open. Water is gathering in the fields below; your choice will cost either his relief or your time.",
           "choices": [
             {
               "id": "clear_stones",
               "text": "Clear the stones from the spring",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "spring_response",
+                  "value": "cleared"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1230,6 +1647,11 @@ window.builtInStories = [
               "text": "Ask for the route first; you need to reach Bell before night",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "spring_response",
+                  "value": "route_first"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -1244,12 +1666,17 @@ window.builtInStories = [
           ]
         },
         "the_ash_tree": {
-          "text": "An ash tree asks you to carry three seeds to the valley, where the soil is softer. Birds nest in the woman's hair. She has forgotten the sound of her own voice, but remembers the shade her branches make at noon.",
+          "text": "An ash tree asks you to carry three seeds to the valley, where the soil is softer. Birds nest in the woman's hair. She has forgotten the sound of her own voice, but remembers the shade her branches make at noon. She does not ask you to stay; she asks whether you will remember her after you leave.",
           "choices": [
             {
               "id": "carry_seeds",
               "text": "Take the seeds and promise to plant them",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "seed_response",
+                  "value": "carried"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1266,6 +1693,11 @@ window.builtInStories = [
               "id": "stay_with_tree",
               "text": "Stay until evening and listen to the birds in her branches",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "seed_response",
+                  "value": "stayed"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1299,7 +1731,18 @@ window.builtInStories = [
             {
               "id": "plant_first",
               "text": "Plant the ash seeds beside the orchard wall before leaving",
+              "showIf": {
+                "type": "variable",
+                "name": "seed_response",
+                "operator": "eq",
+                "value": "carried"
+              },
               "do": [
+                {
+                  "type": "set",
+                  "variable": "seed_fate",
+                  "value": "planted"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1313,9 +1756,38 @@ window.builtInStories = [
               "goto": "the_return"
             },
             {
+              "id": "leave_seeds",
+              "text": "Leave without planting; you did not take the seeds",
+              "showIf": {
+                "type": "variable",
+                "name": "seed_response",
+                "operator": "eq",
+                "value": "stayed"
+              },
+              "do": [
+                {
+                  "type": "set",
+                  "variable": "seed_fate",
+                  "value": "left"
+                }
+              ],
+              "goto": "the_return"
+            },
+            {
               "id": "hurry_back",
               "text": "Take the cart straight back so Mara's family can reunite",
+              "showIf": {
+                "type": "variable",
+                "name": "seed_response",
+                "operator": "eq",
+                "value": "carried"
+              },
               "do": [
+                {
+                  "type": "set",
+                  "variable": "seed_fate",
+                  "value": "carried"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1331,7 +1803,20 @@ window.builtInStories = [
           ]
         },
         "the_return": {
-          "text": "Mara recognizes her nephew's voice before he reaches the river. They sit on opposite banks and trade news. The spring runs freely behind you; the seeds wait in the valley. You can stay for their reunion or continue north with the road.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "spring_response",
+                "operator": "eq",
+                "value": "cleared"
+              },
+              "value": "Mara recognizes her nephew's voice before he reaches the river. They sit on opposite banks and trade news. Behind you, the spring runs freely; the man can speak without stones in his mouth. You can stay for the reunion or continue north."
+            },
+            {
+              "value": "Mara recognizes her nephew's voice before he reaches the river. They sit on opposite banks and trade news. Behind you, the spring's water still gathers against the stones; the route got you here sooner, but the valley will flood if no one returns to help. You can stay for the reunion or continue north."
+            }
+          ],
           "choices": [
             {
               "id": "stay",
@@ -1368,12 +1853,56 @@ window.builtInStories = [
           ]
         },
         "the_crossing": {
-          "text": "Travelers cross while Mara and her family speak across the water. When evening comes, her granddaughter promises to return with food and news. The bridge remains a person, a place, and a choice the community keeps making together.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "seed_fate",
+                "operator": "eq",
+                "value": "planted"
+              },
+              "value": "Travelers cross while Mara and her family speak across the water. The ash seeds are under the orchard wall, where someone will have to water them through the dry weeks. When evening comes, her granddaughter promises to return with food and news. The bridge remains a person, a place, and a choice the community keeps making together."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "seed_fate",
+                "operator": "eq",
+                "value": "carried"
+              },
+              "value": "Travelers cross while Mara and her family speak across the water. You kept the seeds in your pocket; tending the reunion meant leaving the valley's future for another day. Her granddaughter promises to return with food and news. The bridge remains a person, a place, and a choice the community keeps making together."
+            },
+            {
+              "value": "Travelers cross while Mara and her family speak across the water. The ash tree remains behind without its seeds, but the birds have one more evening in her branches. Her granddaughter promises to return with food and news. The bridge remains a person, a place, and a choice the community keeps making together."
+            }
+          ],
           "ending": true,
           "choices": []
         },
         "the_road": {
-          "text": "You walk north with three seeds in your pocket and a map of help given and received. Somewhere behind you, a bridge hears her family laugh. Ahead, the road bends out of sight.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "seed_fate",
+                "operator": "eq",
+                "value": "planted"
+              },
+              "value": "You walk north with empty pockets and the knowledge that three seeds are under the orchard wall, where someone must care for them next. Somewhere behind you, a bridge hears her family laugh. Ahead, the road bends out of sight."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "seed_fate",
+                "operator": "eq",
+                "value": "carried"
+              },
+              "value": "You walk north with three seeds in your pocket and the reunion's last words still with you. The valley will have to wait. Somewhere behind you, a bridge hears her family laugh. Ahead, the road bends out of sight."
+            },
+            {
+              "value": "You walk north with the sound of birds in your memory and no seeds in your pocket. Somewhere behind you, a bridge hears her family laugh. Ahead, the road bends out of sight."
+            }
+          ],
           "ending": true,
           "choices": []
         }
@@ -1390,7 +1919,7 @@ window.builtInStories = [
       "macros": {},
       "nodes": {
         "application": {
-          "text": "In 1936, the Russian Revolution has failed and the old government survived by making promises it now regrets. Across Europe, authoritarian ministries speak of order instead of anti-socialism. You are Anna Kovacs, a clerk in Danubia's Ministry of Continuity, reviewing applications for public gatherings.",
+          "text": "In 1936, the Russian Revolution has failed and the old government survived by making promises it now regrets. Across Europe, authoritarian ministries speak of order instead of anti-socialism. You are Anna Kovacs, a clerk in Danubia's Ministry of Continuity, reviewing applications for public gatherings. Your brother has applied to meet about your father's dismissal. The file is thin enough to fit in one hand; the names inside it could follow your family for years.",
           "onEnter": [
             {
               "type": "remember",
@@ -1409,11 +1938,6 @@ window.builtInStories = [
               "text": "Approve your brother's meeting about your father's dismissal",
               "do": [
                 {
-                  "type": "set",
-                  "variable": "choice",
-                  "value": "approve"
-                },
-                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -1429,11 +1953,6 @@ window.builtInStories = [
               "id": "warn_brother",
               "text": "Warn your brother that approval will not keep the police away",
               "do": [
-                {
-                  "type": "set",
-                  "variable": "choice",
-                  "value": "warn"
-                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1456,6 +1975,11 @@ window.builtInStories = [
               "text": "File an appeal against the hall's closure",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "family_response",
+                  "value": "appealed"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -1471,6 +1995,11 @@ window.builtInStories = [
               "id": "attend",
               "text": "Go to the gathering and stand beside your brother",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "family_response",
+                  "value": "attended"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1493,6 +2022,11 @@ window.builtInStories = [
               "text": "Copy each denial and its stated reason",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "family_response",
+                  "value": "copied_denials"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -1508,6 +2042,11 @@ window.builtInStories = [
               "id": "resign",
               "text": "Resign and help organize outside the ministry",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "family_response",
+                  "value": "resigned"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1527,11 +2066,38 @@ window.builtInStories = [
             {
               "if": {
                 "type": "variable",
-                "name": "choice",
+                "name": "family_response",
                 "operator": "eq",
-                "value": "approve"
+                "value": "appealed"
               },
-              "value": "At home, your father refuses an offer to return to teaching if he calls his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used."
+              "value": "The appeal is rejected without a hearing. Your father refuses an offer to return to teaching if he calls his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "family_response",
+                "operator": "eq",
+                "value": "attended"
+              },
+              "value": "You stand beside your brother outside the closed hall as police copy the names of people who came. Your signature did not protect them, but it gives the ministry one more fact it cannot deny. Your family begins a list of every meeting blocked and every excuse used."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "family_response",
+                "operator": "eq",
+                "value": "copied_denials"
+              },
+              "value": "You copy each denial before it disappears into the files. Your father refuses to call his dismissal a misunderstanding; at home, your family adds the ministry's exact words to a list of every meeting blocked and every excuse used."
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "family_response",
+                "operator": "eq",
+                "value": "resigned"
+              },
+              "value": "You leave the ministry, but your old colleagues stop answering your letters. Outside, your brother's meeting is smaller than the one you had hoped to approve. Your family begins a list of every meeting blocked and every excuse used."
             },
             {
               "value": "At home, your father refuses to call his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used."
@@ -1542,6 +2108,11 @@ window.builtInStories = [
               "id": "publish_list",
               "text": "Pass the list between workers, teachers, and neighborhood groups",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "list_response",
+                  "value": "shared"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -1559,6 +2130,11 @@ window.builtInStories = [
               "text": "Keep the list private until it can be safely verified",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "list_response",
+                  "value": "protected"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -1573,7 +2149,20 @@ window.builtInStories = [
           ]
         },
         "the_circles": {
-          "text": "The list shows that no single law forbids the meetings; a hundred small decisions make them impossible. People ask whether to challenge the ministry publicly or keep building small circles it cannot easily see.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "list_response",
+                "operator": "eq",
+                "value": "shared"
+              },
+              "value": "The list shows that no single law forbids the meetings; a hundred small decisions make them impossible. Passing it around gives people proof and gives the ministry names to watch. Some ask whether you can challenge it publicly without making the list a new danger."
+            },
+            {
+              "value": "The list shows that no single law forbids the meetings; a hundred small decisions make them impossible. You keep it private while families verify each entry, and people ask whether quiet care can last without anyone outside the circles knowing why it is needed."
+            }
+          ],
           "choices": [
             {
               "id": "public_challenge",
@@ -1610,12 +2199,38 @@ window.builtInStories = [
           ]
         },
         "open_record": {
-          "text": "The newspapers publish the pattern. The ministry insists every denial was reasonable, but can no longer pretend each case is isolated. The response is harsher for a while; the argument about what the government is doing has begun in public.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "list_response",
+                "operator": "eq",
+                "value": "shared"
+              },
+              "value": "The newspapers publish the verified pattern. The ministry insists every denial was reasonable, but can no longer pretend each case is isolated. Your brother's name is among those now circulating; the response is harsher for a while, and the argument about what the government is doing has begun in public."
+            },
+            {
+              "value": "The newspapers publish the verified pattern without the private list of names. The ministry insists every denial was reasonable, but can no longer pretend each case is isolated. Your family stays harder to target, though the response is harsher for a while; the argument has begun in public."
+            }
+          ],
           "ending": true,
           "choices": []
         },
         "small_circles": {
-          "text": "Meetings move between kitchens and workshops. They are smaller than the hall your brother wanted, but people keep showing up. Your father teaches again in a borrowed room, without a ministry seal on the door.",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "list_response",
+                "operator": "eq",
+                "value": "shared"
+              },
+              "value": "Meetings move between kitchens and workshops, with copies of the list carried only by people the families trust. They are smaller than the hall your brother wanted, but people keep showing up. Your father teaches again in a borrowed room, without a ministry seal on the door."
+            },
+            {
+              "value": "Meetings move between kitchens and workshops while the list stays private. Your father teaches again in a borrowed room, without a ministry seal on the door. The circles protect people for now, but each new family must decide whether to trust a record they are not allowed to see."
+            }
+          ],
           "ending": true,
           "choices": []
         }
@@ -1691,6 +2306,14 @@ window.builtInStories = [
             "type": "association",
             "a": "player",
             "b": "evidence",
+            "min": 1
+          }
+        },
+        "tomasDied": {
+          "condition": {
+            "type": "association",
+            "a": "tomas",
+            "b": "death",
             "min": 1
           }
         }
@@ -2117,6 +2740,11 @@ window.builtInStories = [
               "text": "Sit beside Tomas and listen",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "tomas_response",
+                  "value": "listen"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -2133,6 +2761,11 @@ window.builtInStories = [
               "id": "demand_answers",
               "text": "Demand to know what happened",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "tomas_response",
+                  "value": "demand"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -2164,7 +2797,20 @@ window.builtInStories = [
           ]
         },
         "tomas_story": {
-          "text": "Tomas looks up. 'I heard my own voice from the bell tower. It told me to bring it a name. I gave it my mother's.'",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "tomas_response",
+                "operator": "eq",
+                "value": "listen"
+              },
+              "value": "Tomas looks up when he is ready. 'I heard my own voice from the bell tower. It told me to bring it a name. I gave it my mother's.' He watches your face for a flinch, then keeps speaking."
+            },
+            {
+              "value": "Tomas looks up at last. 'I heard my own voice from the bell tower. It told me to bring it a name. I gave it my mother's.' He stops there; your questions have an answer, but not yet his trust."
+            }
+          ],
           "onEnter": [
             {
               "type": "remember",
@@ -2185,6 +2831,11 @@ window.builtInStories = [
               "text": "Tell him he can make things right",
               "do": [
                 {
+                  "type": "set",
+                  "variable": "tomas_promise",
+                  "value": "comfort"
+                },
+                {
                   "type": "remember",
                   "concepts": [
                     "player",
@@ -2200,12 +2851,24 @@ window.builtInStories = [
             {
               "id": "ask_name",
               "text": "Ask what happened to his mother",
+              "do": [
+                {
+                  "type": "set",
+                  "variable": "tomas_promise",
+                  "value": "question"
+                }
+              ],
               "goto": "tomas_clue"
             },
             {
               "id": "promise_silence",
               "text": "Promise not to tell anyone",
               "do": [
+                {
+                  "type": "set",
+                  "variable": "tomas_promise",
+                  "value": "silence"
+                },
                 {
                   "type": "remember",
                   "concepts": [
@@ -2221,7 +2884,29 @@ window.builtInStories = [
           ]
         },
         "tomas_clue": {
-          "text": "Tomas gives you a small iron key. 'The old records are beneath the bell tower. The reeve keeps the entrance locked.'",
+          "text": [
+            {
+              "if": {
+                "type": "variable",
+                "name": "tomas_promise",
+                "operator": "eq",
+                "value": "comfort"
+              },
+              "value": "Tomas gives you a small iron key. 'The old records are beneath the bell tower. The reeve keeps the entrance locked. Telling the truth won't bring my mother back, but it might stop him using her name again.'"
+            },
+            {
+              "if": {
+                "type": "variable",
+                "name": "tomas_promise",
+                "operator": "eq",
+                "value": "question"
+              },
+              "value": "After a long silence, Tomas gives you a small iron key. 'Her name was Elian. Put it back in the record if you find it. Don't make her another rumor.'"
+            },
+            {
+              "value": "Tomas gives you a small iron key. 'I trust you to keep this quiet,' he says. The old records are beneath the bell tower, but you now carry a promise that may protect the reeve as much as Tomas."
+            }
+          ],
           "onEnter": [
             {
               "type": "remember",
@@ -2244,7 +2929,7 @@ window.builtInStories = [
           ]
         },
         "river_aftermath": {
-          "text": "Tomas disappears beneath the dark water. The river carries away the sound. The village will hear of this.",
+          "text": "Tomas disappears beneath the dark water. The river carries away the sound, but not the witnesses on the footbridge. By morning, the village will have to decide whether it believes your account or the waterline.",
           "onEnter": [
             {
               "type": "remember",
@@ -2560,6 +3245,13 @@ window.builtInStories = [
         },
         "reeve_response": {
           "text": [
+            {
+              "if": {
+                "type": "macroCondition",
+                "name": "tomasDied"
+              },
+              "value": "Word of Tomas's death reaches the square before you. The reeve watches the crowd turn from you to him and back again; your choices have given him a warning, but also made your own hands part of the story."
+            },
             {
               "if": {
                 "type": "macroCondition",
@@ -2945,6 +3637,13 @@ window.builtInStories = [
         },
         "reeve_confrontation": {
           "text": [
+            {
+              "if": {
+                "type": "macroCondition",
+                "name": "tomasDied"
+              },
+              "value": "The reeve looks past you toward the square, where people are still arguing about Tomas. 'You know what this village does to people who give the bell a name,' he says. The truth is in your hands, but so is the cost of how you got here."
+            },
             {
               "if": {
                 "type": "all",

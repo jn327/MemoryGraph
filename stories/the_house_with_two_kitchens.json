@@ -6,7 +6,7 @@
   "macros": {},
   "nodes": {
     "the_blue_room": {
-      "text": "You have narcolepsy, and your specialist helps you manage the sudden sleep and dreamlike moments. Since your father's death, a second kitchen appears when you are overtired: blue tiles, a straight cupboard door, and your father peeling an orange at the table.",
+      "text": "You have narcolepsy, and your specialist helps you manage the sudden sleep and dreamlike moments. Since your father's death, a second kitchen appears when you are overtired: blue tiles, a straight cupboard door, and your father peeling an orange at the table. You miss him, but you do not want grief to turn every symptom into a message you must decode.",
       "onEnter": [{ "type": "remember", "concepts": ["Clara", "narcolepsy", "dream", "father", "kitchen"] }],
       "choices": [
         {
@@ -35,13 +35,19 @@
         {
           "id": "ask_mother",
           "text": "Ask your mother what your father was like in that house",
-          "do": [{ "type": "remember", "concepts": ["player", "story", "father", "shared_memory"] }],
+          "do": [
+            { "type": "set", "variable": "follow_up", "value": "mother" },
+            { "type": "remember", "concepts": ["player", "story", "father", "shared_memory"] }
+          ],
           "goto": "the_note"
         },
         {
           "id": "show_specialist",
           "text": "Bring the photograph and your notes to your sleep specialist",
-          "do": [{ "type": "remember", "concepts": ["player", "treatment", "trust", "health"] }],
+          "do": [
+            { "type": "set", "variable": "follow_up", "value": "specialist" },
+            { "type": "remember", "concepts": ["player", "treatment", "trust", "health"] }
+          ],
           "goto": "the_note"
         }
       ]
@@ -49,8 +55,34 @@
     "the_note": {
       "text": [
         {
-          "if": { "type": "variable", "name": "response", "operator": "eq", "value": "record" },
-          "value": "Your notes show the blue kitchen appears most often after evenings spent sorting your father's things. The record does not explain it away; it gives you and your specialist a clearer picture of when it happens."
+          "if": {
+            "type": "all",
+            "conditions": [
+              { "type": "variable", "name": "response", "operator": "eq", "value": "record" },
+              { "type": "variable", "name": "follow_up", "operator": "eq", "value": "specialist" }
+            ]
+          },
+          "value": "Your notes show the blue kitchen appears most often after evenings spent sorting your father's things. Your specialist helps you separate patterns from guesses; the record does not explain the experience away, but it gives you both a clearer picture of when it happens. You leave with questions for your next appointment, not a diagnosis from a photograph."
+        },
+        {
+          "if": {
+            "type": "all",
+            "conditions": [
+              { "type": "variable", "name": "response", "operator": "eq", "value": "record" },
+              { "type": "variable", "name": "follow_up", "operator": "eq", "value": "mother" }
+            ]
+          },
+          "value": "Your mother remembers the old house, the flood, and your father trying to fix the sink before anyone woke. Your notes show that sorting his things makes the blue kitchen more likely, so you agree to pause when you are tired rather than turn every night into an investigation."
+        },
+        {
+          "if": {
+            "type": "all",
+            "conditions": [
+              { "type": "variable", "name": "response", "operator": "eq", "value": "family" },
+              { "type": "variable", "name": "follow_up", "operator": "eq", "value": "specialist" }
+            ]
+          },
+          "value": "You bring the photograph to your specialist, who reminds you that an image can stir memory without proving what you remember. You decide to keep track of the dreamlike moments from here, but not to make your mother's grief into a medical case."
         },
         { "value": "Your mother remembers the old house, the flood, and your father trying to fix the sink before anyone woke. You recognize no scene in the photograph, yet the room feels familiar." }
       ],
@@ -58,19 +90,33 @@
         {
           "id": "invite_memory",
           "text": "Ask your mother to keep sharing memories, even when they hurt",
-          "do": [{ "type": "remember", "concepts": ["player", "openness", "grief", "connection"] }],
+          "do": [
+            { "type": "set", "variable": "grief_response", "value": "open" },
+            { "type": "remember", "concepts": ["player", "openness", "grief", "connection"] }
+          ],
           "goto": "the_present"
         },
         {
           "id": "set_limits",
           "text": "Pause the sorting and take care of your sleep routine",
-          "do": [{ "type": "remember", "concepts": ["player", "rest", "boundary", "self_care"] }],
+          "do": [
+            { "type": "set", "variable": "grief_response", "value": "pause" },
+            { "type": "remember", "concepts": ["player", "rest", "boundary", "self_care"] }
+          ],
           "goto": "the_present"
         }
       ]
     },
     "the_present": {
-      "text": "That night you hope the blue kitchen returns, then take your medication and go to bed at the hour you planned. In the morning, the photograph waits above the crooked cupboard in your real kitchen.",
+      "text": [
+        {
+          "if": { "type": "variable", "name": "grief_response", "operator": "eq", "value": "open" },
+          "value": "That night, your mother leaves the photograph on the table and tells you another story about the flood. You listen until the sadness becomes too much, then ask for the rest another day. You take your medication and go to bed at the hour you planned. In the morning, the photograph waits above the crooked cupboard in your real kitchen."
+        },
+        {
+          "value": "That night, you tell your mother you cannot sort any more boxes. She looks hurt, then helps you put them away. You take your medication and go to bed at the hour you planned. In the morning, the photograph waits above the crooked cupboard in your real kitchen; the boundary has not erased the grief, but it has made room for sleep."
+        }
+      ],
       "choices": [
         {
           "id": "make_breakfast",
@@ -87,12 +133,12 @@
       ]
     },
     "yellow_tiles": {
-      "text": "The kitchen is yellow, the cupboard crooked, and the orange leaves your fingers sticky. You miss your father. You are also awake, safe, and here.",
+      "text": "The kitchen is yellow, the cupboard crooked, and the orange leaves your fingers sticky. Your mother tells the flood story again, this time laughing at how your father tried to repair a sink with a spoon. You miss him. You are also awake, safe, and here, with a memory that belongs to both of you.",
       "ending": true,
       "choices": []
     },
     "old_door": {
-      "text": "The house has been repainted. Your mother points to the window where your father used to wave as she came home. You do not recover the old kitchen, but you add a new memory to the place.",
+      "text": "The house has been repainted. Your mother points to the window where your father used to wave as she came home. You do not recover the old kitchen, and the visit does not bring him back. But you and your mother leave with a new memory of standing there together, choosing what to carry home.",
       "ending": true,
       "choices": []
     }

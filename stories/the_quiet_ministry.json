@@ -6,14 +6,13 @@
   "macros": {},
   "nodes": {
     "application": {
-      "text": "In 1936, the Russian Revolution has failed and the old government survived by making promises it now regrets. Across Europe, authoritarian ministries speak of order instead of anti-socialism. You are Anna Kovacs, a clerk in Danubia's Ministry of Continuity, reviewing applications for public gatherings.",
+      "text": "In 1936, the Russian Revolution has failed and the old government survived by making promises it now regrets. Across Europe, authoritarian ministries speak of order instead of anti-socialism. You are Anna Kovacs, a clerk in Danubia's Ministry of Continuity, reviewing applications for public gatherings. Your brother has applied to meet about your father's dismissal. The file is thin enough to fit in one hand; the names inside it could follow your family for years.",
       "onEnter": [{ "type": "remember", "concepts": ["Danubia", "ministry", "order", "gathering", "permission"] }],
       "choices": [
         {
           "id": "approve_brother",
           "text": "Approve your brother's meeting about your father's dismissal",
           "do": [
-            { "type": "set", "variable": "choice", "value": "approve" },
             { "type": "remember", "concepts": ["player", "family", "courage", "petition"] }
           ],
           "goto": "the_hall"
@@ -22,7 +21,6 @@
           "id": "warn_brother",
           "text": "Warn your brother that approval will not keep the police away",
           "do": [
-            { "type": "set", "variable": "choice", "value": "warn" },
             { "type": "remember", "concepts": ["player", "caution", "family", "fear"] }
           ],
           "goto": "the_office"
@@ -35,13 +33,19 @@
         {
           "id": "appeal_closure",
           "text": "File an appeal against the hall's closure",
-          "do": [{ "type": "remember", "concepts": ["player", "appeal", "law", "persistence"] }],
+          "do": [
+            { "type": "set", "variable": "family_response", "value": "appealed" },
+            { "type": "remember", "concepts": ["player", "appeal", "law", "persistence"] }
+          ],
           "goto": "the_list"
         },
         {
           "id": "attend",
           "text": "Go to the gathering and stand beside your brother",
-          "do": [{ "type": "remember", "concepts": ["player", "solidarity", "risk", "presence"] }],
+          "do": [
+            { "type": "set", "variable": "family_response", "value": "attended" },
+            { "type": "remember", "concepts": ["player", "solidarity", "risk", "presence"] }
+          ],
           "goto": "the_list"
         }
       ]
@@ -52,13 +56,19 @@
         {
           "id": "copy_rules",
           "text": "Copy each denial and its stated reason",
-          "do": [{ "type": "remember", "concepts": ["player", "documentation", "bureaucracy", "evidence"] }],
+          "do": [
+            { "type": "set", "variable": "family_response", "value": "copied_denials" },
+            { "type": "remember", "concepts": ["player", "documentation", "bureaucracy", "evidence"] }
+          ],
           "goto": "the_list"
         },
         {
           "id": "resign",
           "text": "Resign and help organize outside the ministry",
-          "do": [{ "type": "remember", "concepts": ["player", "resistance", "choice", "risk"] }],
+          "do": [
+            { "type": "set", "variable": "family_response", "value": "resigned" },
+            { "type": "remember", "concepts": ["player", "resistance", "choice", "risk"] }
+          ],
           "goto": "the_list"
         }
       ]
@@ -66,8 +76,20 @@
     "the_list": {
       "text": [
         {
-          "if": { "type": "variable", "name": "choice", "operator": "eq", "value": "approve" },
-          "value": "At home, your father refuses an offer to return to teaching if he calls his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used."
+          "if": { "type": "variable", "name": "family_response", "operator": "eq", "value": "appealed" },
+          "value": "The appeal is rejected without a hearing. Your father refuses an offer to return to teaching if he calls his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used."
+        },
+        {
+          "if": { "type": "variable", "name": "family_response", "operator": "eq", "value": "attended" },
+          "value": "You stand beside your brother outside the closed hall as police copy the names of people who came. Your signature did not protect them, but it gives the ministry one more fact it cannot deny. Your family begins a list of every meeting blocked and every excuse used."
+        },
+        {
+          "if": { "type": "variable", "name": "family_response", "operator": "eq", "value": "copied_denials" },
+          "value": "You copy each denial before it disappears into the files. Your father refuses to call his dismissal a misunderstanding; at home, your family adds the ministry's exact words to a list of every meeting blocked and every excuse used."
+        },
+        {
+          "if": { "type": "variable", "name": "family_response", "operator": "eq", "value": "resigned" },
+          "value": "You leave the ministry, but your old colleagues stop answering your letters. Outside, your brother's meeting is smaller than the one you had hoped to approve. Your family begins a list of every meeting blocked and every excuse used."
         },
         { "value": "At home, your father refuses to call his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used." }
       ],
@@ -75,19 +97,33 @@
         {
           "id": "publish_list",
           "text": "Pass the list between workers, teachers, and neighborhood groups",
-          "do": [{ "type": "remember", "concepts": ["player", "public_record", "community", "truth"] }],
+          "do": [
+            { "type": "set", "variable": "list_response", "value": "shared" },
+            { "type": "remember", "concepts": ["player", "public_record", "community", "truth"] }
+          ],
           "goto": "the_circles"
         },
         {
           "id": "save_list",
           "text": "Keep the list private until it can be safely verified",
-          "do": [{ "type": "remember", "concepts": ["player", "protection", "patience", "family"] }],
+          "do": [
+            { "type": "set", "variable": "list_response", "value": "protected" },
+            { "type": "remember", "concepts": ["player", "protection", "patience", "family"] }
+          ],
           "goto": "the_circles"
         }
       ]
     },
     "the_circles": {
-      "text": "The list shows that no single law forbids the meetings; a hundred small decisions make them impossible. People ask whether to challenge the ministry publicly or keep building small circles it cannot easily see.",
+      "text": [
+        {
+          "if": { "type": "variable", "name": "list_response", "operator": "eq", "value": "shared" },
+          "value": "The list shows that no single law forbids the meetings; a hundred small decisions make them impossible. Passing it around gives people proof and gives the ministry names to watch. Some ask whether you can challenge it publicly without making the list a new danger."
+        },
+        {
+          "value": "The list shows that no single law forbids the meetings; a hundred small decisions make them impossible. You keep it private while families verify each entry, and people ask whether quiet care can last without anyone outside the circles knowing why it is needed."
+        }
+      ],
       "choices": [
         {
           "id": "public_challenge",
@@ -104,12 +140,28 @@
       ]
     },
     "open_record": {
-      "text": "The newspapers publish the pattern. The ministry insists every denial was reasonable, but can no longer pretend each case is isolated. The response is harsher for a while; the argument about what the government is doing has begun in public.",
+      "text": [
+        {
+          "if": { "type": "variable", "name": "list_response", "operator": "eq", "value": "shared" },
+          "value": "The newspapers publish the verified pattern. The ministry insists every denial was reasonable, but can no longer pretend each case is isolated. Your brother's name is among those now circulating; the response is harsher for a while, and the argument about what the government is doing has begun in public."
+        },
+        {
+          "value": "The newspapers publish the verified pattern without the private list of names. The ministry insists every denial was reasonable, but can no longer pretend each case is isolated. Your family stays harder to target, though the response is harsher for a while; the argument has begun in public."
+        }
+      ],
       "ending": true,
       "choices": []
     },
     "small_circles": {
-      "text": "Meetings move between kitchens and workshops. They are smaller than the hall your brother wanted, but people keep showing up. Your father teaches again in a borrowed room, without a ministry seal on the door.",
+      "text": [
+        {
+          "if": { "type": "variable", "name": "list_response", "operator": "eq", "value": "shared" },
+          "value": "Meetings move between kitchens and workshops, with copies of the list carried only by people the families trust. They are smaller than the hall your brother wanted, but people keep showing up. Your father teaches again in a borrowed room, without a ministry seal on the door."
+        },
+        {
+          "value": "Meetings move between kitchens and workshops while the list stays private. Your father teaches again in a borrowed room, without a ministry seal on the door. The circles protect people for now, but each new family must decide whether to trust a record they are not allowed to see."
+        }
+      ],
       "ending": true,
       "choices": []
     }

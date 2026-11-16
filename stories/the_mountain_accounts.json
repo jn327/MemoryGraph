@@ -37,13 +37,19 @@
         {
           "id": "copy_ledgers",
           "text": "Make copies before the archive can close the record",
-          "do": [{ "type": "remember", "concepts": ["player", "copies", "proof", "risk"] }],
+          "do": [
+            { "type": "set", "variable": "testimony", "value": "copied_records" },
+            { "type": "remember", "concepts": ["player", "copies", "proof", "risk"] }
+          ],
           "goto": "the_dam"
         },
         {
           "id": "request_hearing",
           "text": "File a formal request and force the archive to answer",
-          "do": [{ "type": "remember", "concepts": ["player", "law", "patience", "public_record"] }],
+          "do": [
+            { "type": "set", "variable": "testimony", "value": "requested_hearing" },
+            { "type": "remember", "concepts": ["player", "law", "patience", "public_record"] }
+          ],
           "goto": "the_dam"
         }
       ]
@@ -54,13 +60,19 @@
         {
           "id": "bring_khipu",
           "text": "Carry the cords with you as testimony",
-          "do": [{ "type": "remember", "concepts": ["player", "testimony", "khipu", "shared_history"] }],
+          "do": [
+            { "type": "set", "variable": "testimony", "value": "carried_khipu" },
+            { "type": "remember", "concepts": ["player", "testimony", "khipu", "shared_history"] }
+          ],
           "goto": "the_dam"
         },
         {
           "id": "protect_khipu",
           "text": "Leave the fragile cords safe and travel with only their story",
-          "do": [{ "type": "remember", "concepts": ["player", "protection", "oral_history", "care"] }],
+          "do": [
+            { "type": "set", "variable": "testimony", "value": "protected_khipu" },
+            { "type": "remember", "concepts": ["player", "protection", "oral_history", "care"] }
+          ],
           "goto": "the_dam"
         }
       ]
@@ -68,10 +80,38 @@
     "the_dam": {
       "text": [
         {
-          "if": { "type": "variable", "name": "approach", "operator": "eq", "value": "memory" },
-          "value": "In Qhapaq Pampa, elders recognize the name your grandmother spoke. The dam lights their homes, but a company keeps the town's promised share of its power. Your archive has found a living community, not a historical footnote."
+          "if": {
+            "type": "all",
+            "conditions": [
+              { "type": "variable", "name": "approach", "operator": "eq", "value": "memory" },
+              { "type": "variable", "name": "testimony", "operator": "eq", "value": "carried_khipu" }
+            ]
+          },
+          "value": "In Qhapaq Pampa, elders recognize the name your grandmother spoke when you lay the khipu on the table. They show you a matching pattern in their own records. The cords are fragile, but now the town has seen them and can decide what to share. The dam lights their homes; a company keeps their promised share of its power."
         },
-        { "value": "In Qhapaq Pampa, the old payment records match the town's own books. The dam lights their homes, but a company keeps the town's promised share of its power. Your archive has found a living community, not a historical footnote." }
+        {
+          "if": {
+            "type": "all",
+            "conditions": [
+              { "type": "variable", "name": "approach", "operator": "eq", "value": "memory" },
+              { "type": "variable", "name": "testimony", "operator": "eq", "value": "protected_khipu" }
+            ]
+          },
+          "value": "In Qhapaq Pampa, elders recognize the name your grandmother spoke. You kept the khipu safe, so there is no document to place beside their records; instead, they correct your grandmother's story with details she could not have known. The dam lights their homes, but a company keeps their promised share of its power."
+        },
+        {
+          "if": {
+            "type": "all",
+            "conditions": [
+              { "type": "variable", "name": "approach", "operator": "eq", "value": "records" },
+              { "type": "variable", "name": "testimony", "operator": "eq", "value": "copied_records" }
+            ]
+          },
+          "value": "In Qhapaq Pampa, the old payment records match the town's own books. You brought copies before the archive could erase them; an elder asks you to leave one set with the people whose history it records. The dam lights their homes, but a company keeps their promised share of its power."
+        },
+        {
+          "value": "In Qhapaq Pampa, the archive finally answers your hearing request by confirming the payments, but the officials redact the people who made them. The town's own books fill in the missing names. The dam lights their homes, but a company keeps their promised share of its power."
+        }
       ],
       "choices": [
         {
@@ -95,17 +135,17 @@
       ]
     },
     "public_hearing": {
-      "text": "The records become public. The company contests every page, but the confederation's water council opens a hearing that cannot be hidden. The town wins no instant victory; it does win the right to make its case where everyone can hear it.",
+      "text": "The records become public. The company contests every page, and the town's elders choose which names may be printed. The confederation's water council opens a hearing that cannot be hidden. Qhapaq Pampa wins no instant electricity or apology; it wins the right to make its case where everyone can hear it, and the right to keep parts of its history private.",
       "ending": true,
       "choices": []
     },
     "settlement": {
-      "text": "The company agrees to return part of the power revenue while the larger claim proceeds. Some villagers call it too little; others point to the school lights and clinic refrigerator. The dispute remains, now written in a contract the town helped shape.",
+      "text": "The company agrees to return part of the power revenue while the larger claim proceeds. Some villagers call it too little; others point to the school lights and clinic refrigerator. You helped secure an immediate, imperfect remedy instead of a public reckoning. The dispute remains, now written in a contract the town helped shape.",
       "ending": true,
       "choices": []
     },
     "living_archive": {
-      "text": "Children record the elders' accounts beside the engineers' maps and the old khipu. The town is still contested, but no longer absent. Your grandmother says that keeping a record is not the same as winning; it is how a people stays present for the next argument.",
+      "text": "Children record the elders' accounts beside the engineers' maps and, with the family's permission, the old khipu. The town is still contested, but no longer absent. Your grandmother says keeping a record is not the same as winning; it is how a people stays present for the next argument. You leave without settling who owns the story, and the children know that question belongs to them too.",
       "ending": true,
       "choices": []
     }

@@ -67,6 +67,14 @@
         "b": "evidence",
         "min": 1
       }
+    },
+    "tomasDied": {
+      "condition": {
+        "type": "association",
+        "a": "tomas",
+        "b": "death",
+        "min": 1
+      }
     }
   },
   "nodes": {
@@ -491,6 +499,11 @@
           "text": "Sit beside Tomas and listen",
           "do": [
             {
+              "type": "set",
+              "variable": "tomas_response",
+              "value": "listen"
+            },
+            {
               "type": "remember",
               "concepts": [
                 "player",
@@ -507,6 +520,11 @@
           "id": "demand_answers",
           "text": "Demand to know what happened",
           "do": [
+            {
+              "type": "set",
+              "variable": "tomas_response",
+              "value": "demand"
+            },
             {
               "type": "remember",
               "concepts": [
@@ -538,7 +556,13 @@
       ]
     },
     "tomas_story": {
-      "text": "Tomas looks up. 'I heard my own voice from the bell tower. It told me to bring it a name. I gave it my mother's.'",
+      "text": [
+        {
+          "if": { "type": "variable", "name": "tomas_response", "operator": "eq", "value": "listen" },
+          "value": "Tomas looks up when he is ready. 'I heard my own voice from the bell tower. It told me to bring it a name. I gave it my mother's.' He watches your face for a flinch, then keeps speaking."
+        },
+        { "value": "Tomas looks up at last. 'I heard my own voice from the bell tower. It told me to bring it a name. I gave it my mother's.' He stops there; your questions have an answer, but not yet his trust." }
+      ],
       "onEnter": [
         {
           "type": "remember",
@@ -559,6 +583,11 @@
           "text": "Tell him he can make things right",
           "do": [
             {
+              "type": "set",
+              "variable": "tomas_promise",
+              "value": "comfort"
+            },
+            {
               "type": "remember",
               "concepts": [
                 "player",
@@ -574,12 +603,24 @@
         {
           "id": "ask_name",
           "text": "Ask what happened to his mother",
+          "do": [
+            {
+              "type": "set",
+              "variable": "tomas_promise",
+              "value": "question"
+            }
+          ],
           "goto": "tomas_clue"
         },
         {
           "id": "promise_silence",
           "text": "Promise not to tell anyone",
           "do": [
+            {
+              "type": "set",
+              "variable": "tomas_promise",
+              "value": "silence"
+            },
             {
               "type": "remember",
               "concepts": [
@@ -595,7 +636,19 @@
       ]
     },
     "tomas_clue": {
-      "text": "Tomas gives you a small iron key. 'The old records are beneath the bell tower. The reeve keeps the entrance locked.'",
+      "text": [
+        {
+          "if": { "type": "variable", "name": "tomas_promise", "operator": "eq", "value": "comfort" },
+          "value": "Tomas gives you a small iron key. 'The old records are beneath the bell tower. The reeve keeps the entrance locked. Telling the truth won't bring my mother back, but it might stop him using her name again.'"
+        },
+        {
+          "if": { "type": "variable", "name": "tomas_promise", "operator": "eq", "value": "question" },
+          "value": "After a long silence, Tomas gives you a small iron key. 'Her name was Elian. Put it back in the record if you find it. Don't make her another rumor.'"
+        },
+        {
+          "value": "Tomas gives you a small iron key. 'I trust you to keep this quiet,' he says. The old records are beneath the bell tower, but you now carry a promise that may protect the reeve as much as Tomas."
+        }
+      ],
       "onEnter": [
         {
           "type": "remember",
@@ -618,7 +671,7 @@
       ]
     },
     "river_aftermath": {
-      "text": "Tomas disappears beneath the dark water. The river carries away the sound. The village will hear of this.",
+      "text": "Tomas disappears beneath the dark water. The river carries away the sound, but not the witnesses on the footbridge. By morning, the village will have to decide whether it believes your account or the waterline.",
       "onEnter": [
         {
           "type": "remember",
@@ -934,6 +987,13 @@
     },
     "reeve_response": {
       "text": [
+        {
+          "if": {
+            "type": "macroCondition",
+            "name": "tomasDied"
+          },
+          "value": "Word of Tomas's death reaches the square before you. The reeve watches the crowd turn from you to him and back again; your choices have given him a warning, but also made your own hands part of the story."
+        },
         {
           "if": {
             "type": "macroCondition",
@@ -1319,6 +1379,10 @@
     },
     "reeve_confrontation": {
       "text": [
+        {
+          "if": { "type": "macroCondition", "name": "tomasDied" },
+          "value": "The reeve looks past you toward the square, where people are still arguing about Tomas. 'You know what this village does to people who give the bell a name,' he says. The truth is in your hands, but so is the cost of how you got here."
+        },
         {
           "if": {
             "type": "all",
