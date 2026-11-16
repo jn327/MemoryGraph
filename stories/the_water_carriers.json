@@ -1,0 +1,116 @@
+{
+  "id": "the_water_carriers",
+  "title": "The Water Carriers",
+  "start": "the_seed",
+  "macros": {},
+  "nodes": {
+    "the_seed": {
+      "text": "In the fourteenth century, you are taken from your home by captors serving a powerful empire in Mali. Before the journey begins, you hide a seed your mother gave you beneath your tongue. At the market, you are sold to merchants who will carry you north across the Sahara toward Cairo.",
+      "onEnter": [{ "type": "remember", "concepts": ["Sira", "Mali", "capture", "seed", "journey"] }],
+      "choices": [
+        {
+          "id": "keep_seed",
+          "text": "Hide the seed in the hem of your dress and keep it",
+          "do": [
+            { "type": "set", "variable": "seed", "value": "kept" },
+            { "type": "remember", "concepts": ["player", "home", "memory", "defiance"] }
+          ],
+          "goto": "the_caravan"
+        },
+        {
+          "id": "share_seed",
+          "text": "Show the seed to Fanta, an older traveler who offers to help",
+          "do": [
+            { "type": "set", "variable": "seed", "value": "shared" },
+            { "type": "remember", "concepts": ["player", "trust", "Fanta", "solidarity"] }
+          ],
+          "goto": "the_caravan"
+        }
+      ]
+    },
+    "the_caravan": {
+      "text": "The caravan moves before dawn and rests in the worst heat. Fanta teaches you to drink slowly and to watch the water skins. When she collapses at a well, the leader says the group must move on before the animals are lost.",
+      "choices": [
+        {
+          "id": "give_water",
+          "text": "Offer Fanta some of your water and ask others to wait",
+          "do": [{ "type": "remember", "concepts": ["player", "care", "water", "delay", "Fanta"] }],
+          "goto": "the_well"
+        },
+        {
+          "id": "save_water",
+          "text": "Save your water; you may need it to survive the crossing",
+          "do": [{ "type": "remember", "concepts": ["player", "survival", "fear", "scarcity"] }],
+          "goto": "the_well"
+        }
+      ]
+    },
+    "the_well": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "seed", "operator": "eq", "value": "shared" },
+          "value": "Others help carry Fanta into the shade. Before the caravan moves again, she returns your seed and says it is already a story you both own. The delay angers the guards, but Fanta walks on."
+        },
+        { "value": "Fanta survives the day, helped by another traveler who gives up a measure of water. As the caravan leaves, she sees the seed hidden in your hem and understands why you kept it." }
+      ],
+      "choices": [
+        {
+          "id": "stay_together",
+          "text": "Ask to remain beside Fanta as the caravan continues",
+          "do": [{ "type": "remember", "concepts": ["player", "companionship", "endurance", "trust"] }],
+          "goto": "cairo"
+        },
+        {
+          "id": "learn_routes",
+          "text": "Learn the names of wells and towns from every traveler",
+          "do": [{ "type": "remember", "concepts": ["player", "knowledge", "routes", "attention"] }],
+          "goto": "cairo"
+        }
+      ]
+    },
+    "cairo": {
+      "text": "You reach Cairo after a journey measured in thirst, sales, and days whose names you do not know. You are sold separately from Fanta and made to work in a household near the river. There are others from the south, each carrying a different road in memory.",
+      "choices": [
+        {
+          "id": "tell_story",
+          "text": "Tell a newly arrived girl about home and the seed",
+          "do": [{ "type": "remember", "concepts": ["player", "story", "home", "comfort", "seed"] }],
+          "goto": "what_remains"
+        },
+        {
+          "id": "seek_fanta",
+          "text": "Ask travelers whether they have heard what became of Fanta",
+          "do": [{ "type": "remember", "concepts": ["player", "search", "hope", "friendship"] }],
+          "goto": "what_remains"
+        }
+      ]
+    },
+    "what_remains": {
+      "text": "The seed has dried and cracked; it will not grow. The girl asks you to tell the story again, this time slowly enough that she can remember every detail. Your life is still controlled by others, but the memory of your home is not something they can fully inventory.",
+      "choices": [
+        {
+          "id": "keep_seed",
+          "text": "Keep the seed wrapped beneath a loose stone as a private remembrance",
+          "do": [{ "type": "remember", "concepts": ["player", "private_memory", "endurance", "loss"] }],
+          "goto": "the_kept_seed"
+        },
+        {
+          "id": "pass_story",
+          "text": "Give the seed to the girl and let the story travel with her",
+          "do": [{ "type": "remember", "concepts": ["player", "inheritance", "solidarity", "story"] }],
+          "goto": "the_shared_seed"
+        }
+      ]
+    },
+    "the_kept_seed": {
+      "text": "You keep the seed, cracked and useless, because it came from the patch of earth your mother chose. At night you remember the morning light on that place. The memory does not undo the journey, but it remains yours.",
+      "ending": true,
+      "choices": []
+    },
+    "the_shared_seed": {
+      "text": "The girl carries the seed's story into another household. She adds her own memory to it, and later someone else does the same. Nothing grows from the seed, but the story crosses distances no merchant planned.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

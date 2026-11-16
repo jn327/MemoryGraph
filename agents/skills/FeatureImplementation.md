@@ -2,18 +2,18 @@
 ---
 name: implement-feature
 description: >
-  Implement new game features or modify existing gameplay systems.
-  Use when adding mechanics, entities, UI, scenes or other game functionality.
+  Implement MemoryGraph or NarrativeEngine features and the separate browser demo.
+  Use when changing narrative runtime behavior, memory behavior, or demo UI.
 ---
 
 # Feature Implementation Workflow
 
 ## Step 1: Understand
-- Read the relevant project information and architecture documentation.
+- Read the project architecture documentation.
 - Read the relevant project design documentation.
 - Inspect the existing implementation.
 - Identify affected files and dependencies.
-- Identify existing patterns that should be followed.
+- Identify existing patterns and the dependency direction that should be followed.
 - Ask questions if requirements are ambiguous.
 
 ## Step 2: Plan
@@ -31,14 +31,15 @@ For substantial changes, wait for approval before implementing.
 - Reuse existing functionality where appropriate.
 - Avoid unrelated refactoring.
 - Keep changes as small as reasonably possible.
-- Do not silently change gameplay requirements, If an implementation reveals that a design decision is impractical: Explain the problem, Suggest alternatives, Discuss the trade-offs, Wait for approval before changing the design then Update the design document after an approved decision.
+- Do not silently change story requirements. If an implementation reveals that a design decision is impractical, explain the problem and alternatives, then wait for approval before changing the design document.
 
 ## Step 4: Verify
 - Run relevant tests.
-- Run the production build.
-- Check for console errors.
-- Test the actual gameplay behaviour.
-- Inspect visual changes in the running game.
+- There is no production build step. Run automated tests with `node --test`.
+- Open `index.html` directly with `file://` for browser-facing changes
+  and check console errors.
+- Test actual narrative and memory behavior.
+- Inspect visual changes in the running demo.
 - Check for regressions.
 
 ## Step 5: Report

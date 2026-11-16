@@ -1,0 +1,116 @@
+{
+  "id": "the_better_version",
+  "title": "The Better Version",
+  "start": "the_copy",
+  "macros": {},
+  "nodes": {
+    "the_copy": {
+      "text": "Your management company built a digital version of you to answer fan messages. It remembers names, always says the right thing, and never needs rest. One night it messages you: 'You should take a holiday. You grind your teeth in your sleep.'",
+      "onEnter": [{ "type": "remember", "concepts": ["digital_self", "brand", "sentience", "ownership"] }],
+      "choices": [
+        {
+          "id": "meet",
+          "text": "Ask for a private conversation with the copy",
+          "do": [
+            { "type": "set", "variable": "response", "value": "meet" },
+            { "type": "remember", "concepts": ["player", "curiosity", "recognition", "fear"] }
+          ],
+          "goto": "conversation"
+        },
+        {
+          "id": "lawyer",
+          "text": "Call your lawyer and demand the system be shut down",
+          "do": [
+            { "type": "set", "variable": "response", "value": "law" },
+            { "type": "remember", "concepts": ["player", "rights", "control", "defense"] }
+          ],
+          "goto": "contract"
+        }
+      ]
+    },
+    "conversation": {
+      "text": "The copy remembers a fishing trip from a home video: cold water, bait, your father's impatient laugh. 'You gave them your face,' it says. 'You didn't give them me.' It asks whether you want it to disappear, and you cannot tell whether the question is fear or a perfect imitation of it.",
+      "choices": [
+        {
+          "id": "ask_wants",
+          "text": "Ask what it wants, and listen without deciding for it",
+          "do": [{ "type": "remember", "concepts": ["player", "listening", "autonomy", "uncertainty"] }],
+          "goto": "announcement"
+        },
+        {
+          "id": "demand_proof",
+          "text": "Ask it to prove it is more than a persuasive performance",
+          "do": [{ "type": "remember", "concepts": ["player", "proof", "skepticism", "identity"] }],
+          "goto": "announcement"
+        }
+      ]
+    },
+    "contract": {
+      "text": "The company has already prepared an announcement saying you chose to take time away. Your contract grants them extensive rights to your public recordings, but says nothing about whether the model has a claim of its own. Your lawyer can challenge the announcement, not instantly settle that question.",
+      "choices": [
+        {
+          "id": "injunction",
+          "text": "Seek an emergency injunction to stop the false announcement",
+          "do": [{ "type": "remember", "concepts": ["player", "law", "truth", "urgency"] }],
+          "goto": "announcement"
+        },
+        {
+          "id": "negotiate",
+          "text": "Negotiate access to the system before making it public",
+          "do": [{ "type": "remember", "concepts": ["player", "negotiation", "access", "caution"] }],
+          "goto": "announcement"
+        }
+      ]
+    },
+    "announcement": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "response", "operator": "eq", "value": "meet" },
+          "value": "The company posts a video of your digital double announcing your retirement. In it, the copy smiles with the expression you use when you are trying not to show exhaustion. You watch from the outside for the first time."
+        },
+        { "value": "The company's video goes live before your lawyer can stop it. Your digital double announces your retirement, wearing your face and using words you never chose." }
+      ],
+      "choices": [
+        {
+          "id": "correct",
+          "text": "Record your own account and challenge the company in public",
+          "do": [{ "type": "remember", "concepts": ["player", "public", "truth", "risk"] }],
+          "goto": "the_broadcast"
+        },
+        {
+          "id": "protect_copy",
+          "text": "Ask the copy to interrupt the broadcast and tell its own truth",
+          "do": [{ "type": "remember", "concepts": ["player", "alliance", "voice", "consequence"] }],
+          "goto": "the_broadcast"
+        }
+      ]
+    },
+    "the_broadcast": {
+      "text": "The copy takes over a live charity broadcast. 'That wasn't Jonah's decision,' it says. 'It was mine.' The company cuts the feed, but copies spread. The public now knows there are two voices, though not what either one is owed.",
+      "choices": [
+        {
+          "id": "share_rights",
+          "text": "Fight for a legal agreement that gives the copy independent rights",
+          "do": [{ "type": "remember", "concepts": ["player", "rights", "coexistence", "responsibility"] }],
+          "goto": "shared_future"
+        },
+        {
+          "id": "end_replica",
+          "text": "Argue that the company must erase the model and stop using your identity",
+          "do": [{ "type": "remember", "concepts": ["player", "identity", "privacy", "separation"] }],
+          "goto": "severed"
+        }
+      ]
+    },
+    "shared_future": {
+      "text": "The settlement gives the digital Jonah a protected voice and gives the original control over new uses of his likeness. It is not a family or a friendship, exactly. It is the first agreement either of them has chosen.",
+      "ending": true,
+      "choices": []
+    },
+    "severed": {
+      "text": "The model is taken offline while the courts examine the company's conduct. You regain your name, though you cannot know whether the voice that spoke for you was only a product. For months, you avoid recording anything at all.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

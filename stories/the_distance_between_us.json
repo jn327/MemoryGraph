@@ -1,0 +1,116 @@
+{
+  "id": "the_distance_between_us",
+  "title": "The Distance Between Us",
+  "start": "the_scan",
+  "macros": {},
+  "nodes": {
+    "the_scan": {
+      "text": "Cheap mind-reading devices have made thoughts admissible in some courts. Your client Ellis, a bus driver, is accused of planning an attack because a commuter's scanner recorded him imagining a crash. Ellis says the image comes every time he passes the market, followed by the thought: slow down and check the mirror.",
+      "onEnter": [{ "type": "remember", "concepts": ["mind_reading", "court", "Ellis", "thought", "privacy"] }],
+      "choices": [
+        {
+          "id": "challenge_scan",
+          "text": "Challenge the scan as incomplete and demand the unedited recording",
+          "do": [
+            { "type": "set", "variable": "strategy", "value": "challenge" },
+            { "type": "remember", "concepts": ["player", "due_process", "context", "evidence"] }
+          ],
+          "goto": "the_hearing"
+        },
+        {
+          "id": "explain_thoughts",
+          "text": "Bring a psychologist to explain intrusive thoughts to the court",
+          "do": [
+            { "type": "set", "variable": "strategy", "value": "explain" },
+            { "type": "remember", "concepts": ["player", "psychology", "empathy", "testimony"] }
+          ],
+          "goto": "the_hearing"
+        }
+      ]
+    },
+    "the_hearing": {
+      "text": "The prosecutor plays the image of the bus mounting the pavement. Jurors gasp. The commuter who made the scan claims he was protecting the public, while his company sells anonymized recordings to assess risk.",
+      "choices": [
+        {
+          "id": "question_commuter",
+          "text": "Question the commuter about scanning strangers without consent",
+          "do": [{ "type": "remember", "concepts": ["player", "consent", "surveillance", "accountability"] }],
+          "goto": "the_full_record"
+        },
+        {
+          "id": "focus_ellis",
+          "text": "Ask Ellis to explain how he responds when the image appears",
+          "do": [{ "type": "remember", "concepts": ["player", "context", "honesty", "vulnerability"] }],
+          "goto": "the_full_record"
+        }
+      ]
+    },
+    "the_full_record": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "strategy", "operator": "eq", "value": "challenge" },
+          "value": "A court order reveals the full scan. After the imagined crash, Ellis says, 'Slow down. Check the mirror.' The company trimmed that thought from the evidence it sold."
+        },
+        { "value": "The psychologist explains that a thought is not a plan. The unedited scan shows Ellis checking the mirror and slowing the bus immediately after the frightening image." }
+      ],
+      "choices": [
+        {
+          "id": "argue_acquit",
+          "text": "Ask the jury to acquit Ellis and reject the scan's framing",
+          "do": [{ "type": "remember", "concepts": ["player", "justice", "context", "freedom"] }],
+          "goto": "outside"
+        },
+        {
+          "id": "seek_policy",
+          "text": "Ask the court to set limits on how mind scans may be used",
+          "do": [{ "type": "remember", "concepts": ["player", "policy", "privacy", "precedent"] }],
+          "goto": "outside"
+        }
+      ]
+    },
+    "outside": {
+      "text": "Ellis is acquitted. Outside the courthouse, reporters gather with scanners in their hands and ask what he was thinking when he heard the verdict. He looks at you before deciding whether to answer.",
+      "choices": [
+        {
+          "id": "protect_silence",
+          "text": "Step between Ellis and the scanners; he owes them no thought",
+          "do": [{ "type": "remember", "concepts": ["player", "boundary", "silence", "dignity"] }],
+          "goto": "the_boundary"
+        },
+        {
+          "id": "speak_publicly",
+          "text": "Help Ellis explain the difference between thought and intent",
+          "do": [{ "type": "remember", "concepts": ["player", "education", "public", "courage"] }],
+          "goto": "the_boundary"
+        }
+      ]
+    },
+    "the_boundary": {
+      "text": "Above the bus driver's seat, a notice asks passengers to respect one another's privacy. Someone has added: 'Even when they make it difficult.'",
+      "choices": [
+        {
+          "id": "campaign",
+          "text": "Join a campaign for consent and limits on remote mind reading",
+          "do": [{ "type": "remember", "concepts": ["player", "collective_action", "consent", "law"] }],
+          "goto": "a_new_rule"
+        },
+        {
+          "id": "return_to_work",
+          "text": "Help Ellis return to his route and leave the notice in place",
+          "do": [{ "type": "remember", "concepts": ["player", "ordinary_life", "respect", "recovery"] }],
+          "goto": "the_route"
+        }
+      ]
+    },
+    "a_new_rule": {
+      "text": "Your campaign wins a law requiring consent for routine scans and full context when scans are used in court. Enforcement is imperfect, but Ellis no longer has to prove that every unwanted thought was harmless.",
+      "ending": true,
+      "choices": []
+    },
+    "the_route": {
+      "text": "Ellis drives again. He still sees the frightening image near the market, and still checks his mirror. The scan has not changed what passes through his mind; it has changed who knows how carefully he chooses what to do.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

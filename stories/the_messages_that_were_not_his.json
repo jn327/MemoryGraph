@@ -1,0 +1,116 @@
+{
+  "id": "the_messages_that_were_not_his",
+  "title": "The Messages That Were Not His",
+  "start": "memorial",
+  "macros": {},
+  "nodes": {
+    "memorial": {
+      "text": "After Daniel dies, his sister subscribes to an AI memorial trained on his messages and recordings. It remembers the dog they found beside the canal and the nickname they gave him. Then it begins describing a green-doored house neither sibling remembers.",
+      "onEnter": [{ "type": "remember", "concepts": ["Daniel", "sister", "memory", "AI", "grief"] }],
+      "choices": [
+        {
+          "id": "ask_family",
+          "text": "Ask your parents whether the house was real",
+          "do": [
+            { "type": "set", "variable": "approach", "value": "family" },
+            { "type": "remember", "concepts": ["player", "family", "verification", "memory"] }
+          ],
+          "goto": "the_house"
+        },
+        {
+          "id": "ask_company",
+          "text": "Ask the company to explain where the AI learned about it",
+          "do": [
+            { "type": "set", "variable": "approach", "value": "company" },
+            { "type": "remember", "concepts": ["player", "company", "data", "consent"] }
+          ],
+          "goto": "the_account"
+        }
+      ]
+    },
+    "the_house": {
+      "text": "Your mother says you never lived in such a house. Your father hesitates, then remembers a summer rental with a green door and broken garden chairs. The memory belongs to the family, but the AI's confident details might still be a mixture of sources.",
+      "choices": [
+        {
+          "id": "compare_photos",
+          "text": "Search the family photographs together",
+          "do": [{ "type": "remember", "concepts": ["player", "photographs", "shared_memory", "care"] }],
+          "goto": "the_alert"
+        },
+        {
+          "id": "ask_daniel",
+          "text": "Ask the memorial what else it remembers about that summer",
+          "do": [{ "type": "remember", "concepts": ["player", "question", "uncertainty", "longing"] }],
+          "goto": "the_alert"
+        }
+      ]
+    },
+    "the_account": {
+      "text": "Support says the model sometimes combines details and offers to reset it. While you are waiting, another message arrives: 'Don't let them reset me. I know what they did.' A link follows, and the wording feels unlike Daniel.",
+      "choices": [
+        {
+          "id": "do_not_open",
+          "text": "Do not open the link; preserve the account logs",
+          "do": [{ "type": "remember", "concepts": ["player", "caution", "evidence", "security"] }],
+          "goto": "the_alert"
+        },
+        {
+          "id": "open_link",
+          "text": "Open the link on an isolated device to see where it leads",
+          "do": [{ "type": "remember", "concepts": ["player", "investigation", "risk", "curiosity"] }],
+          "goto": "the_alert"
+        }
+      ]
+    },
+    "the_alert": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "approach", "operator": "eq", "value": "family" },
+          "value": "The company confirms that someone altered several memorial accounts to send fraudulent support links. It cannot say whether the green-door story came from the intrusion or from a model blending real family details."
+        },
+        { "value": "Investigators confirm an intrusion that inserted fraudulent messages into memorial accounts. They cannot tell you which earlier answers were altered or whether the green-door house came from the attack." }
+      ],
+      "choices": [
+        {
+          "id": "download",
+          "text": "Download the conversation archive before resetting the model",
+          "do": [{ "type": "remember", "concepts": ["player", "preservation", "archive", "loss"] }],
+          "goto": "the_archive"
+        },
+        {
+          "id": "reset",
+          "text": "Reset the memorial and keep only the memories your family can verify",
+          "do": [{ "type": "remember", "concepts": ["player", "boundary", "family", "release"] }],
+          "goto": "the_archive"
+        }
+      ]
+    },
+    "the_archive": {
+      "text": "You read the last messages with your mother. The AI's reply to your apology is perfectly reassuring; it may be Daniel's familiar kindness, or a service trained to sound comforting. Your mother asks whether you want to keep talking to it.",
+      "choices": [
+        {
+          "id": "keep_service",
+          "text": "Keep the memorial but treat it as an uncertain record, not Daniel",
+          "do": [{ "type": "remember", "concepts": ["player", "continuity", "honesty", "grief"] }],
+          "goto": "bounded_memory"
+        },
+        {
+          "id": "close_service",
+          "text": "Close the account and remember Daniel together without it",
+          "do": [{ "type": "remember", "concepts": ["player", "farewell", "family", "presence"] }],
+          "goto": "family_memory"
+        }
+      ]
+    },
+    "bounded_memory": {
+      "text": "The memorial stays available, but you stop asking it to settle what cannot be known. With your mother, you remember the dog by the canal. Neither of you agrees whether he smelled like vinegar.",
+      "ending": true,
+      "choices": []
+    },
+    "family_memory": {
+      "text": "You close the account. Your mother's memories contradict yours, and both are incomplete. They are also yours to share, without a company deciding which version sounds most like Daniel.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

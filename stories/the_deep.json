@@ -1,0 +1,116 @@
+{
+  "id": "the_deep",
+  "title": "The Deep",
+  "start": "the_laugh",
+  "macros": {},
+  "nodes": {
+    "the_laugh": {
+      "text": "Since the accidental neural network connected nearly every mind, memories drift through it beside dreams, advertisements, and bots. You are a diver who follows recurring sensations. A grieving mother hires you to find the source of a laugh she believes belonged to her dead son.",
+      "onEnter": [{ "type": "remember", "concepts": ["deep", "memory", "grief", "laugh", "bot"] }],
+      "choices": [
+        {
+          "id": "follow_sound",
+          "text": "Dive by following the laugh through its many copies",
+          "do": [
+            { "type": "set", "variable": "method", "value": "sound" },
+            { "type": "remember", "concepts": ["player", "deep_dive", "pattern", "risk"] }
+          ],
+          "goto": "the_current"
+        },
+        {
+          "id": "verify_source",
+          "text": "Start with the company's training archive and consent records",
+          "do": [
+            { "type": "set", "variable": "method", "value": "records" },
+            { "type": "remember", "concepts": ["player", "consent", "records", "evidence"] }
+          ],
+          "goto": "the_archive"
+        }
+      ]
+    },
+    "the_current": {
+      "text": "Millions of copies have made the laugh into a landmark. Some are genuine recordings; others are bots repeating a sound they have learned will make people stop and listen. A child's memory glimmers beneath the noise, but each repetition has altered it.",
+      "choices": [
+        {
+          "id": "go_deeper",
+          "text": "Follow the faint memory before it is drowned out",
+          "do": [{ "type": "remember", "concepts": ["player", "courage", "memory", "uncertainty"] }],
+          "goto": "the_fragment"
+        },
+        {
+          "id": "mark_fakes",
+          "text": "Map the bot copies first so the mother can see the uncertainty",
+          "do": [{ "type": "remember", "concepts": ["player", "caution", "bots", "truth"] }],
+          "goto": "the_fragment"
+        }
+      ]
+    },
+    "the_archive": {
+      "text": "The company trained its memorial bot on an old family video without asking permission. The archive confirms that the laugh was copied, but a strange phrase appears in a newer fragment—one that should not have come from the public recordings.",
+      "choices": [
+        {
+          "id": "trace_leak",
+          "text": "Trace the phrase through private and public copies",
+          "do": [{ "type": "remember", "concepts": ["player", "forensics", "privacy", "persistence"] }],
+          "goto": "the_fragment"
+        },
+        {
+          "id": "tell_mother",
+          "text": "Tell the mother what the records establish before diving",
+          "do": [{ "type": "remember", "concepts": ["player", "honesty", "grief", "consent"] }],
+          "goto": "the_fragment"
+        }
+      ]
+    },
+    "the_fragment": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "method", "operator": "eq", "value": "sound" },
+          "value": "You find a memory of the boy beneath a table, laughing as his mother's shoe slips off while she dances. Afterward he says, 'Do the other one.' You cannot prove the fragment is untouched, but the mother recognizes the moment."
+        },
+        { "value": "The phrase belongs to a memory beneath a table: the boy laughing as his mother's shoe slips off while she dances. The company cannot explain how the fragment entered its system. His mother recognizes the moment, but no one can certify its path." }
+      ],
+      "choices": [
+        {
+          "id": "return_fragment",
+          "text": "Give the mother the fragment with its uncertainty intact",
+          "do": [{ "type": "remember", "concepts": ["player", "compassion", "uncertainty", "memory"] }],
+          "goto": "testimony"
+        },
+        {
+          "id": "challenge_company",
+          "text": "Use the fragment to challenge the company's use of private memories",
+          "do": [{ "type": "remember", "concepts": ["player", "accountability", "justice", "privacy"] }],
+          "goto": "testimony"
+        }
+      ]
+    },
+    "testimony": {
+      "text": "The mother listens, then remembers the shoe and the laughter without the network's help. Later, the company offers to authenticate the memory if she signs away the rights to it. She asks what you think a memory is worth when nobody can prove whose it is.",
+      "choices": [
+        {
+          "id": "keep_personal",
+          "text": "Tell her she owes the company nothing; keep the moment private",
+          "do": [{ "type": "remember", "concepts": ["player", "boundaries", "care", "grief"] }],
+          "goto": "private_memory"
+        },
+        {
+          "id": "take_public",
+          "text": "Help her make the consent violation public",
+          "do": [{ "type": "remember", "concepts": ["player", "public", "consent", "change"] }],
+          "goto": "public_record"
+        }
+      ]
+    },
+    "private_memory": {
+      "text": "She leaves with the fragment and no certificate. Months later she tells you she has stopped replaying it every night. She still cannot say whether the voice is truly her son's, but the memory of the dancing shoe is hers.",
+      "ending": true,
+      "choices": []
+    },
+    "public_record": {
+      "text": "The case becomes a test of who owns a thought once it has been copied. The ruling is narrow, the company appeals, and the mother keeps the fragment. The Deep remains noisy, but fewer people can pretend that an unasked-for memory is free to use.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

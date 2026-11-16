@@ -3,14 +3,54 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#202c31" />
-  <meta name="description" content="Stores collections of named concepts with weighted associations" />
-  <title>Memory Graph</title>
+  <meta name="theme-color" content="#f5f1ed" />
+  <meta name="description" content="A branching story player whose characters remember what you do." />
+  <title>Memory Graph Stories</title>
   <link rel="stylesheet" href="styles/shared.css" />
 </head>
 <body>
-  <main>
-    
+  <main class="app-shell">
+    <section class="library-panel" aria-labelledby="library-title">
+      <div class="library-copy">
+        <h1 id="library-title">Choose a story.</h1>
+        <p class="intro">Your choices shape the narrative.</p>
+      </div>
+      <div class="library-controls">
+        <label class="folder-button" for="story-files">
+          <span aria-hidden="true">＋</span>
+          <span id="folder-button-label">Choose folder</span>
+        </label>
+        <input id="story-files" type="file" accept=".json,application/json" multiple webkitdirectory />
+        <label class="select-label" for="story-picker">STORY</label>
+        <select id="story-picker" disabled>
+          <option value="">Choose a folder to begin</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="play-layout" aria-label="Story player">
+      <article class="story-panel" aria-live="polite">
+        <h2 class="story-title" id="story-title">The next choice is yours.</h2>
+        <p class="story-text" id="story-text">Load a story folder above to step into a world that remembers.</p>
+        <div class="choice-list" id="choice-list"></div>
+        <div class="ending-actions" id="ending-actions" hidden>
+          <button class="button button-primary" id="restart-button" type="button">Begin again · keep memory</button>
+          <button class="button button-quiet" id="clear-button" type="button">Clear memory &amp; restart</button>
+        </div>
+        <button class="button button-debug" id="debug-button" type="button">Debug</button>
+      </article>
+    </section>
+
+    <div class="debug-panel" id="debug-panel" hidden>
+      <div class="debug-header">
+        <h3>Debug: Graph State</h3>
+        <button class="debug-close" id="debug-close" type="button">&times;</button>
+      </div>
+      <pre id="debug-content" class="debug-content"></pre>
+    </div>
   </main>
+  <script src="scripts/MemoryGraph.js"></script>
+  <script src="scripts/NarrativeEngine.js"></script>
+  <script src="scripts/storyPlayer.js"></script>
 </body>
 </html>

@@ -1,0 +1,99 @@
+{
+  "id": "the_house_with_two_kitchens",
+  "title": "The House With Two Kitchens",
+  "start": "the_blue_room",
+  "macros": {},
+  "nodes": {
+    "the_blue_room": {
+      "text": "You have narcolepsy, and your specialist helps you manage the sudden sleep and dreamlike moments. Since your father's death, a second kitchen appears when you are overtired: blue tiles, a straight cupboard door, and your father peeling an orange at the table.",
+      "onEnter": [{ "type": "remember", "concepts": ["Clara", "narcolepsy", "dream", "father", "kitchen"] }],
+      "choices": [
+        {
+          "id": "record",
+          "text": "Keep a sleep and symptom record for your specialist",
+          "do": [
+            { "type": "set", "variable": "response", "value": "record" },
+            { "type": "remember", "concepts": ["player", "care", "routine", "observation"] }
+          ],
+          "goto": "the_photograph"
+        },
+        {
+          "id": "sort_boxes",
+          "text": "Ask your mother to help sort your father's old belongings",
+          "do": [
+            { "type": "set", "variable": "response", "value": "family" },
+            { "type": "remember", "concepts": ["player", "mother", "grief", "family"] }
+          ],
+          "goto": "the_photograph"
+        }
+      ]
+    },
+    "the_photograph": {
+      "text": "Your mother finds a photograph of your first house. Its kitchen has blue tiles. On the back she wrote: 'Sunday after the flood. He finally fixed the sink.' You were five when you moved and remember almost nothing of that room.",
+      "choices": [
+        {
+          "id": "ask_mother",
+          "text": "Ask your mother what your father was like in that house",
+          "do": [{ "type": "remember", "concepts": ["player", "story", "father", "shared_memory"] }],
+          "goto": "the_note"
+        },
+        {
+          "id": "show_specialist",
+          "text": "Bring the photograph and your notes to your sleep specialist",
+          "do": [{ "type": "remember", "concepts": ["player", "treatment", "trust", "health"] }],
+          "goto": "the_note"
+        }
+      ]
+    },
+    "the_note": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "response", "operator": "eq", "value": "record" },
+          "value": "Your notes show the blue kitchen appears most often after evenings spent sorting your father's things. The record does not explain it away; it gives you and your specialist a clearer picture of when it happens."
+        },
+        { "value": "Your mother remembers the old house, the flood, and your father trying to fix the sink before anyone woke. You recognize no scene in the photograph, yet the room feels familiar." }
+      ],
+      "choices": [
+        {
+          "id": "invite_memory",
+          "text": "Ask your mother to keep sharing memories, even when they hurt",
+          "do": [{ "type": "remember", "concepts": ["player", "openness", "grief", "connection"] }],
+          "goto": "the_present"
+        },
+        {
+          "id": "set_limits",
+          "text": "Pause the sorting and take care of your sleep routine",
+          "do": [{ "type": "remember", "concepts": ["player", "rest", "boundary", "self_care"] }],
+          "goto": "the_present"
+        }
+      ]
+    },
+    "the_present": {
+      "text": "That night you hope the blue kitchen returns, then take your medication and go to bed at the hour you planned. In the morning, the photograph waits above the crooked cupboard in your real kitchen.",
+      "choices": [
+        {
+          "id": "make_breakfast",
+          "text": "Peel an orange for breakfast and let the memory be a memory",
+          "do": [{ "type": "remember", "concepts": ["player", "present", "acceptance", "sensory_memory"] }],
+          "goto": "yellow_tiles"
+        },
+        {
+          "id": "visit_old_house",
+          "text": "Ask your mother to take you past the first house",
+          "do": [{ "type": "remember", "concepts": ["player", "place", "curiosity", "family"] }],
+          "goto": "old_door"
+        }
+      ]
+    },
+    "yellow_tiles": {
+      "text": "The kitchen is yellow, the cupboard crooked, and the orange leaves your fingers sticky. You miss your father. You are also awake, safe, and here.",
+      "ending": true,
+      "choices": []
+    },
+    "old_door": {
+      "text": "The house has been repainted. Your mother points to the window where your father used to wave as she came home. You do not recover the old kitchen, but you add a new memory to the place.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "id": "anywhere",
+  "title": "Anywhere",
+  "start": "intrusion",
+  "macros": {},
+  "nodes": {
+    "intrusion": {
+      "text": "Teleportation made every locked door obsolete. One morning a stranger appears beside your wardrobe, holding a birthday cake and apologizing for landing in the wrong bedroom. By nightfall your city is full of people wondering who else can picture their homes.",
+      "onEnter": [{ "type": "remember", "concepts": ["teleportation", "home", "privacy", "intrusion"] }],
+      "choices": [
+        {
+          "id": "design",
+          "text": "Use your work as an architect to make rooms difficult to picture",
+          "do": [
+            { "type": "set", "variable": "path", "value": "design" },
+            { "type": "remember", "concepts": ["player", "architecture", "privacy", "protection"] }
+          ],
+          "goto": "studio"
+        },
+        {
+          "id": "investigate",
+          "text": "Help the police investigate a murder in a supposedly private house",
+          "do": [
+            { "type": "set", "variable": "path", "value": "investigate" },
+            { "type": "remember", "concepts": ["player", "investigation", "evidence", "risk"] }
+          ],
+          "goto": "crime"
+        }
+      ]
+    },
+    "studio": {
+      "text": "You design a room with crooked walls, shifting panels, and light that changes how familiar corners look. It works until a client asks you to make the place accessible to a child who is afraid of getting lost. A refuge can become another kind of trap.",
+      "choices": [
+        {
+          "id": "accessible",
+          "text": "Redesign it for easy navigation, even if it is easier to picture",
+          "do": [{ "type": "remember", "concepts": ["player", "accessibility", "trust", "care"] }],
+          "goto": "the_child"
+        },
+        {
+          "id": "secret_plan",
+          "text": "Keep the layout private and teach the family its landmarks",
+          "do": [{ "type": "remember", "concepts": ["player", "secrecy", "landmarks", "caution"] }],
+          "goto": "the_child"
+        }
+      ]
+    },
+    "crime": {
+      "text": "The victim's business partner says he never entered the house. A school photo online shows the room's crooked wall, yellow chair, and blue rug. The picture might have taught the killer the way in, but a likeness is not proof of who used it.",
+      "choices": [
+        {
+          "id": "preserve",
+          "text": "Preserve the image trail and demand a careful investigation",
+          "do": [{ "type": "remember", "concepts": ["player", "due_process", "evidence", "patience"] }],
+          "goto": "the_child"
+        },
+        {
+          "id": "warn",
+          "text": "Warn every family whose home appears in public photographs",
+          "do": [{ "type": "remember", "concepts": ["player", "warning", "community", "fear"] }],
+          "goto": "the_child"
+        }
+      ]
+    },
+    "the_child": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "path", "operator": "eq", "value": "design" },
+          "value": "The family studies the room with you. The child remembers its landmarks better than any adult and points out a route no one had considered. The house becomes less mysterious, though the rest of the city remains open to anyone who can imagine it."
+        },
+        { "value": "The child recognizes the room in the school photo and remembers who stood beside the camera. The clue is useful, but it does not restore the family's feeling of safety." }
+      ],
+      "choices": [
+        {
+          "id": "public_rules",
+          "text": "Campaign for shared rules and privacy protections",
+          "do": [{ "type": "remember", "concepts": ["player", "law", "privacy", "collective_safety"] }],
+          "goto": "public"
+        },
+        {
+          "id": "private_shelter",
+          "text": "Help the family build a private, confusing refuge",
+          "do": [{ "type": "remember", "concepts": ["player", "shelter", "family", "boundaries"] }],
+          "goto": "shelter"
+        },
+        {
+          "id": "leave_open",
+          "text": "Refuse to let fear decide where people may go",
+          "do": [{ "type": "remember", "concepts": ["player", "freedom", "risk", "courage"] }],
+          "goto": "open_city"
+        }
+      ]
+    },
+    "public": {
+      "text": "The city adopts rules against covert scans and unauthorized entry. They cannot stop a person from arriving anywhere, but they make consent a public question rather than a private burden.",
+      "ending": true,
+      "choices": []
+    },
+    "shelter": {
+      "text": "The family settles into its strange, carefully mapped rooms. The refuge works for them, though you know not everyone can afford to reshape a home around the world's new danger.",
+      "ending": true,
+      "choices": []
+    },
+    "open_city": {
+      "text": "You leave the locks untouched and start a neighborhood watch built on people checking in rather than shutting one another out. It is imperfect, but the city remains more than a collection of sealed rooms.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

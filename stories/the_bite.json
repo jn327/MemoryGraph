@@ -1,0 +1,94 @@
+{
+  "id": "the_bite",
+  "title": "The Bite",
+  "start": "the_photograph",
+  "macros": {},
+  "nodes": {
+    "the_photograph": {
+      "text": "When you were nine, a monkey bit your finger through the zoo fence. Years later, you begin waking before dawn with an urge to climb. You study balconies and drainpipes on your way to work, and in crowded rooms you notice who sits nearest whom.",
+      "onEnter": [{ "type": "remember", "concepts": ["Tomas", "monkey", "zoo", "bite", "change"] }],
+      "choices": [
+        {
+          "id": "ask_grandmother",
+          "text": "Ask your grandmother what she remembers about the bite",
+          "do": [
+            { "type": "set", "variable": "response", "value": "family" },
+            { "type": "remember", "concepts": ["player", "grandmother", "family", "memory"] }
+          ],
+          "goto": "the_old_story"
+        },
+        {
+          "id": "see_specialist",
+          "text": "Write down the changes and bring them to a specialist",
+          "do": [
+            { "type": "set", "variable": "response", "value": "care" },
+            { "type": "remember", "concepts": ["player", "health", "observation", "support"] }
+          ],
+          "goto": "the_old_story"
+        }
+      ]
+    },
+    "the_old_story": {
+      "text": "Your grandmother remembers that you wanted to return to the monkey before leaving, but she would not let you. In the photograph from that day, the monkey's face is turned away; a second one is half-hidden on a platform behind it.",
+      "choices": [
+        {
+          "id": "visit_zoo",
+          "text": "Return to the zoo and look at the enclosure from a distance",
+          "do": [{ "type": "remember", "concepts": ["player", "place", "curiosity", "past"] }],
+          "goto": "the_tree"
+        },
+        {
+          "id": "stay_home",
+          "text": "Stay with your grandmother and hear the rest of the story",
+          "do": [{ "type": "remember", "concepts": ["player", "connection", "care", "story"] }],
+          "goto": "the_tree"
+        }
+      ]
+    },
+    "the_tree": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "response", "operator": "eq", "value": "care" },
+          "value": "The specialist listens without claiming to know what is happening. They help you track sleep, stress, and the moments when speech becomes difficult. Your grandmother sits beneath the old apple tree while you climb into its branches."
+        },
+        { "value": "You climb the old apple tree without thinking, then hesitate high above the ground. Your grandmother brings a chair and sits beneath you, telling you about the keeper who came running with a towel." }
+      ],
+      "choices": [
+        {
+          "id": "inspect_branch",
+          "text": "Move along the branch and inspect where the wind broke it",
+          "do": [{ "type": "remember", "concepts": ["player", "attention", "problem_solving", "tree"] }],
+          "goto": "the_branch"
+        },
+        {
+          "id": "climb_down",
+          "text": "Climb down and talk with your grandmother from the ground",
+          "do": [{ "type": "remember", "concepts": ["player", "safety", "communication", "family"] }],
+          "goto": "the_branch"
+        }
+      ]
+    },
+    "the_branch": {
+      "text": "A branch has split in the wind. You can see exactly which part needs to be cut. Your grandmother watches without telling you whether this clarity comforts or frightens her.",
+      "choices": [
+        {
+          "id": "keep_talking",
+          "text": "Tell her what you can about how the world feels different",
+          "do": [{ "type": "remember", "concepts": ["player", "honesty", "relationship", "uncertainty"] }],
+          "goto": "shared_tree"
+        },
+        {
+          "id": "focus_task",
+          "text": "Fetch the saw and work together on the damaged branch",
+          "do": [{ "type": "remember", "concepts": ["player", "routine", "cooperation", "care"] }],
+          "goto": "shared_tree"
+        }
+      ]
+    },
+    "shared_tree": {
+      "text": "You and your grandmother decide how much of the branch to remove. The task is ordinary, the tree is real, and neither of you has to settle what the old bite means today.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "id": "the_quiet_ministry",
+  "title": "The Quiet Ministry",
+  "start": "application",
+  "macros": {},
+  "nodes": {
+    "application": {
+      "text": "In 1936, the Russian Revolution has failed and the old government survived by making promises it now regrets. Across Europe, authoritarian ministries speak of order instead of anti-socialism. You are Anna Kovacs, a clerk in Danubia's Ministry of Continuity, reviewing applications for public gatherings.",
+      "onEnter": [{ "type": "remember", "concepts": ["Danubia", "ministry", "order", "gathering", "permission"] }],
+      "choices": [
+        {
+          "id": "approve_brother",
+          "text": "Approve your brother's meeting about your father's dismissal",
+          "do": [
+            { "type": "set", "variable": "choice", "value": "approve" },
+            { "type": "remember", "concepts": ["player", "family", "courage", "petition"] }
+          ],
+          "goto": "the_hall"
+        },
+        {
+          "id": "warn_brother",
+          "text": "Warn your brother that approval will not keep the police away",
+          "do": [
+            { "type": "set", "variable": "choice", "value": "warn" },
+            { "type": "remember", "concepts": ["player", "caution", "family", "fear"] }
+          ],
+          "goto": "the_office"
+        }
+      ]
+    },
+    "the_hall": {
+      "text": "You sign the permit. Two days later the hall is declared unsafe, and police copy the names of people waiting outside. Your brother says your signature still matters, even if the ministry found a way around it.",
+      "choices": [
+        {
+          "id": "appeal_closure",
+          "text": "File an appeal against the hall's closure",
+          "do": [{ "type": "remember", "concepts": ["player", "appeal", "law", "persistence"] }],
+          "goto": "the_list"
+        },
+        {
+          "id": "attend",
+          "text": "Go to the gathering and stand beside your brother",
+          "do": [{ "type": "remember", "concepts": ["player", "solidarity", "risk", "presence"] }],
+          "goto": "the_list"
+        }
+      ]
+    },
+    "the_office": {
+      "text": "Your brother changes the meeting place three times. Each application is denied for a new reason: a railway nearby, a school nearby, too many people expected. The rules are written as if nobody is forbidding anything.",
+      "choices": [
+        {
+          "id": "copy_rules",
+          "text": "Copy each denial and its stated reason",
+          "do": [{ "type": "remember", "concepts": ["player", "documentation", "bureaucracy", "evidence"] }],
+          "goto": "the_list"
+        },
+        {
+          "id": "resign",
+          "text": "Resign and help organize outside the ministry",
+          "do": [{ "type": "remember", "concepts": ["player", "resistance", "choice", "risk"] }],
+          "goto": "the_list"
+        }
+      ]
+    },
+    "the_list": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "choice", "operator": "eq", "value": "approve" },
+          "value": "At home, your father refuses an offer to return to teaching if he calls his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used."
+        },
+        { "value": "At home, your father refuses to call his dismissal a misunderstanding. Your family begins a list of every meeting blocked and every excuse used." }
+      ],
+      "choices": [
+        {
+          "id": "publish_list",
+          "text": "Pass the list between workers, teachers, and neighborhood groups",
+          "do": [{ "type": "remember", "concepts": ["player", "public_record", "community", "truth"] }],
+          "goto": "the_circles"
+        },
+        {
+          "id": "save_list",
+          "text": "Keep the list private until it can be safely verified",
+          "do": [{ "type": "remember", "concepts": ["player", "protection", "patience", "family"] }],
+          "goto": "the_circles"
+        }
+      ]
+    },
+    "the_circles": {
+      "text": "The list shows that no single law forbids the meetings; a hundred small decisions make them impossible. People ask whether to challenge the ministry publicly or keep building small circles it cannot easily see.",
+      "choices": [
+        {
+          "id": "public_challenge",
+          "text": "Take the evidence to the independent newspapers",
+          "do": [{ "type": "remember", "concepts": ["player", "press", "accountability", "exposure"] }],
+          "goto": "open_record"
+        },
+        {
+          "id": "quiet_network",
+          "text": "Build a quiet network that shares space, care, and information",
+          "do": [{ "type": "remember", "concepts": ["player", "mutual_aid", "trust", "continuity"] }],
+          "goto": "small_circles"
+        }
+      ]
+    },
+    "open_record": {
+      "text": "The newspapers publish the pattern. The ministry insists every denial was reasonable, but can no longer pretend each case is isolated. The response is harsher for a while; the argument about what the government is doing has begun in public.",
+      "ending": true,
+      "choices": []
+    },
+    "small_circles": {
+      "text": "Meetings move between kitchens and workshops. They are smaller than the hall your brother wanted, but people keep showing up. Your father teaches again in a borrowed room, without a ministry seal on the door.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

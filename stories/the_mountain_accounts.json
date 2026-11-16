@@ -1,0 +1,112 @@
+{
+  "id": "the_mountain_accounts",
+  "title": "The Mountain's Accounts",
+  "start": "records",
+  "macros": {},
+  "nodes": {
+    "records": {
+      "text": "The confederation's archive says the conquest ended centuries ago. Your grandmother says it never quite ended. While correcting old tax records, you find a mountain town that has paid its dues for eighty years but appears on no map.",
+      "onEnter": [
+        { "type": "remember", "concepts": ["archive", "conquest", "mountain", "missing_town"] }
+      ],
+      "choices": [
+        {
+          "id": "follow_paper",
+          "text": "Trace the town through the archive's payment records",
+          "do": [
+            { "type": "set", "variable": "approach", "value": "records" },
+            { "type": "remember", "concepts": ["player", "evidence", "archive", "patience"] }
+          ],
+          "goto": "ledger"
+        },
+        {
+          "id": "ask_grandmother",
+          "text": "Ask your grandmother what the old khipu say",
+          "do": [
+            { "type": "set", "variable": "approach", "value": "memory" },
+            { "type": "remember", "concepts": ["player", "grandmother", "khipu", "inheritance"] }
+          ],
+          "goto": "khipu"
+        }
+      ]
+    },
+    "ledger": {
+      "text": "The payments change from maize to copper to electricity, always under the same name: Qhapaq Pampa. A clerk warns you that the town was classified after a dam was built there. The paper trail is real, but someone has been carefully deciding who may read it.",
+      "choices": [
+        {
+          "id": "copy_ledgers",
+          "text": "Make copies before the archive can close the record",
+          "do": [{ "type": "remember", "concepts": ["player", "copies", "proof", "risk"] }],
+          "goto": "the_dam"
+        },
+        {
+          "id": "request_hearing",
+          "text": "File a formal request and force the archive to answer",
+          "do": [{ "type": "remember", "concepts": ["player", "law", "patience", "public_record"] }],
+          "goto": "the_dam"
+        }
+      ]
+    },
+    "khipu": {
+      "text": "Your grandmother lays knotted cords across the table. Their pattern names a settlement beside a river and records a promise of shared water. She cannot prove it is Qhapaq Pampa, but she recognizes the name as one used by people who refused to disappear into an imperial census.",
+      "choices": [
+        {
+          "id": "bring_khipu",
+          "text": "Carry the cords with you as testimony",
+          "do": [{ "type": "remember", "concepts": ["player", "testimony", "khipu", "shared_history"] }],
+          "goto": "the_dam"
+        },
+        {
+          "id": "protect_khipu",
+          "text": "Leave the fragile cords safe and travel with only their story",
+          "do": [{ "type": "remember", "concepts": ["player", "protection", "oral_history", "care"] }],
+          "goto": "the_dam"
+        }
+      ]
+    },
+    "the_dam": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "approach", "operator": "eq", "value": "memory" },
+          "value": "In Qhapaq Pampa, elders recognize the name your grandmother spoke. The dam lights their homes, but a company keeps the town's promised share of its power. Your archive has found a living community, not a historical footnote."
+        },
+        { "value": "In Qhapaq Pampa, the old payment records match the town's own books. The dam lights their homes, but a company keeps the town's promised share of its power. Your archive has found a living community, not a historical footnote." }
+      ],
+      "choices": [
+        {
+          "id": "publish",
+          "text": "Publish the evidence and let the country argue in daylight",
+          "do": [{ "type": "remember", "concepts": ["player", "public", "truth", "collective_action"] }],
+          "goto": "public_hearing"
+        },
+        {
+          "id": "negotiate",
+          "text": "Help the town negotiate quietly for its share",
+          "do": [{ "type": "remember", "concepts": ["player", "negotiation", "compromise", "electricity"] }],
+          "goto": "settlement"
+        },
+        {
+          "id": "stay",
+          "text": "Stay and help the community organize its own archive",
+          "do": [{ "type": "remember", "concepts": ["player", "community", "memory", "stewardship"] }],
+          "goto": "living_archive"
+        }
+      ]
+    },
+    "public_hearing": {
+      "text": "The records become public. The company contests every page, but the confederation's water council opens a hearing that cannot be hidden. The town wins no instant victory; it does win the right to make its case where everyone can hear it.",
+      "ending": true,
+      "choices": []
+    },
+    "settlement": {
+      "text": "The company agrees to return part of the power revenue while the larger claim proceeds. Some villagers call it too little; others point to the school lights and clinic refrigerator. The dispute remains, now written in a contract the town helped shape.",
+      "ending": true,
+      "choices": []
+    },
+    "living_archive": {
+      "text": "Children record the elders' accounts beside the engineers' maps and the old khipu. The town is still contested, but no longer absent. Your grandmother says that keeping a record is not the same as winning; it is how a people stays present for the next argument.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "id": "the_octopus",
+  "title": "Olive",
+  "start": "morning_rounds",
+  "macros": {},
+  "nodes": {
+    "morning_rounds": {
+      "text": "Every morning before the aquarium opens, Martin taps twice on Olive's tank and checks the water. She is an octopus who can open jars and once escaped through a maintenance gap. Martin's own days feel like the same quiet route between work and his empty apartment.",
+      "onEnter": [{ "type": "remember", "concepts": ["Martin", "Olive", "octopus", "aquarium", "routine"] }],
+      "choices": [
+        {
+          "id": "bring_puzzle",
+          "text": "Bring Olive a jar puzzle and watch how she solves it",
+          "do": [
+            { "type": "set", "variable": "attention", "value": "puzzle" },
+            { "type": "remember", "concepts": ["player", "curiosity", "attention", "intelligence"] }
+          ],
+          "goto": "the_tank"
+        },
+        {
+          "id": "repair_tank",
+          "text": "Inspect the tank and filtration system for another escape route",
+          "do": [
+            { "type": "set", "variable": "attention", "value": "work" },
+            { "type": "remember", "concepts": ["player", "care", "maintenance", "responsibility"] }
+          ],
+          "goto": "the_tank"
+        }
+      ]
+    },
+    "the_tank": {
+      "text": "Olive explores the jar with several arms at once: one holds it, two test the lid, another grips the rock beneath her. You become so absorbed that your hand reaches for your coffee before you remember deciding to pick it up.",
+      "choices": [
+        {
+          "id": "study",
+          "text": "Stay and observe the different tasks each arm takes on",
+          "do": [{ "type": "remember", "concepts": ["player", "observation", "body", "wonder"] }],
+          "goto": "the_leak"
+        },
+        {
+          "id": "leave",
+          "text": "Leave before your fascination turns into another lost hour",
+          "do": [{ "type": "remember", "concepts": ["player", "boundary", "routine", "unease"] }],
+          "goto": "the_leak"
+        }
+      ]
+    },
+    "the_leak": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "attention", "operator": "eq", "value": "puzzle" },
+          "value": "After several nights of strange, restless sleep, you find Olive missing from her tank. She has followed the sound of a leaking pipe into the filtration room, where water is pooling beneath a cabinet."
+        },
+        { "value": "Olive is missing. In the filtration room, a split pipe has flooded the floor. She has squeezed beneath a cabinet and is touching the pump housing with one arm." }
+      ],
+      "choices": [
+        {
+          "id": "shut_pump",
+          "text": "Shut off the pump and carry Olive back in a bucket",
+          "do": [{ "type": "remember", "concepts": ["player", "rescue", "care", "water"] }],
+          "goto": "the_keeper"
+        },
+        {
+          "id": "call_keeper",
+          "text": "Call the head keeper before moving Olive or touching the system",
+          "do": [{ "type": "remember", "concepts": ["player", "caution", "teamwork", "safety"] }],
+          "goto": "the_keeper"
+        }
+      ]
+    },
+    "the_keeper": {
+      "text": "The pipe is repaired, and Olive settles back among her rocks. The head keeper asks how you knew where to look. You can describe the changed sound of the pump, but not the sense that her attention had tugged yours toward the leak.",
+      "choices": [
+        {
+          "id": "stay_keeper",
+          "text": "Tell the keeper about the strange feeling and keep studying Olive",
+          "do": [{ "type": "remember", "concepts": ["player", "honesty", "connection", "curiosity"] }],
+          "goto": "shared_attention"
+        },
+        {
+          "id": "change_shift",
+          "text": "Ask to work a different shift and give the feeling some distance",
+          "do": [{ "type": "remember", "concepts": ["player", "distance", "health", "care"] }],
+          "goto": "separate_lives"
+        }
+      ]
+    },
+    "shared_attention": {
+      "text": "You and the keeper begin recording Olive's behavior and the times you lose track of your own routine. The notes do not prove a mind exchange, but they make your attention less lonely and less mysterious.",
+      "ending": true,
+      "choices": []
+    },
+    "separate_lives": {
+      "text": "You take a week away from the aquarium. When you return, Olive reaches one arm toward the glass at your usual hour. You tap twice. Neither of you needs to know what the gesture means to keep it.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

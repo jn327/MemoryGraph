@@ -1,0 +1,99 @@
+{
+  "id": "the_hedgehog",
+  "title": "The Hedge",
+  "start": "the_nest",
+  "macros": {},
+  "nodes": {
+    "the_nest": {
+      "text": "The ground has stopped trembling. The young hedgehog wakes beneath a heap of leaves and pushes its nose into a garden that smells of wet earth, cut stems, and the large creature who lives beyond the glass.",
+      "onEnter": [{ "type": "remember", "concepts": ["hedgehog", "garden", "nest", "rain", "scent"] }],
+      "choices": [
+        {
+          "id": "follow_worm",
+          "text": "Follow the smell of worms beneath the overturned pot",
+          "do": [
+            { "type": "set", "variable": "route", "value": "food" },
+            { "type": "remember", "concepts": ["player", "food", "earth", "foraging"] }
+          ],
+          "goto": "the_box"
+        },
+        {
+          "id": "inspect_box",
+          "text": "Explore the new wooden box against the wall",
+          "do": [
+            { "type": "set", "variable": "route", "value": "box" },
+            { "type": "remember", "concepts": ["player", "shelter", "wood", "caution"] }
+          ],
+          "goto": "the_box"
+        }
+      ]
+    },
+    "the_box": {
+      "text": "The box smells sharply of fresh wood. Its opening is narrow; inside, the floor is bare and the air does not move. A light comes on in the house. The large creature stands behind the glass and watches while you drink.",
+      "choices": [
+        {
+          "id": "avoid_box",
+          "text": "Avoid the box and keep to the familiar fence line",
+          "do": [{ "type": "remember", "concepts": ["player", "caution", "familiarity", "safety"] }],
+          "goto": "the_leaves"
+        },
+        {
+          "id": "test_box",
+          "text": "Enter briefly and learn whether the space is safe",
+          "do": [{ "type": "remember", "concepts": ["player", "exploration", "shelter", "risk"] }],
+          "goto": "the_leaves"
+        }
+      ]
+    },
+    "the_leaves": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "route", "operator": "eq", "value": "food" },
+          "value": "The days pass in smells and small routes. You find slugs beneath the box and worms near the pot. Rain softens the smell of new wood; the large creature brings dry leaves and leaves them by the opening."
+        },
+        { "value": "The large creature leaves dry leaves inside the box. Slugs gather beneath it after the rain, and the smell of sharp wood grows faint. The garden's paths change, but the fence still offers a way around them." }
+      ],
+      "choices": [
+        {
+          "id": "wait",
+          "text": "Wait beneath the fence until the creature has gone",
+          "do": [{ "type": "remember", "concepts": ["player", "patience", "distance", "night"] }],
+          "goto": "the_shelter"
+        },
+        {
+          "id": "approach",
+          "text": "Cross the open ground and inspect the leaves",
+          "do": [{ "type": "remember", "concepts": ["player", "trust", "curiosity", "scent"] }],
+          "goto": "the_shelter"
+        }
+      ]
+    },
+    "the_shelter": {
+      "text": "The box has room to turn in. The opening faces away from the wind, and the leaves beneath you are dry. Somewhere beyond the glass, a heavy foot moves slowly, then goes quiet.",
+      "choices": [
+        {
+          "id": "settle",
+          "text": "Settle inside until hunger draws you out",
+          "do": [{ "type": "remember", "concepts": ["player", "rest", "shelter", "trust"] }],
+          "goto": "safe_garden"
+        },
+        {
+          "id": "keep_roaming",
+          "text": "Leave the box and continue along the old garden path",
+          "do": [{ "type": "remember", "concepts": ["player", "freedom", "routine", "alertness"] }],
+          "goto": "night_path"
+        }
+      ]
+    },
+    "safe_garden": {
+      "text": "The garden is not safe because it belongs to you; it is safe because it has food, cover, and a place to rest. The large creature's changes have become part of the route you know.",
+      "ending": true,
+      "choices": []
+    },
+    "night_path": {
+      "text": "You keep the fence, the pot, and the turning places beneath the shrubs. The box remains there for another night, waiting without asking you to call it anything.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

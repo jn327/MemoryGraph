@@ -1,0 +1,99 @@
+{
+  "id": "the_shape_of_everyone_else",
+  "title": "The Shape of Everyone Else",
+  "start": "the_treatment",
+  "macros": {},
+  "nodes": {
+    "the_treatment": {
+      "text": "An experimental treatment repaired your memory after an accident. Then it kept going. You learn languages and solve problems with startling ease, but every pause in a conversation now suggests ten hidden possibilities.",
+      "onEnter": [{ "type": "remember", "concepts": ["Elias", "intelligence", "treatment", "paranoia", "isolation"] }],
+      "choices": [
+        {
+          "id": "study_patterns",
+          "text": "Build models of what your colleagues know and what they hide",
+          "do": [
+            { "type": "set", "variable": "response", "value": "analyze" },
+            { "type": "remember", "concepts": ["player", "analysis", "suspicion", "control"] }
+          ],
+          "goto": "the_lab"
+        },
+        {
+          "id": "tell_wife",
+          "text": "Tell your wife you are frightened by how your thoughts are changing",
+          "do": [
+            { "type": "set", "variable": "response", "value": "share" },
+            { "type": "remember", "concepts": ["player", "trust", "fear", "relationship"] }
+          ],
+          "goto": "the_lab"
+        }
+      ]
+    },
+    "the_lab": {
+      "text": "A colleague pauses before answering a question. Your mind generates a dozen explanations. Later, your supervisor says the team is worried about you and asks you to see a doctor. You hear a warning inside the concern.",
+      "choices": [
+        {
+          "id": "record_them",
+          "text": "Start recording conversations to check your interpretations",
+          "do": [{ "type": "remember", "concepts": ["player", "recording", "evidence", "distrust"] }],
+          "goto": "the_suspension"
+        },
+        {
+          "id": "ask_directly",
+          "text": "Ask your supervisor directly what she is worried about",
+          "do": [{ "type": "remember", "concepts": ["player", "conversation", "uncertainty", "courage"] }],
+          "goto": "the_suspension"
+        }
+      ]
+    },
+    "the_suspension": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "response", "operator": "eq", "value": "share" },
+          "value": "Your wife has heard you describe the fear, but she cannot follow every model you have built. She says she can see that you are frightened. Your laboratory access is suspended while you get help."
+        },
+        { "value": "Your laboratory access is suspended. You have mapped forty-seven people who might be involved, but none of the models proves what they have done. The absence of proof looks like another pattern." }
+      ],
+      "choices": [
+        {
+          "id": "leave_alone",
+          "text": "Go home alone and work out what the suspension means",
+          "do": [{ "type": "remember", "concepts": ["player", "isolation", "rumination", "risk"] }],
+          "goto": "the_door"
+        },
+        {
+          "id": "accept_visit",
+          "text": "Let your wife bring food and sit with you",
+          "do": [{ "type": "remember", "concepts": ["player", "support", "trust", "care"] }],
+          "goto": "the_door"
+        }
+      ]
+    },
+    "the_door": {
+      "text": "Your wife sits outside with a bag of food. She does not argue with your theories. 'I can see that you're frightened,' she says. You still suspect the doctor may be involved, but you have not eaten or slept well in days.",
+      "choices": [
+        {
+          "id": "go_doctor",
+          "text": "Go with her to the appointment, even if you remain suspicious",
+          "do": [{ "type": "remember", "concepts": ["player", "help", "uncertainty", "relationship"] }],
+          "goto": "with_company"
+        },
+        {
+          "id": "eat_first",
+          "text": "Eat and sleep tonight; decide about the appointment tomorrow",
+          "do": [{ "type": "remember", "concepts": ["player", "rest", "choice", "recovery"] }],
+          "goto": "one_step"
+        }
+      ]
+    },
+    "with_company": {
+      "text": "You tell the doctor you are frightened and do not trust every explanation. The doctor does not ask you to surrender your intelligence, only to consider that a mind can generate more possibilities than a person can safely carry alone.",
+      "ending": true,
+      "choices": []
+    },
+    "one_step": {
+      "text": "You eat while your wife waits in the car. Tomorrow you may still distrust the appointment, but for tonight there is food, a quiet room, and one decision postponed rather than solved.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}

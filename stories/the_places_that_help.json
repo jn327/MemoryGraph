@@ -1,0 +1,116 @@
+{
+  "id": "the_places_that_help",
+  "title": "The Places That Help",
+  "start": "the_bridge",
+  "macros": {},
+  "nodes": {
+    "the_bridge": {
+      "text": "On the road north, you meet Mara, a woman who became a bridge during a flood so her brother could cross. He did, but travelers kept needing her. She asks whether the pear trees at Bell Orchard are still standing.",
+      "onEnter": [{ "type": "remember", "concepts": ["Ina", "Mara", "bridge", "transformation", "help"] }],
+      "choices": [
+        {
+          "id": "tell_news",
+          "text": "Tell Mara the orchard still has three pear trees",
+          "do": [
+            { "type": "set", "variable": "promise", "value": "carry_news" },
+            { "type": "remember", "concepts": ["player", "news", "orchard", "kindness"] }
+          ],
+          "goto": "the_spring"
+        },
+        {
+          "id": "ask_story",
+          "text": "Ask what she remembers of being human",
+          "do": [
+            { "type": "set", "variable": "promise", "value": "carry_story" },
+            { "type": "remember", "concepts": ["player", "identity", "memory", "listening"] }
+          ],
+          "goto": "the_spring"
+        }
+      ]
+    },
+    "the_spring": {
+      "text": "Beyond the bridge, a man has become a spring. Stones are caught in his mouth, slowing the water. He asks you to clear them. In return, he can tell you which mountain path is still open.",
+      "choices": [
+        {
+          "id": "clear_stones",
+          "text": "Clear the stones from the spring",
+          "do": [{ "type": "remember", "concepts": ["player", "water", "service", "patience"] }],
+          "goto": "the_ash_tree"
+        },
+        {
+          "id": "ask_path",
+          "text": "Ask for the route first; you need to reach Bell before night",
+          "do": [{ "type": "remember", "concepts": ["player", "need", "urgency", "reciprocity"] }],
+          "goto": "the_ash_tree"
+        }
+      ]
+    },
+    "the_ash_tree": {
+      "text": "An ash tree asks you to carry three seeds to the valley, where the soil is softer. Birds nest in the woman's hair. She has forgotten the sound of her own voice, but remembers the shade her branches make at noon.",
+      "choices": [
+        {
+          "id": "carry_seeds",
+          "text": "Take the seeds and promise to plant them",
+          "do": [{ "type": "remember", "concepts": ["player", "seeds", "promise", "future"] }],
+          "goto": "bell_orchard"
+        },
+        {
+          "id": "stay_with_tree",
+          "text": "Stay until evening and listen to the birds in her branches",
+          "do": [{ "type": "remember", "concepts": ["player", "presence", "birds", "attention"] }],
+          "goto": "bell_orchard"
+        }
+      ]
+    },
+    "bell_orchard": {
+      "text": [
+        {
+          "if": { "type": "variable", "name": "promise", "operator": "eq", "value": "carry_news" },
+          "value": "At Bell, an old man recognizes Mara's name. She is his aunt, long believed dead. He wants to leave for the bridge at once; his granddaughter persuades him to pack food and hire a cart."
+        },
+        { "value": "At Bell, you tell an old man what Mara remembers of the orchard. He knows her as the aunt his family lost. His granddaughter brings a cart and asks you to show her the road back to the river." }
+      ],
+      "choices": [
+        {
+          "id": "plant_first",
+          "text": "Plant the ash seeds beside the orchard wall before leaving",
+          "do": [{ "type": "remember", "concepts": ["player", "roots", "care", "continuity"] }],
+          "goto": "the_return"
+        },
+        {
+          "id": "hurry_back",
+          "text": "Take the cart straight back so Mara's family can reunite",
+          "do": [{ "type": "remember", "concepts": ["player", "reunion", "urgency", "family"] }],
+          "goto": "the_return"
+        }
+      ]
+    },
+    "the_return": {
+      "text": "Mara recognizes her nephew's voice before he reaches the river. They sit on opposite banks and trade news. The spring runs freely behind you; the seeds wait in the valley. You can stay for their reunion or continue north with the road.",
+      "choices": [
+        {
+          "id": "stay",
+          "text": "Stay and help travelers clear the branches caught beneath Mara",
+          "do": [{ "type": "remember", "concepts": ["player", "mutual_aid", "river", "community"] }],
+          "goto": "the_crossing"
+        },
+        {
+          "id": "continue",
+          "text": "Continue north, carrying the stories of the people you met",
+          "do": [{ "type": "remember", "concepts": ["player", "journey", "memory", "connection"] }],
+          "goto": "the_road"
+        }
+      ]
+    },
+    "the_crossing": {
+      "text": "Travelers cross while Mara and her family speak across the water. When evening comes, her granddaughter promises to return with food and news. The bridge remains a person, a place, and a choice the community keeps making together.",
+      "ending": true,
+      "choices": []
+    },
+    "the_road": {
+      "text": "You walk north with three seeds in your pocket and a map of help given and received. Somewhere behind you, a bridge hears her family laugh. Ahead, the road bends out of sight.",
+      "ending": true,
+      "choices": []
+    }
+  }
+}
