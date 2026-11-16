@@ -1,6 +1,7 @@
 {
   "id": "the_village_remembers",
   "title": "The Village Remembers",
+  "synopsis": "Arrive in rain-soaked Brackenridge, where villagers remember your choices amid tensions and mysteries.",
   "start": "arrival",
   "macros": {
     "hasMercy": {

@@ -1,6 +1,7 @@
 {
   "id": "the_quiet_ministry",
   "title": "The Quiet Ministry",
+  "synopsis": "As a clerk in an authoritarian ministry in an alternate 1936, weigh the consequences of seemingly ordinary paperwork.",
   "start": "application",
   "macros": {},
   "nodes": {

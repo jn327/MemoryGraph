@@ -32,17 +32,16 @@ belongs in `stories/`, page markup in `index.html`, and shared styles in
 ## Runtime and dependencies
 
 - Use browser-compatible JavaScript and browser APIs.
-- Do not add runtime dependencies, a bundler, or a build step.
+- The browser app has no runtime dependencies and needs no build or local
+  server. Node.js is used only to run tests and regenerate embedded stories.
 - Opening `index.html` directly with `file://` is the supported launch
   method. Load the scripts using ordered classic `<script src>` tags;
   do not rely on ES-module imports or `fetch()` for local files.
-- Browsers do not reliably allow a `file://` page to enumerate its
-  sibling `stories/` directory without user permission. `storyPlayer.js`
-  must use a user-activated `<input type="file" webkitdirectory>` so the
-  user can select the `stories/` folder; then filter and load its JSON
-  files into the in-page story picker. If directory selection is
-  unavailable, fall back to a multi-file JSON input. The MVP does not
-  retain access across page reloads.
+- Built-in stories are included in `scripts/builtInStories.js` so they work
+  under `file://`. After adding, editing, or deleting story JSON, run
+  `node scripts/bundleStories.js` to regenerate the catalog. Uploading a
+  folder or JSON files replaces the built-in picker for that session;
+  uploads are not retained across reloads.
 - Keep core modules independent of the DOM, styles, and demo entry point.
 - Prefer native browser APIs and vanilla JavaScript.
 

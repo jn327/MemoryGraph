@@ -1,6 +1,7 @@
 {
   "id": "anywhere",
   "title": "Anywhere",
+  "synopsis": "When teleportation makes locked doors obsolete, design a refuge that balances privacy with accessibility.",
   "start": "intrusion",
   "macros": {},
   "nodes": {

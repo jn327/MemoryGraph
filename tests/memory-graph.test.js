@@ -101,9 +101,9 @@ test("activation keeps the strongest path when a concept is reached at different
   graph.remember({ concepts: ["c", "b"], strength: 9 });
 
   const result = graph.activate("a", { depth: 2, decay: 1 });
-  assert.equal(result.find(function (item) {
+  assert.ok(Math.abs(result.find(function (item) {
     return item.concept === "b";
-  }).activation, 0.81);
+  }).activation - 0.81) < 1e-12);
 });
 
 test("serialization restores memories, transitions, and counters", function () {

@@ -4,7 +4,7 @@
 **Target:** JavaScript library for browser-based interactive narrative\
 **Working name:** Memory Graph\
 **Primary modules:** `MemoryGraph.js` and `NarrativeEngine.js`\
-**Status:** Ready for implementation
+**Status:** Current implementation reference
 
 ------------------------------------------------------------------------
 
@@ -24,11 +24,10 @@ The system has two core library modules and a separate demo UI:
     scene text and choices, evaluates declarative conditions, executes
     declarative operations, and moves between story nodes.
 
-The **StoryPlayer** is demo UI outside the core library. It lets the user
-select the `stories/` folder, choose among its loaded JSON stories,
-renders the engine's view, and sends selected visible choices back to
-the engine. It is not a required library module or a supported UI
-framework.
+The **StoryPlayer** is demo UI outside the core library. It offers built-in
+stories and lets the user upload a folder or JSON files, renders the
+engine's view, and sends selected visible choices back to the engine. It
+is not a required library module or a supported UI framework.
 
 A story author should be able to create or modify a story by editing
 JSON only. They should not need to write JavaScript for ordinary story
@@ -76,16 +75,15 @@ concepts have a meaningful semantic relationship.
 
 Use browser-compatible JavaScript and APIs. Do not require Node-specific
 APIs in the core library. There is no build, bundling, or local-server
-step: opening `index.html` directly with `file://` is the supported
+step at runtime: opening `index.html` directly with `file://` is the supported
 launch method. Use ordered classic `<script src="...">` tags for the
 library and demo scripts; do not use ES-module imports or `fetch()` to
-load local files. The browser cannot silently enumerate the `stories/`
-directory from a `file://` page. `storyPlayer.js` must use a user-activated
-`<input type="file" webkitdirectory>` to let the user select that folder,
-then filter its selected files to JSON stories and build the story picker.
-If directory selection is unavailable, fall back to a multi-file JSON
-input. The user selects the folder again after reloading the page; the
-MVP does not retain directory access.
+load local files. Built-in story definitions are generated into
+`scripts/builtInStories.js` from the JSON files with
+`node scripts/bundleStories.js`. Regenerate this file after adding, editing,
+or deleting stories.
+The Upload control lets the user select a folder or JSON files to replace
+the built-in story picker. Uploads are not retained across page reloads.
 
 Use the existing project structure:
 
@@ -94,17 +92,20 @@ Use the existing project structure:
   scripts/
     MemoryGraph.js
     NarrativeEngine.js
+    builtInStories.js      # generated from stories/*.json
+    bundleStories.js       # regenerates the built-in story definitions
     storyPlayer.js          # demo UI only; not part of the core library
   styles/
     shared.css
   stories/
-    the_village_remembers.json
+    *.json
   tests/                    # dependency-free unit tests using Node's built-in runner
     memory-graph.test.js
     narrative-engine.test.js
+    story-player.test.js
 ```
 
-Load `MemoryGraph.js`, `NarrativeEngine.js`, and `storyPlayer.js` in that
+Load `MemoryGraph.js`, `NarrativeEngine.js`, `builtInStories.js`, and `storyPlayer.js` in that
 order from `index.html`. The core scripts expose `MemoryGraph` and
 `NarrativeEngine` through explicit `window` properties. `storyPlayer.js`
 is the browser demo entry point; core scripts must not depend on the
@@ -454,12 +455,23 @@ implicit auto-advance and `goto` is not an operation.
 
 ### 7.4 Story structure
 
+The player displays the optional `synopsis` string in the story picker.
+Stories without one remain playable and display "No synopsis provided."
+The player shows the current run's story text and selected choices in order,
+including the text as it was originally presented. The transcript grows with
+the page and resets for a new run. The player script supports per-story
+save/restore controls when the corresponding elements are present, but the
+current `index.html` does not expose those controls. When enabled, the save
+includes the transcript; older saves without one can only display the current
+passage and later choices.
+
 Example:
 
 ``` json
 {
   "id": "village_remembers",
   "title": "The Village Remembers",
+  "synopsis": "Explore a village that remembers your choices.",
   "start": "wolf_encounter",
   "macros": {},
   "nodes": {
@@ -909,6 +921,10 @@ Support resetting story progress while optionally retaining graph
 memory. `keepMemory: false` clears the supplied graph; `keepMemory: true`
 leaves it unchanged.
 
+The demo also supports per-story local storage when save/restore controls
+are added to its markup. The current page exposes only the ending actions
+to restart while keeping memory or clear memory and restart.
+
 ``` js
 engine.reset({ keepMemory: true });
 ```
@@ -1014,6 +1030,14 @@ Write automated tests for:
 -   reset can retain or clear graph memory as requested
 -   malformed stories fail validation with useful errors
 
+### StoryPlayer
+
+-   built-in story options match the JSON files and can be selected
+-   uploading JSON stories replaces the current picker contents
+-   the transcript preserves the text and choices shown during a run
+-   saved transcripts restore correctly, including older saves without one
+-   graph-state diagnostics include each event's sequence number
+
 ## 17. MVP acceptance criteria
 
 The implementation is complete when:
@@ -1032,8 +1056,9 @@ The implementation is complete when:
 9.  A small example story demonstrates memory affecting later dialogue
     or available choices.
 10. The demo runs by opening `index.html` directly with `file://`, without
-    a build, bundling, or local-server step; the user selects the
-    `stories/` folder through the demo's directory input.
+    a build or local-server step. Built-in stories are available immediately;
+    users may optionally replace them for the current page session by
+    uploading a folder or JSON files.
 11. The automated test requirements above pass.
 
 ## 18. Suggested implementation order

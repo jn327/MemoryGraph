@@ -1,6 +1,7 @@
 {
   "id": "the_house_with_two_kitchens",
   "title": "The House With Two Kitchens",
+  "synopsis": "After your father's death, a second kitchen appears in dreamlike moments, inviting you to explore family memories.",
   "start": "the_blue_room",
   "macros": {},
   "nodes": {

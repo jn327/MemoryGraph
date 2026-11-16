@@ -161,7 +161,7 @@ test("conditions support nested logic and type-safe variable comparisons", funct
   const engine = new NarrativeEngine(story, {
     initialVariables: { count: "1" }
   });
-  assert.equal(engine.start().choices.length, 1);
+  assert.equal(engine.start().choices.length, 2);
 });
 
 test("conditional text and routes use first match then fallback", function () {

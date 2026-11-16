@@ -1,6 +1,7 @@
 {
   "id": "the_places_that_help",
   "title": "The Places That Help",
+  "synopsis": "Travel north through a landscape of people transformed into places, and decide how to answer their requests.",
   "start": "the_bridge",
   "macros": {},
   "nodes": {

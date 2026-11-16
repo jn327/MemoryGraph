@@ -1,6 +1,7 @@
 {
   "id": "the_better_version",
   "title": "The Better Version",
+  "synopsis": "A digital double built to answer your fans begins to question its own identity and place in your life.",
   "start": "the_copy",
   "macros": {},
   "nodes": {
