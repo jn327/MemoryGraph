@@ -42,6 +42,63 @@ button:focus-visible, select:focus-visible, .folder-button:focus-within {
   padding: 24px 0;
 }
 
+.app-header {
+  margin: 0 0 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--tan);
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.header-info {
+  flex: 1;
+}
+
+.app-title {
+  margin: 0 0 8px;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: var(--dark-brown);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.app-tagline {
+  margin: 0;
+  color: var(--brown);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 500px;
+}
+
+.button-info {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--cream);
+  color: var(--accent);
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.button-info:hover {
+  background: var(--tan);
+  transform: scale(1.05);
+}
+
 .library-panel {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
@@ -273,17 +330,27 @@ button:focus-visible, select:focus-visible, .folder-button:focus-within {
   display: none;
 }
 
+.debug-panel > div {
+  background: var(--cream);
+  border-radius: 6px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
 .debug-header {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
   background: var(--accent);
   color: var(--cream);
   padding: 16px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
+  border-radius: 6px 6px 0 0;
 }
 
 .debug-header h3 {
@@ -311,15 +378,9 @@ button:focus-visible, select:focus-visible, .folder-button:focus-within {
 }
 
 .debug-content {
-  background: var(--cream);
-  border: 1px solid #d9cfc4;
-  border-radius: 2px;
-  padding: 56px 20px 20px;
+  padding: 20px;
   margin: 0;
-  max-height: 70vh;
   overflow-y: auto;
-  width: 90%;
-  max-width: 800px;
   color: var(--dark-brown);
   font-size: 12px;
   line-height: 1.4;

@@ -20,13 +20,13 @@
   const statusMessage = document.getElementById("status-message");
   const memoryTotal = document.getElementById("memory-total");
   const memoryList = document.getElementById("memory-list");
-  const debugButton = document.getElementById("debug-button");
+  const infoButton = document.getElementById("info-button");
   const debugPanel = document.getElementById("debug-panel");
   const debugClose = document.getElementById("debug-close");
   const debugContent = document.getElementById("debug-content");
 
   console.log('storyPlayer.js: Elements loaded', {
-    debugButton: debugButton ? 'EXISTS' : 'NULL',
+    infoButton: infoButton ? 'EXISTS' : 'NULL',
     debugPanel: debugPanel ? 'EXISTS' : 'NULL',
     debugClose: debugClose ? 'EXISTS' : 'NULL',
     debugContent: debugContent ? 'EXISTS' : 'NULL'
@@ -61,8 +61,8 @@
   if (saveButton) saveButton.addEventListener("click", saveProgress);
   if (restoreButton) restoreButton.addEventListener("click", restoreProgress);
   
-  if (debugButton) {
-    debugButton.addEventListener("click", function () {
+  if (infoButton) {
+    infoButton.addEventListener("click", function () {
       showDebugInfo();
     });
   }
