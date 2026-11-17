@@ -5,9 +5,9 @@
   const jsonInput = document.getElementById("story-json-files");
   const folderUploadButton = document.getElementById("folder-upload-button");
   const jsonUploadButton = document.getElementById("json-upload-button");
-  const uploadPicker = document.querySelector(".upload-picker");
   const picker = document.getElementById("story-picker");
   const pickerTitle = document.getElementById("story-picker-title");
+  const storyMenu = document.getElementById("story-menu");
   const storyOptions = document.getElementById("story-options");
   const storyKicker = document.getElementById("story-kicker");
   const storyTitle = document.getElementById("story-title");
@@ -21,6 +21,8 @@
   const endingPathLabel = document.getElementById("ending-path-label");
   const endingChoices = document.getElementById("ending-choices");
   const endingActions = document.getElementById("ending-actions");
+  const endingReputation = document.getElementById("ending-reputation");
+  const endingReputationList = document.getElementById("ending-reputation-list");
   const restartButton = document.getElementById("restart-button");
   const clearButton = document.getElementById("clear-button");
   const saveButton = document.getElementById("save-button");
@@ -29,6 +31,10 @@
   const memoryTotal = document.getElementById("memory-total");
   const memoryList = document.getElementById("memory-list");
   const infoButton = document.getElementById("info-button");
+  const tagsButton = document.getElementById("tags-button");
+  const reputationPanel = document.getElementById("reputation-panel");
+  const reputationTabs = document.getElementById("reputation-tabs");
+  const reputationBody = document.getElementById("reputation-body");
   const debugPanel = document.getElementById("debug-panel");
   const debugClose = document.getElementById("debug-close");
   const graphSummary = document.getElementById("graph-summary");
@@ -37,10 +43,16 @@
   const debugContent = document.getElementById("debug-content");
   const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
-  let stories = window.builtInStories.slice().sort(function (a, b) {
-    return compareText(a.definition.title, b.definition.title) ||
-      compareText(a.fileName, b.fileName);
-  });
+  // Built-in stories live in stories/<name>.js, each calling registerStory({...}).
+  // Add a file's name here to include it in the picker.
+  const STORY_FILES = [
+    "anywhere", "the_better_version", "the_distance_between_us",
+    "the_house_with_two_kitchens", "the_mountain_accounts",
+    "the_places_that_help", "the_quiet_ministry", "the_village_remembers"
+  ];
+
+  let stories = [];
+  let storiesUploaded = false;
   let engine = null;
   let selectedStory = null;
   let storageUnavailable = false;
@@ -51,11 +63,11 @@
   }
 
   folderUploadButton.addEventListener("click", function () {
-    uploadPicker.open = false;
+    setPickerOpen(false);
     fileInput.click();
   });
   jsonUploadButton.addEventListener("click", function () {
-    uploadPicker.open = false;
+    setPickerOpen(false);
     jsonInput.click();
   });
   [fileInput, jsonInput].forEach(function (input) {
@@ -65,18 +77,15 @@
     });
   });
   picker.addEventListener("click", function () {
-    setPickerOpen(storyOptions.hidden);
+    setPickerOpen(storyMenu.hidden);
   });
   document.addEventListener("click", function (event) {
     if (!event.target.closest(".story-picker")) {
       setPickerOpen(false);
     }
-    if (!event.target.closest(".upload-picker")) {
-      uploadPicker.open = false;
-    }
   });
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && !storyOptions.hidden) {
+    if (event.key === "Escape" && !storyMenu.hidden) {
       setPickerOpen(false);
       picker.focus();
     }
@@ -100,9 +109,91 @@
       debugPanel.hidden = true;
     });
   }
+  if (reputationPanel) {
+    try { reputationPanel.open = localStorage.getItem("memory-graph:show-reputation") === "1"; } catch (error) { /* closed by default */ }
+    reputationPanel.addEventListener("toggle", function () {
+      try { localStorage.setItem("memory-graph:show-reputation", reputationPanel.open ? "1" : "0"); } catch (error) { /* per-viewer preference only */ }
+    });
+  }
+  if (tagsButton && document.body && document.body.classList) {
+    let showTags = true;
+    try { showTags = localStorage.getItem("memory-graph:show-tags") !== "0"; } catch (error) { /* default on */ }
+    setTagsVisible(showTags);
+    tagsButton.addEventListener("click", function () {
+      setTagsVisible(tagsButton.getAttribute("aria-pressed") !== "true");
+    });
+  }
 
-  renderStoryPicker();
-  pickerTitle.textContent = stories.length ? "Choose a story" : "No valid stories found";
+  picker.disabled = true;
+  pickerTitle.textContent = "Loading stories…";
+  loadBuiltInStories();
+
+  function loadBuiltInStories() {
+    // A classic script's load event fires straight after it runs, so the
+    // definition it registered can be paired with its file name there.
+    let registered = null;
+    window.registerStory = function (definition) {
+      registered = definition;
+    };
+
+    Promise.all(STORY_FILES.map(function (name) {
+      return new Promise(function (resolve) {
+        const fileName = name + ".js";
+        const script = document.createElement("script");
+        script.src = "stories/" + fileName;
+        script.onload = function () {
+          const definition = registered;
+          registered = null;
+          if (definition === null) {
+            resolve({ fileName: fileName, error: "registerStory was not called (check for syntax errors)" });
+            return;
+          }
+          try {
+            resolve({ fileName: fileName, definition: validateStory(definition) });
+          } catch (error) {
+            resolve({ fileName: fileName, error: error.message });
+          }
+        };
+        script.onerror = function () {
+          resolve({ fileName: fileName, error: "the file could not be loaded" });
+        };
+        document.head.appendChild(script);
+      });
+    })).then(function (results) {
+      if (storiesUploaded) {
+        return;
+      }
+      const rejected = results.filter(function (result) { return result.error; });
+      stories = sortStories(results.filter(function (result) { return !result.error; }));
+      renderStoryPicker();
+      if (stories.length) {
+        pickerTitle.textContent = "Choose a story";
+      }
+      if (rejected.length) {
+        setStatus("Skipped " + rejected.length + " built-in stor" +
+          (rejected.length === 1 ? "y" : "ies") + ": " + rejected.map(function (result) {
+          return result.fileName + ": " + result.error;
+        }).join(" · "), true);
+      }
+    });
+  }
+
+  function validateStory(definition) {
+    if (!definition || typeof definition !== "object" || Array.isArray(definition)) {
+      throw new TypeError("story definition must be an object");
+    }
+    const graph = new window.MemoryGraph();
+    const probe = new window.NarrativeEngine(definition, { graph: graph });
+    probe.start();
+    return definition;
+  }
+
+  function sortStories(list) {
+    return list.sort(function (a, b) {
+      return compareText(a.definition.title, b.definition.title) ||
+        compareText(a.fileName, b.fileName);
+    });
+  }
 
   function loadStoryFiles(files) {
     const jsonFiles = files.filter(function (file) {
@@ -124,10 +215,8 @@
         }
       }
 
-      stories = loaded.sort(function (a, b) {
-        return compareText(a.definition.title, b.definition.title) ||
-          compareText(a.fileName, b.fileName);
-      });
+      storiesUploaded = true;
+      stories = sortStories(loaded);
       renderStoryPicker();
       if (stories.length > 0) {
         pickerTitle.textContent = stories[0].definition.title;
@@ -152,16 +241,9 @@
       const reader = new FileReader();
       reader.onload = function () {
         try {
-          const definition = JSON.parse(String(reader.result));
-          if (!definition || typeof definition !== "object" || Array.isArray(definition)) {
-            throw new TypeError("story JSON must contain an object");
-          }
-          const graph = new window.MemoryGraph();
-          const probe = new window.NarrativeEngine(definition, { graph: graph });
-          probe.start();
           resolve({
             fileName: file.name,
-            definition: definition
+            definition: validateStory(JSON.parse(String(reader.result)))
           });
         } catch (error) {
           resolve({ file: file, error: error.message });
@@ -177,9 +259,11 @@
   function renderStoryPicker() {
     setPickerOpen(false);
     storyOptions.replaceChildren();
+    // The menu stays enabled even with no stories so the upload options remain reachable.
+    picker.disabled = false;
+    storyOptions.hidden = stories.length === 0;
     if (stories.length === 0) {
       pickerTitle.textContent = "No valid stories found";
-      picker.disabled = true;
       return;
     }
     stories.forEach(function (story) {
@@ -203,22 +287,22 @@
       });
       storyOptions.appendChild(option);
     });
-    picker.disabled = false;
   }
 
   function setPickerOpen(open) {
-    storyOptions.hidden = !open;
+    storyMenu.hidden = !open;
     picker.setAttribute("aria-expanded", String(open));
   }
 
   function selectStory(story) {
     selectedStory = story;
+    reputationView = null;
     try {
       engine = new window.NarrativeEngine(story.definition);
       const view = engine.start();
       if (saveButton) saveButton.disabled = false;
       updateRestoreButton();
-      transcript = [{ type: "story", text: view.text }];
+      transcript = [storyEntry(view)];
       renderView(view);
       setStatus("A new run is ready.");
     } catch (error) {
@@ -229,15 +313,228 @@
     }
   }
 
+  // ---- Memory tags ----------------------------------------------------
+  // Text that appeared because of what characters remember is followed by a
+  // coloured (tag); hovering or focusing it lists the acts behind it.
+
+  const TAG_COLORS = ["#a3401d", "#2f5d8a", "#4f6f1f", "#7a3e7a", "#8a5a00", "#1f6f68", "#9b2c4a", "#4a4f9a"];
+
+  function storyEntry(view) {
+    const entry = { type: "story", text: view.text };
+    if (Array.isArray(view.segments) && view.segments.some(function (s) { return s.cause; })) {
+      entry.segments = view.segments;
+    }
+    if (view.arrival) entry.arrival = view.arrival;
+    return entry;
+  }
+
+  function choiceEntry(choice, echo) {
+    const entry = { type: "choice", text: choice.text };
+    if (choice.cause) entry.cause = choice.cause;
+    if (echo) entry.echo = echo;
+    return entry;
+  }
+
+  // Saved transcripts are untrusted; keep tag data only when well-formed.
+  function restoreEntry(entry) {
+    const restored = { type: entry.type, text: entry.text };
+    if (Array.isArray(entry.segments) && entry.segments.every(function (segment) {
+      return segment && typeof segment.text === "string" &&
+        (segment.cause === undefined || isCause(segment.cause));
+    }) && entry.segments.map(function (s) { return s.text; }).join("") === entry.text) {
+      restored.segments = entry.segments;
+    }
+    if (isCause(entry.arrival)) restored.arrival = entry.arrival;
+    if (isCause(entry.cause)) restored.cause = entry.cause;
+    if (isCause(entry.echo)) restored.echo = entry.echo;
+    return restored;
+  }
+
+  function isCause(cause) {
+    return !!cause && typeof cause.tag === "string" && Array.isArray(cause.explanation) &&
+      cause.explanation.every(function (section) {
+        return section && typeof section.heading === "string" && Array.isArray(section.items) &&
+          section.items.every(function (item) { return typeof item === "string"; });
+      });
+  }
+
+  function renderEntry(entry) {
+    const paragraph = document.createElement("p");
+    if (entry.type === "choice") paragraph.className = "story-picked-choice";
+    if (!entry.segments && !entry.arrival && !entry.cause && !entry.echo) {
+      paragraph.textContent = entry.text;
+      return paragraph;
+    }
+    if (entry.arrival) {
+      paragraph.appendChild(createTag(entry.arrival, true));
+      paragraph.appendChild(document.createTextNode(" "));
+    }
+    (entry.segments || [{ text: entry.text }]).forEach(function (segment) {
+      paragraph.appendChild(document.createTextNode(segment.text));
+      if (segment.cause) {
+        paragraph.appendChild(document.createTextNode(" "));
+        paragraph.appendChild(createTag(segment.cause, true));
+      }
+    });
+    if (entry.cause) {
+      paragraph.appendChild(document.createTextNode(" "));
+      paragraph.appendChild(createTag(entry.cause, true));
+    }
+    if (entry.echo) {
+      paragraph.appendChild(document.createTextNode(" "));
+      paragraph.appendChild(createTag(entry.echo, true));
+    }
+    return paragraph;
+  }
+
+  // ---- How you're seen ------------------------------------------------
+  // A live, per-character view of the player's reputation: diverging bars
+  // (toward a trait to the right, away from it to the left) and the act that
+  // defines you to them. Hidden characters are left out until the ending.
+
+  let reputationView = null;
+
+  function renderReputationPanel() {
+    if (!reputationPanel || !reputationTabs || !reputationBody) return;
+    const characters = engine ? engine.knownCharacters() : [];
+    const overall = engine ? engine.reputationOf() : null;
+    reputationPanel.hidden = !overall || (overall.traits.length === 0 && characters.length === 0);
+    if (reputationPanel.hidden) return;
+    if (reputationView !== null && characters.indexOf(reputationView) === -1) reputationView = null;
+
+    const views = [null].concat(characters).map(function (id) {
+      return id === null ? overall : engine.reputationOf(id);
+    });
+    // One scale for every view, so bars can be compared between people.
+    const scale = Math.max(1, Math.max.apply(null, views.map(function (view) {
+      return Math.max.apply(null, [0].concat(view.traits.map(function (t) { return Math.abs(t.score); })));
+    })));
+
+    reputationTabs.replaceChildren();
+    views.forEach(function (view) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "reputation-tab";
+      tab.textContent = view.name === null ? "Overall" : view.name;
+      tab.setAttribute("aria-pressed", String(view.character === reputationView));
+      tab.addEventListener("click", function () {
+        reputationView = view.character;
+        renderReputationPanel();
+      });
+      reputationTabs.appendChild(tab);
+    });
+
+    const view = views.find(function (v) { return v.character === reputationView; }) || overall;
+    reputationBody.replaceChildren();
+    if (view.traits.length === 0) {
+      reputationBody.appendChild(reputationNote(view.name === null
+        ? "Nothing you've done has defined you yet."
+        : view.name + " hasn't made up their mind about you yet."));
+      return;
+    }
+    const list = document.createElement("ul");
+    list.className = "reputation-rows";
+    view.traits.forEach(function (trait) {
+      list.appendChild(reputationRow(trait, scale));
+    });
+    reputationBody.appendChild(list);
+    if (view.memory) {
+      reputationBody.appendChild(reputationNote((view.name === null
+        ? "What people remember most: you "
+        : "What " + view.name + " remembers most: you ") + view.memory + "."));
+    }
+  }
+
+  function reputationRow(trait, scale) {
+    const row = document.createElement("li");
+    row.className = "reputation-row";
+    const share = Math.abs(trait.score) / scale;
+    const strength = share >= 0.66 ? "strongly" : share >= 0.33 ? "clearly" : "slightly";
+    const label = document.createElement("span");
+    label.className = "reputation-label";
+    label.textContent = trait.label;
+    const bar = document.createElement("span");
+    bar.className = "reputation-bar";
+    bar.setAttribute("aria-hidden", "true");
+    const fill = document.createElement("span");
+    fill.className = "reputation-fill " + (trait.score > 0 ? "is-toward" : "is-away");
+    fill.setAttribute("style", "--rep-size: " + Math.round(share * 50) + "%; --tag-color: " +
+      tagColor({ trait: trait.trait, color: trait.color, tag: trait.label }));
+    bar.appendChild(fill);
+    const words = document.createElement("span");
+    words.className = "reputation-words";
+    words.textContent = trait.score > 0 ? strength : "against, " + strength;
+    row.setAttribute("aria-label", trait.label + ": " + words.textContent);
+    row.append(label, bar, words);
+    return row;
+  }
+
+  function reputationNote(text) {
+    const note = document.createElement("p");
+    note.className = "reputation-note";
+    note.textContent = text;
+    return note;
+  }
+
+  function createTag(cause, focusable) {
+    const tag = document.createElement("span");
+    tag.className = "memory-tag";
+    tag.setAttribute("data-kind", cause.kind || "memory");
+    tag.setAttribute("style", "--tag-color: " + tagColor(cause));
+    if (focusable) tag.setAttribute("tabindex", "0");
+    const label = document.createElement("span");
+    label.className = "memory-tag-label";
+    label.textContent = "(" + cause.tag + ")";
+    const tip = document.createElement("span");
+    tip.className = "memory-tip";
+    tip.setAttribute("role", "tooltip");
+    cause.explanation.forEach(function (section) {
+      const heading = document.createElement("span");
+      heading.className = "memory-tip-heading";
+      heading.textContent = section.heading;
+      tip.appendChild(heading);
+      section.items.forEach(function (item) {
+        const line = document.createElement("span");
+        line.className = "memory-tip-item";
+        line.textContent = item;
+        tip.appendChild(line);
+      });
+    });
+    if (cause.explanation.length === 0) {
+      const heading = document.createElement("span");
+      heading.className = "memory-tip-heading";
+      heading.textContent = "Shaped by what happened earlier.";
+      tip.appendChild(heading);
+    }
+    tag.append(label, tip);
+    return tag;
+  }
+
+  function tagColor(cause) {
+    if (typeof cause.color === "string" && /^#[0-9a-fA-F]{6}$/.test(cause.color)) return cause.color;
+    if (cause.kind === "recall") return "#6b5a4c";
+    if (cause.kind === "knows") return "#55606e";
+    const key = cause.trait || cause.tag;
+    let hash = 0;
+    for (let i = 0; i < key.length; i += 1) hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    return TAG_COLORS[hash % TAG_COLORS.length];
+  }
+
+  function setTagsVisible(visible) {
+    document.body.classList.toggle("hide-memory-tags", !visible);
+    if (tagsButton) {
+      tagsButton.setAttribute("aria-pressed", String(visible));
+      tagsButton.textContent = visible ? "Memory tags: on" : "Memory tags: off";
+    }
+    try { localStorage.setItem("memory-graph:show-tags", visible ? "1" : "0"); } catch (error) { /* per-viewer preference only */ }
+  }
+
   function renderView(view) {
     if (storyKicker) storyKicker.textContent = view.ended ? "ENDING" : "STORY IN PROGRESS";
     storyTitle.textContent = selectedStory.definition.title;
     storyText.replaceChildren();
     transcript.forEach(function (entry) {
-      const paragraph = document.createElement("p");
-      if (entry.type === "choice") paragraph.className = "story-picked-choice";
-      paragraph.textContent = entry.text;
-      storyText.appendChild(paragraph);
+      storyText.appendChild(renderEntry(entry));
     });
     if (nodeCounter) nodeCounter.textContent = view.nodeId.replace(/[_-]+/g, " ");
     choiceList.replaceChildren();
@@ -248,12 +545,16 @@
       button.type = "button";
       button.className = "choice-button";
       button.textContent = choice.text;
+      if (choice.cause) {
+        button.appendChild(document.createTextNode(" "));
+        button.appendChild(createTag(choice.cause, false));
+      }
       button.addEventListener("click", function () {
         try {
           const nextView = engine.choose(choice.index);
           transcript.push(
-            { type: "choice", text: choice.text },
-            { type: "story", text: nextView.text }
+            choiceEntry(choice, nextView.echo),
+            storyEntry(nextView)
           );
           renderView(nextView);
           storyText.lastElementChild.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -267,6 +568,7 @@
       choiceList.appendChild(button);
     });
 
+    renderReputationPanel();
     renderEndingSummary(view);
     updateMemory();
     updateRestoreButton();
@@ -291,6 +593,7 @@
       trace.append(concept, count);
       endingTraces.appendChild(trace);
     });
+    renderReputation();
 
     const choices = engine.choiceHistory.map(function (entry) {
       const node = selectedStory.definition.nodes[entry.nodeId];
@@ -308,6 +611,33 @@
     });
   }
 
+  // Each character's view of the player, built from what they witnessed or heard.
+  function renderReputation() {
+    if (!endingReputation || !endingReputationList) return;
+    const reputation = engine.describeReputation();
+    endingReputation.hidden = reputation.length === 0;
+    endingReputationList.replaceChildren();
+    reputation.forEach(function (entry) {
+      const item = document.createElement("li");
+      const name = document.createElement("span");
+      name.className = "ending-reputation-name";
+      name.textContent = entry.name;
+      const verdict = entry.traits.length === 0
+        ? " has no settled opinion of you."
+        : " remembers you as " + entry.traits.slice(0, 2).map(function (trait) {
+          return trait.label;
+        }).join(" and ") + ".";
+      item.append(name, document.createTextNode(verdict));
+      if (entry.memory) {
+        const memory = document.createElement("span");
+        memory.className = "ending-reputation-memory";
+        memory.textContent = "Mostly, that you " + entry.memory + ".";
+        item.appendChild(memory);
+      }
+      endingReputationList.appendChild(item);
+    });
+  }
+
   function restart(keepMemory) {
     if (!engine) {
       return;
@@ -315,7 +645,7 @@
     try {
       engine.reset({ keepMemory: keepMemory });
       const view = engine.start();
-      transcript = [{ type: "story", text: view.text }];
+      transcript = [storyEntry(view)];
       renderView(view);
       setStatus(keepMemory
         ? "A new run has started. Earlier memories remain."
@@ -365,7 +695,7 @@
       }
       let restoredTranscript;
       if (saved.transcript === undefined) {
-        restoredTranscript = [{ type: "story", text: view.text }];
+        restoredTranscript = [storyEntry(view)];
       } else {
         if (!Array.isArray(saved.transcript) || saved.transcript.length === 0 ||
             saved.transcript.length % 2 !== 1 ||
@@ -376,7 +706,7 @@
           throw new Error("The saved story transcript is invalid.");
         }
         restoredTranscript = saved.transcript.map(function (entry) {
-          return { type: entry.type, text: entry.text };
+          return restoreEntry(entry);
         });
       }
       engine = restored;
@@ -484,6 +814,7 @@
     if (nodeCounter) nodeCounter.textContent = "";
     choiceList.replaceChildren();
     if (endingSummary) endingSummary.hidden = true;
+    if (reputationPanel) reputationPanel.hidden = true;
     endingActions.hidden = true;
     if (saveButton) saveButton.disabled = true;
     if (restoreButton) restoreButton.disabled = true;
@@ -542,8 +873,18 @@
           return { concept: item.concept, score: item.score, seen: item.seen };
         })
         : "None";
+      debugData["Perspectives"] = engine.describeReputation().map(function (entry) {
+        return {
+          character: entry.name,
+          knownEvents: entry.knownEvents,
+          traits: entry.traits.map(function (trait) {
+            return trait.trait + " " + trait.score.toFixed(2);
+          }),
+          strongestMemory: entry.memory
+        };
+      });
     }
-    
+
     debugContent.textContent = JSON.stringify(debugData, null, 2);
     debugPanel.hidden = false;
   }

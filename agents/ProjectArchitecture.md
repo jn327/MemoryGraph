@@ -16,12 +16,17 @@ story JSON -> NarrativeEngine -> MemoryGraph
   operations. It does not contain executable JavaScript.
 - **NarrativeEngine** validates and interprets story data, owns narrative
   progress and variables, and calls the graph when operations or
-  conditions require memory behavior.
+  conditions require memory behavior. It also owns character knowledge
+  (who witnessed or heard about which event) and builds per-character
+  perspective graphs, trait scores, and recall from the graph's event log.
 - **MemoryGraph** owns memory events, associations, transitions, and
-  activation. It has no dependency on the narrative engine or browser UI.
+  activation. It has no dependency on the narrative engine or browser UI,
+  and no notion of characters: a perspective is just another
+  `MemoryGraph` the engine fills from the events a character knows.
 - **Demo/UI** loads a story, renders the engine's plain-data view, and
   forwards player input. It owns presentation only; it must not duplicate
-  story rules or memory logic.
+  story rules or memory logic. It reads reputation through
+  `engine.describeReputation()` rather than computing it.
 
 The core library consists of `scripts/MemoryGraph.js` and
 `scripts/NarrativeEngine.js`. The browser demo entry point is
@@ -33,13 +38,15 @@ belongs in `stories/`, page markup in `index.html`, and shared styles in
 
 - Use browser-compatible JavaScript and browser APIs.
 - The browser app has no runtime dependencies and needs no build or local
-  server. Node.js is used only to run tests and regenerate embedded stories.
+  server. Node.js is used only to run tests.
 - Opening `index.html` directly with `file://` is the supported launch
   method. Load the scripts using ordered classic `<script src>` tags;
   do not rely on ES-module imports or `fetch()` for local files.
-- Built-in stories are included in `scripts/builtInStories.js` so they work
-  under `file://`. After adding, editing, or deleting story JSON, run
-  `node scripts/bundleStories.js` to regenerate the catalog. Uploading a
+- Built-in stories are `stories/<name>.js` files that each call
+  `registerStory({...})` with a JSON definition, so they load through
+  `<script>` tags under `file://`. `storyPlayer.js` lists them in
+  `STORY_FILES` and appends a script tag for each; add new stories to that
+  list. Uploading a
   folder or JSON files replaces the built-in picker for that session;
   uploads are not retained across reloads.
 - Keep core modules independent of the DOM, styles, and demo entry point.

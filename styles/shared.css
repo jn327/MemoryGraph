@@ -100,6 +100,238 @@ button:focus-visible {
   transform: scale(1.05);
 }
 
+.header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.button-tags {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 2px;
+  border: 1px solid var(--brown);
+  background: var(--cream);
+  color: var(--dark-brown);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button-tags[aria-pressed="false"] {
+  color: var(--brown);
+  border-style: dashed;
+}
+
+.button-tags:hover {
+  background: var(--tan);
+}
+
+/* Memory tags: "(Mira: a liar)" after text that memory caused. */
+.memory-tag {
+  position: relative;
+  display: inline;
+  color: var(--tag-color, var(--brown));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.78em;
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: help;
+  border-radius: 2px;
+}
+
+.memory-tag-label {
+  border-bottom: 1px dotted currentColor;
+}
+
+.memory-tag:focus {
+  outline: 2px solid var(--tag-color, var(--accent));
+  outline-offset: 2px;
+}
+
+.memory-tip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  display: none;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border-left: 3px solid var(--tag-color, var(--brown));
+  border-radius: 2px;
+  background: #2f2924;
+  color: #f5f1ed;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+}
+
+.memory-tip-heading {
+  display: block;
+  font-weight: 600;
+}
+
+.memory-tip-heading + .memory-tip-heading {
+  margin-top: 8px;
+}
+
+.memory-tip-item {
+  display: block;
+  padding-left: 12px;
+  text-indent: -10px;
+}
+
+.memory-tip-item::before {
+  content: "• ";
+}
+
+.memory-tag:hover .memory-tip,
+.memory-tag:focus .memory-tip,
+.memory-tag:focus-within .memory-tip,
+.choice-button:hover .memory-tip,
+.choice-button:focus-visible .memory-tip {
+  display: block;
+}
+
+.hide-memory-tags .memory-tag {
+  display: none;
+}
+
+.memory-tag[data-kind="echo"] .memory-tag-label {
+  font-weight: 500;
+  border-bottom-style: solid;
+  opacity: 0.85;
+}
+
+/* How you're seen: collapsible reputation panel above the choices. */
+.reputation-panel {
+  margin: 28px 0 0;
+  border: 1px solid #d9cfc4;
+  border-radius: 2px;
+  background: #f5f1ed;
+  font-size: 13px;
+  color: var(--dark-brown);
+}
+
+.reputation-panel > summary {
+  padding: 10px 14px;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reputation-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+
+.reputation-tab {
+  padding: 4px 10px;
+  border: 1px solid #d9cfc4;
+  border-radius: 999px;
+  background: var(--cream);
+  color: var(--dark-brown);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reputation-tab[aria-pressed="true"] {
+  border-color: var(--dark-brown);
+  background: var(--dark-brown);
+  color: var(--cream);
+}
+
+.reputation-body {
+  padding: 0 14px 12px;
+}
+
+.reputation-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reputation-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1.2fr) minmax(90px, 1.6fr) minmax(70px, auto);
+  align-items: center;
+  gap: 10px;
+}
+
+.reputation-label {
+  overflow-wrap: anywhere;
+}
+
+/* Diverging bar: the centre line is "no opinion"; toward grows right. */
+.reputation-bar {
+  position: relative;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--tan);
+}
+
+.reputation-bar::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  background: var(--brown);
+}
+
+.reputation-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--rep-size, 0%);
+  background: var(--tag-color, var(--brown));
+}
+
+.reputation-fill.is-toward {
+  left: 50%;
+  border-radius: 0 2px 2px 0;
+}
+
+.reputation-fill.is-away {
+  right: 50%;
+  border-radius: 2px 0 0 2px;
+  opacity: 0.55;
+}
+
+.reputation-words {
+  color: var(--brown);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.reputation-note {
+  margin: 12px 0 0;
+  color: var(--brown);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+@media (max-width: 420px) {
+  .reputation-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reputation-words {
+    display: none;
+  }
+}
+
 .library-panel {
   display: grid;
   align-items: end;
@@ -108,7 +340,7 @@ button:focus-visible {
 
 .library-controls {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   align-content: end;
   gap: 9px;
   padding-bottom: 3px;
@@ -121,72 +353,6 @@ button:focus-visible {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-}
-
-.folder-button {
-  min-height: 46px;
-  border: 2px solid var(--accent);
-  border-radius: 3px;
-  color: var(--accent);
-  background: var(--cream);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  font-size: 13px;
-  font-weight: 650;
-  cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease;
-  list-style: none;
-}
-
-.upload-picker {
-  position: relative;
-}
-
-.folder-button::-webkit-details-marker {
-  display: none;
-}
-
-.folder-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.upload-options {
-  position: absolute;
-  z-index: 11;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: #fdfaf7;
-  border: 1px solid var(--brown);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.upload-options button {
-  display: block;
-  width: 100%;
-  padding: 10px 13px;
-  border: 0;
-  background: transparent;
-  color: var(--dark-brown);
-  text-align: left;
-  cursor: pointer;
-}
-
-.upload-options button:hover, .upload-options button:focus-visible {
-  background: var(--tan);
-}
-
-.folder-button:hover {
-  background: var(--tan);
-  border-color: var(--dark-brown);
-}
-
-.folder-button > span:first-child {
-  font-size: 19px;
-  line-height: 1;
 }
 
 .story-picker {
@@ -225,17 +391,66 @@ button:focus-visible {
   cursor: default;
 }
 
-.story-options {
+.story-menu {
   position: absolute;
   z-index: 10;
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  max-height: min(50vh, 360px);
+  max-height: min(60vh, 440px);
   overflow-y: auto;
   background: #fdfaf7;
   border: 1px solid var(--brown);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.story-menu[hidden], .story-options[hidden] {
+  display: none;
+}
+
+.story-menu-uploads {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--brown);
+}
+
+.upload-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px dashed var(--accent);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.upload-option[hidden] {
+  display: none;
+}
+
+.upload-option:hover, .upload-option:focus-visible {
+  background: var(--tan);
+  border-style: solid;
+}
+
+.upload-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.upload-option > span:first-child {
+  font-size: 15px;
+  line-height: 1;
 }
 
 .story-option {
@@ -388,6 +603,33 @@ button:focus-visible {
 .ending-trace-count {
   color: var(--brown);
   font-size: 11px;
+}
+
+.ending-reputation {
+  margin-top: 16px;
+  border-top: 1px solid var(--tan);
+  padding-top: 12px;
+}
+
+.ending-reputation ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--dark-brown);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ending-reputation-name {
+  font-weight: 600;
+}
+
+.ending-reputation-memory {
+  display: block;
+  color: var(--brown);
+  font-style: italic;
 }
 
 .ending-path {

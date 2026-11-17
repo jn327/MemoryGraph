@@ -78,10 +78,11 @@ APIs in the core library. There is no build, bundling, or local-server
 step at runtime: opening `index.html` directly with `file://` is the supported
 launch method. Use ordered classic `<script src="...">` tags for the
 library and demo scripts; do not use ES-module imports or `fetch()` to
-load local files. Built-in story definitions are generated into
-`scripts/builtInStories.js` from the JSON files with
-`node scripts/bundleStories.js`. Regenerate this file after adding, editing,
-or deleting stories.
+load local files. Each built-in story is a `stories/<name>.js` file whose
+only statement is `registerStory({...})` around its JSON definition.
+`storyPlayer.js` lists these names in `STORY_FILES`, appends a classic
+`<script>` tag for each, and validates every registered definition before
+populating the picker. Add a story's name to `STORY_FILES` when adding it.
 The Upload control lets the user select a folder or JSON files to replace
 the built-in story picker. Uploads are not retained across page reloads.
 
@@ -92,21 +93,19 @@ Use the existing project structure:
   scripts/
     MemoryGraph.js
     NarrativeEngine.js
-    builtInStories.js      # generated from stories/*.json
-    bundleStories.js       # regenerates the built-in story definitions
     storyPlayer.js          # demo UI only; not part of the core library
   styles/
     shared.css
   stories/
-    *.json
+    *.js                    # registerStory({...}) around a JSON definition
   tests/                    # dependency-free unit tests using Node's built-in runner
     memory-graph.test.js
     narrative-engine.test.js
     story-player.test.js
 ```
 
-Load `MemoryGraph.js`, `NarrativeEngine.js`, `builtInStories.js`, and `storyPlayer.js` in that
-order from `index.html`. The core scripts expose `MemoryGraph` and
+Load `MemoryGraph.js`, `NarrativeEngine.js`, and `storyPlayer.js` in that
+order from `index.html`; `storyPlayer.js` loads the story files itself. The core scripts expose `MemoryGraph` and
 `NarrativeEngine` through explicit `window` properties. `storyPlayer.js`
 is the browser demo entry point; core scripts must not depend on the
 demo, DOM, or styles.
@@ -415,6 +414,7 @@ engine.loadState(data);         // restore runtime state
 {
   nodeId: "wolf_encounter",
   text: "An injured wolf lies beside the road.",
+  segments: [{ text: "An injured wolf lies beside the road." }],  // see 12.8
   choices: [
     { index: 0, id: "help", text: "Help it" },
     { index: 1, id: "leave", text: "Leave it alone" }
@@ -587,7 +587,9 @@ Recommended representation:
 ```
 
 Required MVP built-in operations are `remember`, `learnTransition`,
-`activate`, `set`, `inc`, `dec`, and `macro`. Every operation is expressed
+`activate`, `set`, `inc`, `dec`, and `macro`; `gossip` and `reveal`, and
+the `witnesses` and `summary` fields of `remember`, are described in
+section 12. Every operation is expressed
 with its own `type` property. The `goto` field is navigation data on a
 choice, not an operation; `forget` is deferred and is not supported in
 the MVP.
@@ -659,6 +661,10 @@ Use a consistent representation:
 ``` json
 { "type": "association", "a": "player", "b": "mercy", "min": 2 }
 ```
+
+Required condition types are listed below. The perspective conditions
+`trait`, `dominantTrait`, and `knows`, and the optional `perspective` field
+on `association` and `activation`, are described in section 12.
 
 Required condition types:
 
@@ -865,7 +871,310 @@ Requirements:
 -   Macros do not accept parameters in the MVP.
 -   Keep macro expansion/execution deterministic.
 
-## 12. Choice handling and state transitions
+## 12. Characters, perspectives, and reputation
+
+Plain associations make a story remember *what happened*. Perspectives
+make it remember *who knows*. They let a story react heuristically: a
+player who lies often comes to be treated as a liar, but only by the
+people who saw the lies or heard about them. No author has to anticipate
+the exact path that got them there.
+
+All of this lives in `NarrativeEngine`. `MemoryGraph` is unchanged: the
+graph's event log is the single source of truth, and each perspective is
+a view over it.
+
+### 12.1 Story fields
+
+All three fields are optional.
+
+``` json
+{
+  "characters": {
+    "mira": { "name": "Mira" },
+    "tomas": {}
+  },
+  "traits": {
+    "untrustworthy": {
+      "label": "a liar",
+      "concepts": { "lie": 1, "steal": 1, "kept_promise": -1 }
+    }
+  },
+  "memory": { "halfLife": 12 }
+}
+```
+
+-   **`characters`**: IDs that can witness events and hold a perspective.
+    `name` is shown to players; it defaults to the ID. `all` is reserved.
+-   **`traits`**: a lexicon from specific acts to general judgements.
+    Each concept has a non-zero weight; negative weights let later deeds
+    count against a trait, which makes redemption possible. `label` is
+    the phrase used in "remembers you as …" and defaults to the trait
+    name with underscores replaced by spaces.
+-   **`memory.halfLife`**: when set, an event's weight in perspectives,
+    trait scores, and recall halves every `halfLife` events, so recent
+    behaviour counts more than old behaviour. The raw graph is
+    unaffected.
+
+### 12.2 Knowledge and perspectives
+
+The engine keeps `knowledge`: for each character, the events they know
+and a belief in `(0, 1]`. A character's **perspective** is a
+`MemoryGraph` rebuilt from the events they know, each weighted by
+`strength × belief × recency`. Omitting the perspective gives the
+**world** view: every event at full belief, still recency-weighted.
+
+-   `remember` accepts `witnesses` (an array of character IDs, or `"all"`).
+    Each witness learns the new event at belief 1.
+-   `gossip` copies what one character knows to others, at reduced
+    belief, so hearsay counts for less than seeing.
+-   `reveal` teaches characters events from the world log directly, for
+    example evidence being shown, a confession, or a public record.
+
+A character's view can only include what they witnessed or were told.
+
+### 12.3 Trait scores
+
+```
+traitScore(trait, perspective, subject = "player")
+  = Σ weight(concept) × associationScore(subject, concept)
+```
+
+The association score is read from the perspective graph. Events must
+include the subject concept (normally `"player"`) to count. Using
+another subject scores a character instead. For example,
+`"subject": "ellis"` asks how dangerous the jury thinks Ellis is.
+
+### 12.4 Operations
+
+``` json
+{ "type": "remember", "concepts": ["player", "lie", "guard"],
+  "witnesses": ["mira"], "summary": "lied to the guard about the flour" }
+```
+
+`summary` is stored as `metadata.summary` (metadata must be an object if
+both are given). It is the text that recall uses. Write summaries as
+second-person past-tense verb phrases that complete "you …", for example
+"carried her flour" or "told the inspector you'd never seen it". Never
+write them in a character's first person ("asked us", "our door").
+
+``` json
+{ "type": "gossip", "from": "mira", "to": ["tomas"],
+  "about": { "trait": "untrustworthy" }, "belief": 0.5 }
+{ "type": "reveal", "to": "all", "about": { "concepts": ["portfolio"] } }
+```
+
+-   `about` is optional and filters which events are passed on.
+    `{ "trait": t }` matches events containing any of the trait's
+    concepts. `{ "concepts": [...] }` matches events containing all of
+    them.
+-   A listener's new belief is `max(existing, sourceBelief × belief)`.
+    `gossip` defaults to belief 0.5; `reveal` defaults to 1. A source
+    never gossips to itself.
+
+### 12.5 Conditions
+
+``` json
+{ "type": "trait", "trait": "untrustworthy", "perspective": "tomas", "min": 0.5 }
+{ "type": "dominantTrait", "among": ["open", "guarded"], "is": "open",
+  "perspective": "pim", "margin": 0 }
+{ "type": "knows", "perspective": "abara", "about": { "concepts": ["lie", "portfolio"] } }
+{ "type": "association", "a": "player", "b": "lie", "min": 1, "perspective": "mira" }
+```
+
+-   `trait` needs `min`, `max`, or both. It also accepts `subject`.
+-   `dominantTrait` is true when `is` scores above zero and above every
+    other listed trait by more than `margin`.
+-   `knows` is true when the character knows a matching event with
+    belief of at least `min` (any belief above zero by default). It does
+    not require the player to be in the event.
+-   `association` and `activation` accept an optional `perspective`.
+    Without one they read the raw graph, as before.
+
+### 12.6 Composed text and recall
+
+A text variant's `value` can be an array of **parts** instead of a
+string. Parts are joined with single spaces. A part that starts or ends
+with whitespace (such as `"\n\n"` for a paragraph break) is joined as-is,
+and empty parts are skipped. Each part is either a string or an object:
+
+``` json
+[
+  "Tomas looks up.",
+  { "if": { "type": "trait", "trait": "untrustworthy", "perspective": "tomas", "min": 0.5 },
+    "text": "'Mira warned me about you.'", "else": "'Sit down.'" },
+  { "recall": { "perspective": "tomas", "about": { "trait": "untrustworthy" } },
+    "format": "'You {summary}.'", "otherwise": "" }
+]
+```
+
+-   An object part defines exactly one of `text` or `recall`. It may
+    have `if`, with an optional `else` string used when the condition is
+    false.
+-   `recall` picks the event with a `summary` that best matches, scored
+    by `strength × belief × recency × relevance` (×1.5 when the event
+    involves the remembering character), with ties going to the
+    most recent event. The event must include the subject (default
+    `"player"`).
+    -   `about` sets relevance: the sum of trait weights in the event,
+        or 1 for a concepts match.
+    -   `among: [traits]` uses whichever of those traits currently
+        dominates the perspective, so a character recalls the act that
+        defines you to them.
+    -   `rank: 2` picks the second-best match.
+    -   Without `format`, the summary is used alone. When nothing
+        matches, `otherwise` (default empty) is used.
+    -   Formats should address the player as "you", because summaries
+        do.
+
+Composed text lets endings be assembled from independent consequences,
+such as a core outcome plus one coda per character, instead of a
+combinatorial set of hand-written variants.
+
+### 12.7 Engine API
+
+``` js
+engine.perspectiveGraph("mira");          // read-only MemoryGraph view
+engine.traitScore("kind", "mira");        // number
+engine.traitScores("mira");               // { trait: score }
+engine.recall({ perspective: "mira", about: { trait: "kind" } }); // or null
+engine.describeReputation();              // per-character summary for UIs
+engine.characterName("mira");
+engine.traitLabel("kind");
+```
+
+`describeReputation()` lists each character who knows at least one
+event, with their positive traits in descending order and the memory
+recalled for their dominant trait. The demo shows it at every ending as
+"How the people you met remember you".
+
+Perspective graphs are cached and rebuilt when the graph's sequence or
+the engine's knowledge changes. `reset()` and `loadState()` clear the
+cache.
+
+### 12.8 Explanations and memory tags
+
+The engine tells the UI when memory made something appear, so players
+can see that the story reacted to them rather than following a fixed
+branch. It reports a **cause** for:
+
+-   a text variant or text part whose `if` held,
+-   a `recall` part that found a memory,
+-   a choice shown because of its `showIf`, and
+-   a node entered through a conditional route entry (`view.arrival`).
+
+``` js
+{
+  nodeId: "reeve_response",
+  text: "…People step back from you. Not far. Just enough.…",
+  segments: [
+    { text: "…" },
+    { text: " People step back from you. Not far. Just enough.",
+      cause: {
+        tag: "fear",
+        kind: "trait",            // trait | knows | association | activation | recall | author
+        trait: "dangerous",       // or null
+        color: null,              // the trait's optional "color"
+        explanation: [{
+          heading: "Brackenridge sees you as dangerous, because you:",
+          items: ["stole flour off a stall while the baker was being robbed",
+                  "pocketed a chapel candle… (heard secondhand)"]
+        }]
+      } }
+  ],
+  choices: [{ index: 0, id: "mira_speaks", text: "Ask Mira to speak", cause: { … } }],
+  arrival: { … },                 // only when routed here by memory
+  ended: false
+}
+```
+
+Segments always concatenate to exactly `text`. A text variant's cause is
+attached to its first segment.
+
+Only memory conditions explain themselves: `trait` (with `min`),
+`dominantTrait`, `knows`, and `association`/`activation`. `all` collects
+the causes of its children, `any` uses its first true child, and
+`macroCondition` follows the macro. `not`, `variable`, and `visited`
+produce no cause. Explanations list up to three supporting remembered
+acts (those with a `summary`), strongest first, marking anything the
+character only heard about as "(heard secondhand)".
+
+**Tags.** The engine builds a default label: "Mira: a liar" for a trait,
+"Abara knows" for `knows`, the concept for an association, and
+"Mira remembers" for a recall. Authors can override it with `tag` on:
+
+-   a text variant or a text part,
+-   a choice (applies to its `showIf`),
+-   a conditional route entry, or
+-   a macro (`{ "tag": "fear", "condition": {...} }`).
+
+A tagged macro shows its tag whenever it holds, even when it holds
+because something *didn't* happen (for example `max` or `not`
+conditions). Prefer short, in-world tags ("fear", "Pim trusts you") over
+mechanical ones. Traits may set `"color": "#rrggbb"` for their tags;
+otherwise the demo picks a stable colour per trait.
+
+Causes are presentation data. `getView()` stays read-only, and
+`view.arrival` is not part of saved engine state.
+
+The demo shows each cause as a coloured, bracketed tag after the text it
+explains, with the explanation in a tooltip on hover or keyboard focus.
+**Memory tags: on/off** in the header hides them for players who prefer
+an uninterrupted read; that preference is stored per browser. Saved
+transcripts keep their tags.
+
+### 12.9 Choice echoes and the reputation panel
+
+Players get feedback on a choice *after* making it, never as a preview.
+Previews would turn moral choices into stat optimisation, and would
+reveal witnesses the story means to keep secret.
+
+**Echo.** The view entered by `choose()` carries `view.echo`, a
+cause-shaped object (`kind: "echo"`) describing what that choice's
+operations remembered about the player:
+
+-   **Traits pushed:** the summed trait weights × strength of the
+    choice's player events. Positive pushes toward a trait, negative
+    away, so `"↑ merciful"` or `"↓ a liar"`.
+-   **Who saw:** the choice's witnesses, minus hidden characters.
+-   **Remembered as:** the events' summaries.
+
+The tag reads like `↑ merciful · Mira saw`, or `↑ a thief · no one saw`.
+A choice that remembers nothing about the player has no echo. Like
+`arrival`, the echo is presentation-only and is not saved in engine
+state. The demo attaches it to the picked choice in the transcript, and
+saved transcripts keep it.
+
+**Hidden characters.** `"characters": { "file": { "hidden": true } }`
+keeps a character out of echoes and the live panel, so a secret
+watcher is never revealed by the interface. Hidden characters still
+witness, gossip, and appear in the ending summary, where their
+`describeReputation()` entry has `hidden: true`.
+
+**Engine API.**
+
+``` js
+engine.knownCharacters();                       // ids who know anything, hidden excluded
+engine.knownCharacters({ includeHidden: true });
+engine.reputationOf("mira");  // { character, name, traits: [{ trait, label, color, score }], memory }
+engine.reputationOf();        // overall (world) view; character and name are null
+```
+
+`reputationOf()` includes negative scores, so a trait can be shown
+pushed away as well as toward, sorted by absolute size.
+
+**Panel.** The demo's collapsible **How you're seen** panel sits above
+the choices:
+
+-   One tab for **Overall** and one per known character.
+-   For the selected view, diverging bars per trait (toward a trait to the
+    right of centre, away from it to the left), drawn on one scale shared
+    by every tab so people can be compared. Each bar has a word strength
+    (slightly / clearly / strongly) for screen readers and narrow screens.
+-   The act that view remembers most.
+
+Its open or closed state is remembered per browser.
+
+## 13. Choice handling and state transitions
 
 `getView()` returns only choices whose `showIf` condition is true. Each
 returned choice includes its original choice ID and a new visible index.
@@ -899,7 +1208,7 @@ Do not execute hidden choices. Do not allow choosing by an array index
 from the unfiltered source choices; use the visible index returned by
 `getView()`.
 
-## 13. History and persistence
+## 14. History and persistence
 
 Maintain:
 
@@ -907,10 +1216,13 @@ Maintain:
 -   `choiceHistory`: ordered list of selected choice IDs and source node
     IDs
 -   `variables`: plain JSON-compatible object
+-   `knowledge`: per-character event IDs and beliefs (section 12)
 -   current node ID
 -   ended flag
 
-`NarrativeEngine.toJSON()` serializes engine runtime state only; it does
+`NarrativeEngine.toJSON()` (state version 2) serializes engine runtime
+state only, including knowledge; `loadState()` also accepts version 1
+states, which load with no knowledge. It does
 not include the story definition or graph. Serialize the graph separately
 with `MemoryGraph.toJSON()`. Restore both using the same story definition:
 load graph data into a `MemoryGraph`, pass that graph to the
@@ -918,8 +1230,9 @@ load graph data into a `MemoryGraph`, pass that graph to the
 current node exists in the supplied story.
 
 Support resetting story progress while optionally retaining graph
-memory. `keepMemory: false` clears the supplied graph; `keepMemory: true`
-leaves it unchanged.
+memory. `keepMemory: false` clears the supplied graph and all character
+knowledge; `keepMemory: true`
+leaves both unchanged, so characters remember earlier runs.
 
 The demo also supports per-story local storage when save/restore controls
 are added to its markup. The current page exposes only the ending actions
@@ -929,7 +1242,7 @@ to restart while keeping memory or clear memory and restart.
 engine.reset({ keepMemory: true });
 ```
 
-## 14. Validation and error handling
+## 15. Validation and error handling
 
 Validate a story definition before starting:
 
@@ -958,7 +1271,7 @@ reachability cannot detect.
 Errors should identify the story, node, choice, and offending field
 where possible. Do not silently ignore malformed rules.
 
-## 15. Extensibility
+## 16. Extensibility
 
 Expose registries on the engine:
 
@@ -983,7 +1296,7 @@ receive unrestricted access to browser globals through the story JSON.
 Never use `eval`, `Function`, or execute arbitrary JavaScript strings
 from story data.
 
-## 16. Automated test requirements
+## 17. Automated test requirements
 
 Write automated tests for:
 
@@ -1028,17 +1341,48 @@ Write automated tests for:
 -   history and variables update correctly
 -   graph and engine state serialize and restore separately
 -   reset can retain or clear graph memory as requested
+-   witnesses learn only what they saw; gossip passes it on at reduced
+    belief; reveal teaches from the world log
+-   trait scores, negative weights, `dominantTrait`, `knows`, and
+    perspective `association`/`activation` conditions
+-   `memory.halfLife` fades perspectives without changing the raw graph
+-   composed text parts, `if`/`else`, and recall with `about`, `among`,
+    `format`, and `otherwise`
+-   memory-driven text, recalls, choices, and routes report causes with
+    default or author tags and evidence; tagged macros, trait colours
+-   choice echoes sum trait pushes, name only non-hidden witnesses, and are
+    absent when nothing about the player was remembered; `reputationOf`
+    and `knownCharacters`
+-   knowledge survives save/load (state version 2), accepts version 1
+    saves, and follows `reset({ keepMemory })`
 -   malformed stories fail validation with useful errors
 
 ### StoryPlayer
 
--   built-in story options match the JSON files and can be selected
+-   every stories/*.js file is listed in STORY_FILES, loads, and can be selected
 -   uploading JSON stories replaces the current picker contents
 -   the transcript preserves the text and choices shown during a run
 -   saved transcripts restore correctly, including older saves without one
 -   graph-state diagnostics include each event's sequence number
+-   an upload made while built-in stories are loading is not overwritten
+-   endings list how each witness remembers the player
+-   memory-driven text and choices render tags with explanations
+-   picked choices show their echo (hidden witnesses unnamed), and the
+    reputation panel lists Overall plus each known, non-hidden character
 
-## 17. MVP acceptance criteria
+### Built-in stories
+
+-   1,500 seeded random playthroughs of every story finish without errors
+    or dead ends and between them reach every node; each story offers at
+    least three endings
+
+### Browser (`file://`)
+
+-   opening `index.html` over `file://` in headless Chrome or Edge loads
+    every built-in story with no skipped-story message; skipped when no
+    browser is installed (`CHROME_PATH` overrides detection)
+
+## 18. MVP acceptance criteria
 
 The implementation is complete when:
 
@@ -1061,7 +1405,7 @@ The implementation is complete when:
     uploading a folder or JSON files.
 11. The automated test requirements above pass.
 
-## 18. Suggested implementation order
+## 19. Suggested implementation order
 
 1.  Implement and test `MemoryGraph` event storage, associations,
     transitions, and serialization.

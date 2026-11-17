@@ -75,6 +75,7 @@ test("start runs onEnter once, views are read-only, and branches converge", func
   assert.deepEqual(engine.start(), {
     nodeId: "start",
     text: "The story begins.",
+    segments: [{ text: "The story begins." }],
     choices: [
       { index: 0, id: "help", text: "Help" },
       { index: 1, id: "leave", text: "Leave" }

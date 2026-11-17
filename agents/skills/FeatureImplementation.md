@@ -36,8 +36,13 @@ For substantial changes, wait for approval before implementing.
 ## Step 4: Verify
 - Run relevant tests.
 - There is no production build step. Run automated tests with `node --test`.
-- Open `index.html` directly with `file://` for browser-facing changes
-  and check console errors.
+  If Node.js is not installed, VS Code's runtime works:
+  `ELECTRON_RUN_AS_NODE=1 "$LOCALAPPDATA/Programs/Microsoft VS Code/Code.exe" --test tests/*.test.js`.
+- `tests/browser.test.js` loads `index.html` over `file://` in headless
+  Chrome or Edge. Make sure it runs rather than skips for browser-facing
+  changes. For interactive behaviour, also open `index.html` directly in a
+  desktop browser and check console errors. VS Code's Simple Browser cannot
+  open `file://` pages.
 - Test actual narrative and memory behavior.
 - Inspect visual changes in the running demo.
 - Check for regressions.

@@ -16,27 +16,29 @@
           <h1 class="app-title">Memory Graph</h1>
           <p class="app-tagline">Branching stories where every choice leaves a trace. Characters remember what you do.</p>
         </div>
-        <button class="button-info" id="info-button" type="button" title="Graph State" aria-label="Graph State">i</button>
+        <div class="header-actions">
+          <button class="button-tags" id="tags-button" type="button" aria-pressed="true" title="Show which memories shaped the story">Memory tags: on</button>
+          <button class="button-info" id="info-button" type="button" title="Graph State" aria-label="Graph State">i</button>
+        </div>
       </div>
     </header>
 
     <section class="library-panel" aria-label="Story library" id="library-panel">
       <div class="library-controls">
-        <details class="upload-picker">
-          <summary class="folder-button"><span aria-hidden="true">＋</span> Upload</summary>
-          <div class="upload-options">
-            <button id="folder-upload-button" type="button">Choose folder</button>
-            <button id="json-upload-button" type="button">Choose JSON files</button>
-          </div>
-        </details>
         <input id="story-files" class="visually-hidden" type="file" accept=".json,application/json" multiple webkitdirectory tabindex="-1" />
         <input id="story-json-files" class="visually-hidden" type="file" accept=".json,application/json" multiple tabindex="-1" />
         <div class="story-picker">
-          <button id="story-picker" class="story-picker-toggle" type="button" aria-labelledby="story-picker-label story-picker-title" aria-expanded="false" aria-controls="story-options" disabled>
+          <button id="story-picker" class="story-picker-toggle" type="button" aria-labelledby="story-picker-label story-picker-title" aria-expanded="false" aria-controls="story-menu" disabled>
             <span class="visually-hidden" id="story-picker-label">Story:</span>
             <span id="story-picker-title">Choose a story</span>
           </button>
-          <div class="story-options" id="story-options" aria-label="Stories" hidden></div>
+          <div class="story-menu" id="story-menu" hidden>
+            <div class="story-menu-uploads" role="group" aria-label="Upload stories">
+              <button id="folder-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload a folder</button>
+              <button id="json-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload JSON files</button>
+            </div>
+            <div class="story-options" id="story-options" role="group" aria-label="Stories"></div>
+          </div>
         </div>
         <p class="status-message" id="status-message" role="status" aria-live="polite"></p>
       </div>
@@ -46,12 +48,21 @@
       <article class="story-panel" aria-live="polite">
         <h2 class="story-title" id="story-title">The next choice is yours.</h2>
         <div class="story-text" id="story-text"><p>Choose a story above to step into a world that remembers.</p></div>
+        <details class="reputation-panel" id="reputation-panel" hidden>
+          <summary>How you're seen</summary>
+          <div class="reputation-tabs" id="reputation-tabs" role="group" aria-label="Whose view"></div>
+          <div class="reputation-body" id="reputation-body"></div>
+        </details>
         <div class="choice-list" id="choice-list"></div>
         <section class="ending-summary" id="ending-summary" aria-labelledby="ending-summary-title" hidden>
           <h3 id="ending-summary-title">What your choices left behind</h3>
           <p class="ending-summary-intro">The strongest ideas connected to you in this story:</p>
           <div class="ending-traces" id="ending-traces" aria-label="Strongest memory connections"></div>
           <p class="ending-summary-empty" id="ending-summary-empty" hidden>No choice-related memories were recorded.</p>
+          <div class="ending-reputation" id="ending-reputation" hidden>
+            <p class="ending-summary-intro">How the people you met remember you:</p>
+            <ul id="ending-reputation-list"></ul>
+          </div>
           <details class="ending-path" id="ending-path">
             <summary id="ending-path-label"></summary>
             <ol id="ending-choices"></ol>
@@ -98,7 +109,6 @@
   </main>
   <script src="scripts/MemoryGraph.js"></script>
   <script src="scripts/NarrativeEngine.js"></script>
-  <script src="scripts/builtInStories.js"></script>
   <script src="scripts/storyPlayer.js"></script>
 </body>
 </html>

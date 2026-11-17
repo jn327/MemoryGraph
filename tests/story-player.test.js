@@ -34,10 +34,10 @@ function createPlayer() {
   const ids = [
     "story-files", "story-json-files", "folder-upload-button", "json-upload-button",
     "story-picker", "story-picker-title",
-    "story-options", "story-title", "story-text", "choice-list", "ending-actions",
+    "story-menu", "story-options", "story-title", "story-text", "choice-list", "ending-actions",
     "graph-summary", "graph-visualization", "graph-empty",
     "ending-summary", "ending-traces", "ending-summary-empty", "ending-path",
-    "ending-path-label", "ending-choices",
+    "ending-path-label", "ending-choices", "ending-reputation", "ending-reputation-list", "reputation-panel", "reputation-tabs", "reputation-body",
     "restart-button", "clear-button", "save-button", "restore-button", "status-message",
     "info-button", "debug-panel", "debug-close", "debug-content"
   ];
@@ -46,7 +46,30 @@ function createPlayer() {
   }));
   elements["story-files"].webkitdirectory = true;
   const storage = new Map();
+  const root = path.join(__dirname, "..");
+  const scriptLoads = [];
+  let context = null;
   const document = {
+    head: {
+      // Mimic the browser: run the script asynchronously, then fire load/error.
+      appendChild: function (script) {
+        scriptLoads.push(new Promise(function (resolve) {
+          setImmediate(function () {
+            let source;
+            try {
+              source = fs.readFileSync(path.join(root, script.src), "utf8");
+            } catch (error) {
+              script.onerror();
+              resolve();
+              return;
+            }
+            vm.runInContext(source, context, { filename: script.src });
+            script.onload();
+            resolve();
+          });
+        }));
+      }
+    },
     getElementById: function (id) { return elements[id] || null; },
     querySelector: function () { return new Element(); },
     createElement: function () { return new Element(); },
@@ -64,12 +87,28 @@ function createPlayer() {
     setItem: function (key, value) { storage.set(key, value); },
     getItem: function (key) { return storage.has(key) ? storage.get(key) : null; }
   };
-  const context = vm.createContext({ document, FileReader, localStorage, console });
+  context = vm.createContext({ document, FileReader, localStorage, console });
   context.window = context;
-  ["MemoryGraph.js", "NarrativeEngine.js", "builtInStories.js", "storyPlayer.js"].forEach(function (file) {
-    vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "scripts", file), "utf8"), context);
+  ["MemoryGraph.js", "NarrativeEngine.js", "storyPlayer.js"].forEach(function (file) {
+    vm.runInContext(fs.readFileSync(path.join(root, "scripts", file), "utf8"), context);
   });
-  return { elements, storage, builtInStories: context.builtInStories };
+  const ready = Promise.all(scriptLoads).then(function () {
+    return new Promise(function (resolve) { setImmediate(resolve); });
+  });
+  return { elements, storage, ready };
+}
+
+function readStoryFiles() {
+  const directory = path.join(__dirname, "..", "stories");
+  return fs.readdirSync(directory).filter(function (name) {
+    return name.endsWith(".js");
+  }).sort().map(function (name) {
+    let definition = null;
+    vm.runInNewContext(fs.readFileSync(path.join(directory, name), "utf8"), {
+      registerStory: function (value) { definition = value; }
+    });
+    return definition;
+  });
 }
 
 const story = {
@@ -106,19 +145,16 @@ async function loadStory(player, inputId = "story-files") {
   assert.ok(player.elements["choice-list"].children.length, player.elements["status-message"].textContent);
 }
 
-test("built-in stories are available and match the story files", function () {
+test("every story file is listed, loads, and appears in the picker", async function () {
   const player = createPlayer();
-  const directory = path.join(__dirname, "..", "stories");
-  const definitions = fs.readdirSync(directory).filter(function (name) {
-    return name.endsWith(".json");
-  }).sort().map(function (name) {
-    return JSON.parse(fs.readFileSync(path.join(directory, name), "utf8"));
-  });
+  assert.equal(player.elements["story-picker"].disabled, true);
+  await player.ready;
+  const definitions = readStoryFiles();
   const options = player.elements["story-options"].children;
-  assert.equal(options.length, definitions.length);
-  assert.equal(JSON.stringify(player.builtInStories.map(function (entry) {
-    return entry.definition;
-  })), JSON.stringify(definitions));
+  assert.equal(player.elements["status-message"].textContent, "");
+  assert.equal(options.length, definitions.length,
+    "each stories/*.js file must be listed in STORY_FILES in storyPlayer.js");
+  assert.equal(player.elements["story-picker"].disabled, false);
   assert.deepEqual(options.map(function (option) { return option.children[0].textContent; }).sort(),
     definitions.map(function (definition) { return definition.title; }).sort());
   options[0].click();
@@ -128,15 +164,30 @@ test("built-in stories are available and match the story files", function () {
 
 test("JSON uploads replace built-in stories", async function () {
   const player = createPlayer();
+  await player.ready;
   await loadStory(player, "story-json-files");
   assert.equal(player.elements["story-options"].children.length, 1);
   assert.equal(player.elements["story-title"].textContent, story.title);
 });
 
+test("an upload made while built-in stories load is not overwritten", async function () {
+  const player = createPlayer();
+  await loadStory(player, "story-json-files");
+  await player.ready;
+  assert.equal(player.elements["story-options"].children.length, 1);
+  assert.equal(player.elements["story-title"].textContent, story.title);
+});
+
+// The text a paragraph shows, without its memory tags.
+function plainText(element) {
+  if (element.children.length === 0) return element.textContent;
+  return element.children.map(function (child) {
+    return child.className === "memory-tag" ? "" : child.textContent;
+  }).join("").trim();
+}
+
 function transcript(player) {
-  return player.elements["story-text"].children.map(function (element) {
-    return element.textContent;
-  });
+  return player.elements["story-text"].children.map(plainText);
 }
 
 test("choosing a story option brings the new text into view", async function () {
@@ -145,7 +196,10 @@ test("choosing a story option brings the new text into view", async function () 
   assert.equal(player.elements["story-text"].lastElementChild.scrollOptions, undefined);
   player.elements["choice-list"].children[0].click();
   const newText = player.elements["story-text"].lastElementChild;
-  assert.equal(newText.textContent, "After choosing.");
+  assert.equal(plainText(newText), "After choosing.");
+  const tag = newText.children.find(function (child) { return child.className === "memory-tag"; });
+  assert.equal(tag.children[0].textContent, "(choice)", "memory-driven text is tagged");
+  assert.equal(tag.children[1].children[0].textContent, "Memory links you with “choice”.");
   assert.equal(newText.scrollOptions.block, "nearest");
   assert.equal(newText.scrollOptions.inline, "nearest");
 });
@@ -218,6 +272,102 @@ test("ending summarizes choice memories and restores the player's path", async f
   assert.deepEqual(player.elements["ending-choices"].children.map(function (item) {
     return item.textContent;
   }), ["Choose again", "Finish"]);
+});
+
+test("picked choices echo their effect and the reputation panel tracks each view", async function () {
+  const player = createPlayer();
+  const echoStory = {
+    id: "echo_test",
+    title: "Echo Test",
+    start: "start",
+    characters: { mira: { name: "Mira" }, file: { name: "The file", hidden: true } },
+    traits: {
+      kind: { concepts: { help: 1 } },
+      untrustworthy: { label: "a liar", concepts: { lie: 1 } }
+    },
+    nodes: {
+      start: {
+        text: "Mira needs help.",
+        choices: [{
+          id: "help", text: "Help her",
+          do: [{ type: "remember", concepts: ["player", "help"], witnesses: ["mira", "file"], summary: "helped Mira" }],
+          goto: "middle"
+        }]
+      },
+      middle: {
+        text: "Later.",
+        choices: [{
+          id: "lie", text: "Lie",
+          do: [{ type: "remember", concepts: ["player", "lie"], summary: "lied in private" }],
+          goto: "end"
+        }]
+      },
+      end: { text: "The end.", ending: true, choices: [] }
+    }
+  };
+  player.elements["story-files"].files = [{ name: "e.json", content: JSON.stringify(echoStory) }];
+  player.elements["story-files"].listeners.change();
+  await new Promise(function (resolve) { setImmediate(resolve); });
+  assert.equal(player.elements["reputation-panel"].hidden, true, "nothing to show before any choice");
+
+  player.elements["choice-list"].children[0].click();
+  const picked = player.elements["story-text"].children[1];
+  const echo = picked.children.find(function (child) { return child.className === "memory-tag"; });
+  assert.equal(echo.children[0].textContent, "(↑ kind · Mira saw)", "hidden witnesses are not named");
+
+  const panel = player.elements;
+  assert.equal(panel["reputation-panel"].hidden, false);
+  assert.deepEqual(panel["reputation-tabs"].children.map(function (tab) { return tab.textContent; }),
+    ["Overall", "Mira"], "the hidden file has no tab");
+  const rows = panel["reputation-body"].children[0].children;
+  assert.equal(rows[0].attributes["aria-label"], "kind: strongly");
+
+  player.elements["choice-list"].children[0].click();
+  const lied = player.elements["story-text"].children[3];
+  const unseen = lied.children.find(function (child) { return child.className === "memory-tag"; });
+  assert.equal(unseen.children[0].textContent, "(↑ a liar · no one saw)");
+  panel["reputation-tabs"].children[1].click();
+  assert.equal(panel["reputation-body"].children[1].textContent,
+    "What Mira remembers most: you helped Mira.", "Mira never learned about the lie");
+});
+
+test("ending lists how each witness remembers the player", async function () {
+  const player = createPlayer();
+  const witnessStory = {
+    id: "witness_test",
+    title: "Witness Test",
+    start: "start",
+    characters: { mira: { name: "Mira" }, tomas: { name: "Tomas" } },
+    traits: { untrustworthy: { label: "a liar", concepts: { lie: 1 } } },
+    nodes: {
+      start: {
+        text: "Mira watches.",
+        choices: [{
+          id: "lie",
+          text: "Lie",
+          do: [{
+            type: "remember",
+            concepts: ["player", "lie"],
+            witnesses: ["mira"],
+            summary: "lied about the flour"
+          }],
+          goto: "end"
+        }]
+      },
+      end: { text: "The end.", ending: true, choices: [] }
+    }
+  };
+  player.elements["story-files"].files = [{ name: "w.json", content: JSON.stringify(witnessStory) }];
+  player.elements["story-files"].listeners.change();
+  await new Promise(function (resolve) { setImmediate(resolve); });
+  player.elements["choice-list"].children[0].click();
+
+  assert.equal(player.elements["ending-reputation"].hidden, false);
+  const items = player.elements["ending-reputation-list"].children;
+  assert.equal(items.length, 1, "only Mira witnessed anything");
+  assert.equal(items[0].children[0].textContent, "Mira");
+  assert.equal(items[0].children[1].textContent, " remembers you as a liar.");
+  assert.equal(items[0].children[2].textContent, "Mostly, that you lied about the flour.");
 });
 
 test("saving and restoring preserves the transcript and accepts older saves", async function () {

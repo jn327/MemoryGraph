@@ -9,7 +9,9 @@
     "set",
     "inc",
     "dec",
-    "macro"
+    "macro",
+    "gossip",
+    "reveal"
   ];
   const BUILTIN_CONDITIONS = [
     "always",
@@ -21,8 +23,17 @@
     "not",
     "all",
     "any",
-    "macroCondition"
+    "macroCondition",
+    "trait",
+    "dominantTrait",
+    "knows"
   ];
+  const DEFAULT_SUBJECT = "player";
+  const WORLD_PERSPECTIVE = "\u0000world";
+  const DEFAULT_GOSSIP_BELIEF = 0.5;
+  const DEFAULT_REVEAL_BELIEF = 1;
+  const PERSONAL_RECALL_BONUS = 1.5;
+  const MAX_EXPLANATION_ITEMS = 3;
 
   class NarrativeEngine {
     constructor(storyDefinition, options) {
@@ -76,6 +87,10 @@
           ? cloneJsonValue(settings.initialVariables, "initialVariables")
           : invalidInitialVariables();
       this._validateStory(true);
+      this.knowledge = {};
+      this._knowledgeRevision = 0;
+      this._perspectiveCache = new Map();
+      this._recording = null;
       this._clearProgress();
     }
 
@@ -99,16 +114,23 @@
       }
       const node = this.story.nodes[this.currentNodeId];
       try {
-        const text = resolveText(node.text, this);
+        const resolved = resolveText(node.text, this);
         const choices = [];
         if (!node.ending) {
           for (const choice of node.choices) {
             if (choice.showIf === undefined || this._evaluateCondition(choice.showIf)) {
-              choices.push({
+              const entry = {
                 index: choices.length,
                 id: choice.id,
                 text: choice.text
-              });
+              };
+              const cause = choice.showIf === undefined
+                ? null
+                : this._cause(choice.showIf, choice.tag);
+              if (cause !== null) {
+                entry.cause = cause;
+              }
+              choices.push(entry);
             }
           }
           if (choices.length === 0) {
@@ -118,12 +140,20 @@
             );
           }
         }
-        return {
+        const view = {
           nodeId: this.currentNodeId,
-          text: text,
+          text: resolved.text,
+          segments: resolved.segments,
           choices: choices,
           ended: node.ending === true
         };
+        if (this.choiceEcho !== null) {
+          view.echo = cloneJsonValue(this.choiceEcho, "choice echo");
+        }
+        if (this.arrivalCause !== null) {
+          view.arrival = cloneJsonValue(this.arrivalCause, "arrival cause");
+        }
+        return view;
       } catch (error) {
         if (error && typeof error.message === "string" &&
             error.message.indexOf("Story '" + this.story.id + "'") === 0) {
@@ -158,23 +188,35 @@
       const choice = node.choices.find(function (item) {
         return item.id === visibleChoice.id;
       });
-      this._executeOperations(choice.do || [], {
-        nodeId: nodeId,
-        choiceId: choice.id,
-        path: "choice operation"
-      });
+      this._recording = [];
+      try {
+        this._executeOperations(choice.do || [], {
+          nodeId: nodeId,
+          choiceId: choice.id,
+          path: "choice operation"
+        });
+      } finally {
+        this._choiceRecords = this._recording;
+        this._recording = null;
+      }
+      const echo = this._echo(this._choiceRecords);
 
       this.choiceHistory.push({ nodeId: nodeId, choiceId: choice.id });
       let destination;
+      let arrival = null;
       try {
-        destination = resolveRoute(choice.goto, this);
+        const route = resolveRoute(choice.goto, this);
+        destination = route.node;
+        if (route.entry !== null && route.entry.if !== undefined) {
+          arrival = this._cause(route.entry.if, route.entry.tag);
+        }
       } catch (error) {
         throw new Error(
           "Story '" + this.story.id + "', node '" + nodeId + "', choice '" +
           choice.id + "' route failed: " + errorText(error)
         );
       }
-      return this._enterNode(destination);
+      return this._enterNode(destination, arrival, echo);
     }
 
     goTo(nodeId) {
@@ -201,27 +243,209 @@
       }
       if (!keepMemory) {
         this.graph.clear();
+        this.knowledge = {};
+        this._knowledgeRevision += 1;
       }
+      this._perspectiveCache.clear();
       this._clearProgress();
+    }
+
+    characterName(id) {
+      const character = this._character(id);
+      return character.name === undefined ? character.id : character.name;
+    }
+
+    // Returns a MemoryGraph containing only what one character knows, with
+    // each event weighted by that character's belief and, when the story
+    // sets memory.halfLife, by how recently it happened. Omit perspective for
+    // the whole world's (recency-weighted) view. Treat the result as read-only.
+    perspectiveGraph(perspective) {
+      const key = this._perspectiveKey(perspective);
+      const revision = this._memoryRevision();
+      const cached = this._perspectiveCache.get(key);
+      if (cached && revision !== null && cached.revision === revision) {
+        return cached.graph;
+      }
+      const snapshot = this._memorySnapshot();
+      const graph = new root.MemoryGraph();
+      for (const event of snapshot.events) {
+        const weight = event.strength * this._belief(key, event.id) *
+          this._recency(event.sequence, snapshot.sequence);
+        if (weight > 0) {
+          graph.remember({
+            concepts: event.concepts,
+            strength: weight,
+            metadata: event.metadata
+          });
+        }
+      }
+      this._perspectiveCache.set(key, { revision: revision, graph: graph });
+      return graph;
+    }
+
+    traitScore(trait, perspective, subject) {
+      const definition = this._trait(trait);
+      const who = subject === undefined ? DEFAULT_SUBJECT : normalizeName(subject, "subject");
+      const graph = this.perspectiveGraph(perspective);
+      let total = 0;
+      for (const concept of Object.keys(definition.concepts).sort()) {
+        total += definition.concepts[concept] * graph.associationScore(who, concept);
+      }
+      return total;
+    }
+
+    traitScores(perspective, subject) {
+      const scores = {};
+      for (const trait of Object.keys(this.story.traits)) {
+        defineValue(scores, trait, this.traitScore(trait, perspective, subject));
+      }
+      return scores;
+    }
+
+    // Finds the remembered event (with a summary) that best matches `about`
+    // from a perspective. Returns null when nothing matches.
+    recall(spec) {
+      const settings = spec === undefined ? {} : spec;
+      const key = this._perspectiveKey(settings.perspective);
+      const subject = settings.subject === undefined
+        ? DEFAULT_SUBJECT
+        : normalizeName(settings.subject, "recall subject");
+      const rank = settings.rank === undefined ? 1 : settings.rank;
+      let about = settings.about;
+      if (settings.among !== undefined) {
+        const trait = this._dominantAmong(settings.among, settings.perspective, subject);
+        if (trait === null) {
+          return null;
+        }
+        about = { trait: trait };
+      }
+      const snapshot = this._memorySnapshot();
+      const candidates = [];
+      for (const event of snapshot.events) {
+        if (!isRecord(event.metadata) || typeof event.metadata.summary !== "string" ||
+            event.concepts.indexOf(subject) === -1) {
+          continue;
+        }
+        const relevance = this._recallWeight(event, about);
+        const belief = this._belief(key, event.id);
+        // Things done to or with the remembering character weigh more.
+        const personal = key !== WORLD_PERSPECTIVE && event.concepts.indexOf(key) !== -1
+          ? PERSONAL_RECALL_BONUS
+          : 1;
+        const score = event.strength * belief * relevance * personal *
+          this._recency(event.sequence, snapshot.sequence);
+        if (score > 0) {
+          candidates.push({ event: event, score: score, belief: belief });
+        }
+      }
+      candidates.sort(function (a, b) {
+        return b.score - a.score || b.event.sequence - a.event.sequence;
+      });
+      const pick = candidates[rank - 1];
+      return pick === undefined ? null : {
+        eventId: pick.event.id,
+        summary: pick.event.metadata.summary,
+        score: pick.score,
+        belief: pick.belief
+      };
+    }
+
+    // Plain-data summary of how each character remembers the subject.
+    describeReputation(subject) {
+      const result = [];
+      for (const id of Object.keys(this.story.characters)) {
+        const known = this.knowledge[id];
+        const eventCount = known === undefined ? 0 : Object.keys(known).length;
+        if (eventCount === 0) {
+          continue;
+        }
+        const scores = this.traitScores(id, subject);
+        const traits = Object.keys(scores)
+          .filter(function (trait) { return scores[trait] > 0; })
+          .sort(function (a, b) { return scores[b] - scores[a] || compareNames(a, b); })
+          .map((trait) => ({ trait: trait, label: this.traitLabel(trait), score: scores[trait] }));
+        const memory = this.recall({
+          perspective: id,
+          subject: subject,
+          among: Object.keys(this.story.traits)
+        });
+        result.push({
+          character: id,
+          name: this.characterName(id),
+          hidden: this.story.characters[id].hidden === true,
+          knownEvents: eventCount,
+          traits: traits,
+          memory: memory === null ? null : memory.summary
+        });
+      }
+      return result;
+    }
+
+    // One perspective's full view of the subject, for live displays: every
+    // non-zero trait score (negative ones included) and the defining memory.
+    // Omit perspective for the overall (world) view.
+    reputationOf(perspective, subject) {
+      const key = this._perspectiveKey(perspective);
+      const scores = this.traitScores(perspective, subject);
+      const traits = Object.keys(scores)
+        .filter(function (trait) { return Math.abs(scores[trait]) >= 0.05; })
+        .sort(function (a, b) {
+          return Math.abs(scores[b]) - Math.abs(scores[a]) || compareNames(a, b);
+        })
+        .map((trait) => ({
+          trait: trait,
+          label: this.traitLabel(trait),
+          color: this.story.traits[trait].color === undefined ? null : this.story.traits[trait].color,
+          score: scores[trait]
+        }));
+      const memory = this.recall({
+        perspective: perspective,
+        subject: subject,
+        among: Object.keys(this.story.traits)
+      });
+      return {
+        character: key === WORLD_PERSPECTIVE ? null : key,
+        name: key === WORLD_PERSPECTIVE ? null : this.characterName(key),
+        traits: traits,
+        memory: memory === null ? null : memory.summary
+      };
+    }
+
+    // Characters who know at least one event, in story order. Hidden
+    // characters (such as a secret police file) are left out unless asked for.
+    knownCharacters(options) {
+      const includeHidden = options !== undefined && options.includeHidden === true;
+      return Object.keys(this.story.characters).filter((id) => {
+        const known = this.knowledge[id];
+        return known !== undefined && Object.keys(known).length > 0 &&
+          (includeHidden || this.story.characters[id].hidden !== true);
+      });
+    }
+
+    traitLabel(trait) {
+      const definition = this._trait(trait);
+      return definition.label === undefined ? trait.replace(/_/g, " ") : definition.label;
     }
 
     toJSON() {
       return {
-        version: 1,
+        version: 2,
         currentNodeId: this.currentNodeId,
         nodeVisits: this.nodeVisits.slice(),
         choiceHistory: this.choiceHistory.map(function (entry) {
           return { nodeId: entry.nodeId, choiceId: entry.choiceId };
         }),
         variables: cloneJsonValue(this.variables, "variables"),
+        knowledge: cloneJsonValue(this.knowledge, "knowledge"),
         ended: this.ended
       };
     }
 
     loadState(data) {
-      if (!isRecord(data) || data.version !== 1) {
-        throw new TypeError("NarrativeEngine state must be a version 1 object.");
+      if (!isRecord(data) || (data.version !== 1 && data.version !== 2)) {
+        throw new TypeError("NarrativeEngine state must be a version 1 or 2 object.");
       }
+      const knowledge = data.version === 1 ? {} : this._validateKnowledge(data.knowledge);
       if (data.currentNodeId !== null &&
           (typeof data.currentNodeId !== "string" ||
            !hasOwn(this.story.nodes, data.currentNodeId))) {
@@ -271,11 +495,427 @@
       this.nodeVisits = nodeVisits;
       this.choiceHistory = choiceHistory;
       this.variables = variables;
+      this.knowledge = knowledge;
+      this._knowledgeRevision += 1;
+      this._perspectiveCache.clear();
+      this.arrivalCause = null;
+      this.choiceEcho = null;
       this.ended = data.ended;
       return this.currentNodeId === null ? null : this.getView();
     }
 
+    _validateKnowledge(value) {
+      if (!isPlainRecord(value)) {
+        throw new TypeError("Saved knowledge must be a plain object.");
+      }
+      const knowledge = {};
+      for (const [character, events] of Object.entries(value)) {
+        if (!hasOwn(this.story.characters, character)) {
+          throw new Error("Saved knowledge references unknown character '" + character + "'.");
+        }
+        if (!isPlainRecord(events)) {
+          throw new TypeError("Saved knowledge for '" + character + "' must be a plain object.");
+        }
+        const entries = {};
+        for (const [eventId, belief] of Object.entries(events)) {
+          if (!/^event-[1-9]\d*$/.test(eventId)) {
+            throw new TypeError("Saved knowledge event IDs must use the event-N format.");
+          }
+          defineValue(entries, eventId, validateBelief(belief, "saved belief"));
+        }
+        defineValue(knowledge, character, entries);
+      }
+      return knowledge;
+    }
+
+    _character(id) {
+      const name = normalizeName(id, "character");
+      if (!hasOwn(this.story.characters, name)) {
+        throw storyError(this.story, "unknown character '" + name + "'.");
+      }
+      return { id: name, name: this.story.characters[name].name };
+    }
+
+    _trait(trait) {
+      const name = normalizeName(trait, "trait");
+      if (!hasOwn(this.story.traits, name)) {
+        throw storyError(this.story, "unknown trait '" + name + "'.");
+      }
+      return this.story.traits[name];
+    }
+
+    _perspectiveKey(perspective) {
+      return perspective === undefined ? WORLD_PERSPECTIVE : this._character(perspective).id;
+    }
+
+    _belief(key, eventId) {
+      if (key === WORLD_PERSPECTIVE) {
+        return 1;
+      }
+      const known = this.knowledge[key];
+      return known !== undefined && hasOwn(known, eventId) ? known[eventId] : 0;
+    }
+
+    _recency(sequence, now) {
+      const halfLife = this.story.memory.halfLife;
+      return halfLife === undefined ? 1 : Math.pow(0.5, (now - sequence) / halfLife);
+    }
+
+    _memoryRevision() {
+      return typeof this.graph.sequence === "number"
+        ? this.graph.sequence + ":" + this._knowledgeRevision
+        : null;
+    }
+
+    _memorySnapshot() {
+      if (typeof this.graph.toJSON !== "function") {
+        throw new TypeError("Perspective features require a graph with toJSON().");
+      }
+      const data = this.graph.toJSON();
+      return { events: data.events, sequence: data.sequence };
+    }
+
+    _learn(character, eventId, belief) {
+      let known = this.knowledge[character];
+      if (known === undefined) {
+        known = {};
+        defineValue(this.knowledge, character, known);
+      }
+      const current = hasOwn(known, eventId) ? known[eventId] : 0;
+      if (belief > current) {
+        defineValue(known, eventId, belief);
+        this._knowledgeRevision += 1;
+      }
+    }
+
+    _characters(value) {
+      if (value === "all") {
+        return Object.keys(this.story.characters);
+      }
+      return value.map((id) => this._character(id).id);
+    }
+
+    // True when an event is about the topic at all (any trait concept, or all
+    // listed concepts). Used to decide what gets passed on or revealed.
+    _concerns(event, about) {
+      if (about === undefined) {
+        return true;
+      }
+      if (about.trait !== undefined) {
+        const weights = this._trait(about.trait).concepts;
+        return event.concepts.some(function (concept) { return hasOwn(weights, concept); });
+      }
+      return about.concepts.every(function (concept) {
+        return event.concepts.indexOf(concept) !== -1;
+      });
+    }
+
+    // How strongly an event exemplifies the topic, for recall ranking.
+    _recallWeight(event, about) {
+      if (about === undefined) {
+        return 1;
+      }
+      if (about.trait !== undefined) {
+        const weights = this._trait(about.trait).concepts;
+        let total = 0;
+        for (const concept of event.concepts) {
+          if (hasOwn(weights, concept)) {
+            total += weights[concept];
+          }
+        }
+        return total;
+      }
+      return this._concerns(event, about) ? 1 : 0;
+    }
+
+    _knows(condition) {
+      const key = this._perspectiveKey(condition.perspective);
+      const min = condition.min === undefined ? Number.MIN_VALUE : condition.min;
+      return this._memorySnapshot().events.some((event) =>
+        this._concerns(event, condition.about) && this._belief(key, event.id) >= min
+      );
+    }
+
+    // ---- Explanations -------------------------------------------------
+    // A cause tells the player which remembered acts made a piece of text,
+    // a choice, or a route appear. Only memory conditions (trait,
+    // dominantTrait, knows, and association/activation) produce one;
+    // variables, visits and negations do not, unless the author tags them.
+
+    _cause(condition, tag) {
+      const found = this._facts(condition, []);
+      const macroTag = found.length > 0 ? found[0].macroTag : undefined;
+      const facts = found.filter(function (fact) { return fact.kind !== "macro"; });
+      const label = tag !== undefined ? tag
+        : macroTag !== undefined ? macroTag
+          : facts.length > 0 ? this._defaultTag(facts[0]) : undefined;
+      if (label === undefined) {
+        return null;
+      }
+      const primary = facts[0];
+      return {
+        tag: label,
+        kind: primary === undefined ? "author" : primary.kind,
+        trait: primary !== undefined && primary.trait !== undefined ? primary.trait : null,
+        color: primary !== undefined && primary.trait !== undefined &&
+          this.story.traits[primary.trait].color !== undefined
+          ? this.story.traits[primary.trait].color
+          : null,
+        explanation: facts.map((fact) => this._explainFact(fact))
+      };
+    }
+
+    // After a choice: which traits its remembered acts push toward or away
+    // from, and who (that the player could know about) saw them. Hidden
+    // characters are never named. Returns a cause-shaped object or null.
+    _echo(records) {
+      const own = records.filter(function (record) {
+        return record.event.concepts.indexOf(DEFAULT_SUBJECT) !== -1;
+      });
+      if (own.length === 0) {
+        return null;
+      }
+      const deltas = {};
+      for (const record of own) {
+        for (const [trait, definition] of Object.entries(this.story.traits)) {
+          let weight = 0;
+          for (const concept of record.event.concepts) {
+            if (hasOwn(definition.concepts, concept)) {
+              weight += definition.concepts[concept];
+            }
+          }
+          if (weight !== 0) {
+            deltas[trait] = (deltas[trait] || 0) + weight * record.event.strength;
+          }
+        }
+      }
+      const changes = Object.keys(deltas)
+        .filter(function (trait) { return deltas[trait] !== 0; })
+        .sort(function (a, b) { return Math.abs(deltas[b]) - Math.abs(deltas[a]) || compareNames(a, b); });
+      const witnesses = [];
+      for (const record of own) {
+        for (const id of record.witnesses) {
+          if (this.story.characters[id].hidden !== true && witnesses.indexOf(id) === -1) {
+            witnesses.push(id);
+          }
+        }
+      }
+      if (changes.length === 0 && witnesses.length === 0) {
+        return null;
+      }
+      const names = witnesses.map((id) => this.characterName(id));
+      const arrow = (trait) => (deltas[trait] > 0 ? "↑ " : "↓ ") + this.traitLabel(trait);
+      const seen = names.length === 0 ? "no one saw"
+        : names.length <= 2 ? names.join(" and ") + " saw"
+          : names.length + " people saw";
+      const tag = changes.slice(0, 2).map(arrow).concat([seen]).join(" · ");
+      const summaries = own
+        .filter(function (record) { return isRecord(record.event.metadata) && typeof record.event.metadata.summary === "string"; })
+        .map(function (record) { return "you " + record.event.metadata.summary + "."; });
+      const explanation = [];
+      if (summaries.length > 0) {
+        explanation.push({ heading: "Remembered as:", items: summaries });
+      }
+      explanation.push(names.length === 0
+        ? { heading: "No one saw it. For now.", items: [] }
+        : { heading: "Seen by:", items: names });
+      if (changes.length > 0) {
+        explanation.push({ heading: "Pushes how you're seen:", items: changes.map(arrow) });
+      }
+      const primary = changes[0];
+      return {
+        tag: tag,
+        kind: "echo",
+        trait: primary === undefined ? null : primary,
+        color: primary !== undefined && this.story.traits[primary].color !== undefined
+          ? this.story.traits[primary].color
+          : null,
+        explanation: explanation
+      };
+    }
+
+    _recallCause(spec, memory) {
+      const key = this._perspectiveKey(spec.perspective);
+      const who = key === WORLD_PERSPECTIVE ? null : this.characterName(key);
+      return {
+        tag: who === null ? "remembered" : who + " remembers",
+        kind: "recall",
+        trait: null,
+        color: null,
+        explanation: [{
+          heading: (who === null ? "Remembered" : who + " remembers") + " that you:",
+          items: [memory.summary + beliefNote(memory.belief)]
+        }]
+      };
+    }
+
+    // Collects the true memory-based leaves of a condition.
+    _facts(condition, macroStack) {
+      switch (condition.type) {
+        case "trait":
+          return condition.min !== undefined && this._evaluateCondition(condition)
+            ? [{ kind: "trait", trait: condition.trait, perspective: condition.perspective, subject: condition.subject }]
+            : [];
+        case "dominantTrait":
+          return this._evaluateCondition(condition)
+            ? [{ kind: "trait", trait: condition.is, perspective: condition.perspective, subject: condition.subject }]
+            : [];
+        case "knows":
+          return this._evaluateCondition(condition)
+            ? [{ kind: "knows", perspective: condition.perspective, about: condition.about, min: condition.min }]
+            : [];
+        case "association":
+          return this._evaluateCondition(condition)
+            ? [{ kind: "association", a: condition.a, b: condition.b, perspective: condition.perspective }]
+            : [];
+        case "activation":
+          return this._evaluateCondition(condition)
+            ? [{ kind: "activation", contains: condition.contains, perspective: condition.perspective }]
+            : [];
+        case "all":
+          return condition.conditions.reduce((facts, child) =>
+            facts.concat(this._facts(child, macroStack)), []);
+        case "any": {
+          for (const child of condition.conditions) {
+            if (this._evaluateCondition(child)) {
+              return this._facts(child, macroStack);
+            }
+          }
+          return [];
+        }
+        case "macroCondition": {
+          const macro = this.story.macros[condition.name];
+          const facts = this._facts(macro.condition, macroStack.concat([condition.name]));
+          if (macro.tag === undefined) {
+            return facts;
+          }
+          // A tagged macro is shown whenever it holds, even if it holds only
+          // because something never happened.
+          if (facts.length === 0) {
+            return this._evaluateCondition(condition) ? [{ kind: "macro", macroTag: macro.tag }] : [];
+          }
+          facts[0] = Object.assign({}, facts[0], { macroTag: macro.tag });
+          return facts;
+        }
+        default:
+          return [];
+      }
+    }
+
+    _defaultTag(fact) {
+      const who = fact.perspective === undefined ? null : this.characterName(fact.perspective);
+      if (fact.kind === "trait") {
+        const label = this.traitLabel(fact.trait);
+        return who === null ? label : who + ": " + label;
+      }
+      if (fact.kind === "knows") {
+        return (who === null ? "known" : who + " knows");
+      }
+      const concept = (fact.kind === "association" ? fact.b : fact.contains).replace(/_/g, " ");
+      return who === null ? concept : who + ": " + concept;
+    }
+
+    _explainFact(fact) {
+      const who = fact.perspective === undefined ? null : this.characterName(fact.perspective);
+      const subject = fact.subject === undefined ? DEFAULT_SUBJECT : fact.subject;
+      const aboutPlayer = subject === DEFAULT_SUBJECT;
+      if (fact.kind === "trait") {
+        const label = this.traitLabel(fact.trait);
+        const items = aboutPlayer
+          ? this._evidence(fact.perspective, subject, (event) => this._recallWeight(event, { trait: fact.trait }))
+          : [];
+        const target = aboutPlayer ? "you" : displayName(subject);
+        const heading = (who === null
+          ? capitalise(target) + (aboutPlayer ? " are" : " is") + " seen as " + label
+          : who + " sees " + target + " as " + label) + (items.length > 0 ? ", because you:" : ".");
+        return { heading: heading, items: items };
+      }
+      if (fact.kind === "knows") {
+        const items = this._evidence(fact.perspective, null, (event) =>
+          this._concerns(event, fact.about) ? 1 : 0, fact.min);
+        return {
+          heading: (who === null ? "It is known" : who + " knows") + (items.length > 0 ? " that you:" : " about this."),
+          items: items
+        };
+      }
+      if (fact.kind === "association") {
+        const items = this._evidence(fact.perspective, null, (event) =>
+          event.concepts.indexOf(fact.a) !== -1 && event.concepts.indexOf(fact.b) !== -1 ? 1 : 0);
+        const pair = fact.a === DEFAULT_SUBJECT
+          ? "you with “" + fact.b.replace(/_/g, " ") + "”"
+          : "“" + fact.a.replace(/_/g, " ") + "” with “" + fact.b.replace(/_/g, " ") + "”";
+        return {
+          heading: (who === null ? "Memory links " : who + " links ") + pair + (items.length > 0 ? ", because you:" : "."),
+          items: items
+        };
+      }
+      return {
+        heading: "“" + fact.contains.replace(/_/g, " ") + "” comes to " +
+          (who === null ? "mind" : who + "'s mind") + ".",
+        items: []
+      };
+    }
+
+    // Summaries of the remembered acts that most support a fact, strongest
+    // first, noting when a character only heard about one secondhand.
+    _evidence(perspective, subject, relevance, minBelief) {
+      const key = this._perspectiveKey(perspective);
+      const snapshot = this._memorySnapshot();
+      const ranked = [];
+      for (const event of snapshot.events) {
+        if (!isRecord(event.metadata) || typeof event.metadata.summary !== "string" ||
+            (subject !== null && event.concepts.indexOf(subject) === -1)) {
+          continue;
+        }
+        const belief = this._belief(key, event.id);
+        if (minBelief !== undefined && belief < minBelief) {
+          continue;
+        }
+        const weight = relevance(event);
+        const score = event.strength * belief * weight *
+          this._recency(event.sequence, snapshot.sequence);
+        if (score > 0) {
+          ranked.push({ event: event, score: score, belief: belief });
+        }
+      }
+      ranked.sort(function (a, b) {
+        return b.score - a.score || b.event.sequence - a.event.sequence;
+      });
+      return ranked.slice(0, MAX_EXPLANATION_ITEMS).map(function (entry) {
+        return entry.event.metadata.summary + (key === WORLD_PERSPECTIVE ? "" : beliefNote(entry.belief));
+      });
+    }
+
+    // The highest-scoring trait among `traits` (ties broken by name), or null
+    // when none scores above zero.
+    _dominantAmong(traits, perspective, subject) {
+      let best = null;
+      let bestScore = 0;
+      for (const trait of traits.slice().sort(compareNames)) {
+        const score = this.traitScore(trait, perspective, subject);
+        if (score > bestScore) {
+          best = trait;
+          bestScore = score;
+        }
+      }
+      return best;
+    }
+
+    _dominantTrait(condition) {
+      const target = this.traitScore(condition.is, condition.perspective, condition.subject);
+      const margin = condition.margin === undefined ? 0 : condition.margin;
+      if (!(target > 0)) {
+        return false;
+      }
+      return condition.among.every((trait) =>
+        trait === condition.is ||
+        target > this.traitScore(trait, condition.perspective, condition.subject) + margin
+      );
+    }
+
     _clearProgress() {
+      this.arrivalCause = null;
+      this.choiceEcho = null;
       this.currentNodeId = null;
       this.nodeVisits = [];
       this.choiceHistory = [];
@@ -283,7 +923,11 @@
       this.ended = false;
     }
 
-    _enterNode(nodeId) {
+    // `arrival` explains a memory-driven route into this node (or null). It
+    // is presentation-only and is not part of saved state.
+    _enterNode(nodeId, arrival, echo) {
+      this.arrivalCause = arrival === undefined ? null : arrival;
+      this.choiceEcho = echo === undefined ? null : echo;
       this.currentNodeId = nodeId;
       this.nodeVisits.push(nodeId);
       this.ended = this.story.nodes[nodeId].ending === true;
@@ -323,11 +967,52 @@
 
     _executeBuiltin(operation, source) {
       if (operation.type === "remember") {
-        this.graph.remember({
+        let metadata = operation.metadata;
+        if (operation.summary !== undefined) {
+          metadata = Object.assign({}, metadata || {}, { summary: operation.summary });
+        }
+        const event = this.graph.remember({
           concepts: operation.concepts,
           strength: operation.strength,
-          metadata: operation.metadata
+          metadata: metadata
         });
+        const witnesses = [];
+        if (operation.witnesses !== undefined) {
+          if (!event || typeof event.id !== "string") {
+            throw new TypeError("witnesses require a graph whose remember() returns the event.");
+          }
+          for (const character of this._characters(operation.witnesses)) {
+            this._learn(character, event.id, 1);
+            witnesses.push(character);
+          }
+        }
+        if (this._recording !== null && event && Array.isArray(event.concepts)) {
+          this._recording.push({ event: event, witnesses: witnesses });
+        }
+      } else if (operation.type === "gossip") {
+        const from = this._character(operation.from).id;
+        const factor = operation.belief === undefined ? DEFAULT_GOSSIP_BELIEF : operation.belief;
+        const listeners = this._characters(operation.to).filter(function (id) {
+          return id !== from;
+        });
+        for (const event of this._memorySnapshot().events) {
+          const belief = this._belief(from, event.id);
+          if (belief > 0 && this._concerns(event, operation.about)) {
+            for (const listener of listeners) {
+              this._learn(listener, event.id, belief * factor);
+            }
+          }
+        }
+      } else if (operation.type === "reveal") {
+        const belief = operation.belief === undefined ? DEFAULT_REVEAL_BELIEF : operation.belief;
+        const listeners = this._characters(operation.to);
+        for (const event of this._memorySnapshot().events) {
+          if (this._concerns(event, operation.about)) {
+            for (const listener of listeners) {
+              this._learn(listener, event.id, belief);
+            }
+          }
+        }
       } else if (operation.type === "learnTransition") {
         this.graph.learnTransition(
           operation.transitionType,
@@ -387,13 +1072,24 @@
         case "always":
           return true;
         case "association":
-          return this.graph.associationScore(condition.a, condition.b) >= condition.min;
+          return this._conditionGraph(condition)
+            .associationScore(condition.a, condition.b) >= condition.min;
         case "activation":
-          return this.graph.activateMany(condition.starts, condition.options || {})
+          return this._conditionGraph(condition)
+            .activateMany(condition.starts, condition.options || {})
             .some(function (item) {
               return item.concept === condition.contains &&
                 item.activation >= condition.min;
             });
+        case "trait": {
+          const score = this.traitScore(condition.trait, condition.perspective, condition.subject);
+          return (condition.min === undefined || score >= condition.min) &&
+            (condition.max === undefined || score <= condition.max);
+        }
+        case "dominantTrait":
+          return this._dominantTrait(condition);
+        case "knows":
+          return this._knows(condition);
         case "transition":
           return this.graph.transitionCount(
             condition.transitionType,
@@ -419,6 +1115,12 @@
         default:
           throw new Error("Unsupported condition type '" + condition.type + "'.");
       }
+    }
+
+    _conditionGraph(condition) {
+      return condition.perspective === undefined
+        ? this.graph
+        : this.perspectiveGraph(condition.perspective);
     }
 
     _compareVariable(condition) {
@@ -484,6 +1186,7 @@
       if (!hasOwn(story.nodes, story.start)) {
         throw storyError(story, "start node '" + story.start + "' does not exist.");
       }
+      this._validateMemoryModel();
 
       for (const [macroName, macro] of Object.entries(story.macros)) {
         normalizeName(macroName, "macro name");
@@ -504,6 +1207,7 @@
             location: "macro '" + macroName + "'"
           });
         }
+        validateTag(macro.tag, story, "macro '" + macroName + "'");
         if (macro.do === undefined && macro.condition === undefined) {
           throw storyError(story, "macro '" + macroName + "' must define do or condition.");
         }
@@ -557,6 +1261,7 @@
           }
           choiceIds.add(choiceId);
           normalizeName(choice.text, "choice text");
+          validateTag(choice.tag, story, "node '" + nodeId + "' choice '" + choiceId + "'");
           if (choice.showIf !== undefined) {
             this._validateCondition(choice.showIf, {
               allowUnregistered: allowUnregistered,
@@ -608,6 +1313,136 @@
       }
     }
 
+    _validateMemoryModel() {
+      const story = this.story;
+      for (const field of ["characters", "traits", "memory"]) {
+        if (story[field] === undefined) {
+          story[field] = {};
+        }
+        if (!isPlainRecord(story[field])) {
+          throw storyError(story, field + " must be an object.");
+        }
+      }
+      for (const [id, character] of Object.entries(story.characters)) {
+        normalizeName(id, "character ID");
+        if (id === "all") {
+          throw storyError(story, "'all' is reserved and cannot be a character ID.");
+        }
+        if (!isPlainRecord(character)) {
+          throw storyError(story, "character '" + id + "' must be an object.");
+        }
+        if (character.name !== undefined) {
+          normalizeName(character.name, "character '" + id + "' name");
+        }
+        if (character.hidden !== undefined && typeof character.hidden !== "boolean") {
+          throw storyError(story, "character '" + id + "' hidden must be a boolean.");
+        }
+      }
+      for (const [name, trait] of Object.entries(story.traits)) {
+        normalizeName(name, "trait name");
+        if (!isPlainRecord(trait) || !isPlainRecord(trait.concepts) ||
+            Object.keys(trait.concepts).length === 0) {
+          throw storyError(story, "trait '" + name + "' must define a non-empty concepts object.");
+        }
+        for (const [concept, weight] of Object.entries(trait.concepts)) {
+          normalizeName(concept, "trait '" + name + "' concept");
+          if (typeof weight !== "number" || !Number.isFinite(weight) || weight === 0) {
+            throw storyError(story, "trait '" + name + "' weight for '" + concept +
+              "' must be a finite non-zero number.");
+          }
+        }
+        if (trait.color !== undefined && (typeof trait.color !== "string" || !/^#[0-9a-fA-F]{6}$/.test(trait.color))) {
+          throw storyError(story, "trait '" + name + "' color must be a #rrggbb hex string.");
+        }
+        if (trait.label !== undefined) {
+          normalizeName(trait.label, "trait '" + name + "' label");
+        }
+      }
+      if (story.memory.halfLife !== undefined) {
+        validatePositiveNumber(story.memory.halfLife, "memory halfLife");
+      }
+    }
+
+    _validateCharacters(value, location) {
+      if (value === "all") {
+        return;
+      }
+      if (!Array.isArray(value) || value.length === 0) {
+        throw storyError(this.story, location + " must be 'all' or a non-empty array of characters.");
+      }
+      for (const id of value) {
+        this._validateCharacter(id, location);
+      }
+    }
+
+    _validateCharacter(id, location) {
+      const name = normalizeName(id, location + " character");
+      if (!hasOwn(this.story.characters, name)) {
+        throw storyError(this.story, location + " references unknown character '" + name + "'.");
+      }
+    }
+
+    _validatePerspective(perspective, location) {
+      if (perspective !== undefined) {
+        this._validateCharacter(perspective, location + " perspective");
+      }
+    }
+
+    _validateTraitName(trait, location) {
+      const name = normalizeName(trait, location + " trait");
+      if (!hasOwn(this.story.traits, name)) {
+        throw storyError(this.story, location + " references unknown trait '" + name + "'.");
+      }
+    }
+
+    _validateAbout(about, location, required) {
+      if (about === undefined && !required) {
+        return;
+      }
+      if (!isPlainRecord(about) || (about.trait === undefined) === (about.concepts === undefined)) {
+        throw storyError(this.story, location + " about must define exactly one of trait or concepts.");
+      }
+      if (about.trait !== undefined) {
+        this._validateTraitName(about.trait, location + " about");
+      } else {
+        validateConcepts(about.concepts, this.story, location + " about concepts");
+        if (about.concepts.length === 0) {
+          throw storyError(this.story, location + " about concepts must be non-empty.");
+        }
+      }
+    }
+
+    _validateBeliefOption(value, location) {
+      if (value !== undefined) {
+        validateBelief(value, location + " belief");
+      }
+    }
+
+    _validateRecall(spec, location) {
+      if (!isPlainRecord(spec)) {
+        throw storyError(this.story, location + " recall must be an object.");
+      }
+      this._validatePerspective(spec.perspective, location);
+      if (spec.subject !== undefined) {
+        normalizeName(spec.subject, location + " subject");
+      }
+      this._validateAbout(spec.about, location, false);
+      if (spec.among !== undefined) {
+        if (spec.about !== undefined) {
+          throw storyError(this.story, location + " recall cannot combine about and among.");
+        }
+        if (!Array.isArray(spec.among) || spec.among.length === 0) {
+          throw storyError(this.story, location + " recall among must be a non-empty array of traits.");
+        }
+        for (const trait of spec.among) {
+          this._validateTraitName(trait, location + " among");
+        }
+      }
+      if (spec.rank !== undefined && (!Number.isSafeInteger(spec.rank) || spec.rank < 1)) {
+        throw storyError(this.story, location + " rank must be a positive integer.");
+      }
+    }
+
     _validateOperations(operations, context) {
       if (!Array.isArray(operations)) {
         throw storyError(this.story, context.location + " must be an array.");
@@ -634,6 +1469,24 @@
           if (operation.metadata !== undefined) {
             cloneJsonValue(operation.metadata, location + " metadata");
           }
+          if (operation.summary !== undefined) {
+            normalizeName(operation.summary, location + " summary");
+            if (operation.metadata !== undefined && !isPlainRecord(operation.metadata)) {
+              throw storyError(this.story, location + " metadata must be an object when summary is used.");
+            }
+          }
+          if (operation.witnesses !== undefined) {
+            this._validateCharacters(operation.witnesses, location + " witnesses");
+          }
+        } else if (type === "gossip") {
+          this._validateCharacter(operation.from, location + " from");
+          this._validateCharacters(operation.to, location + " to");
+          this._validateAbout(operation.about, location, false);
+          this._validateBeliefOption(operation.belief, location);
+        } else if (type === "reveal") {
+          this._validateCharacters(operation.to, location + " to");
+          this._validateAbout(operation.about, location, false);
+          this._validateBeliefOption(operation.belief, location);
         } else if (type === "learnTransition") {
           normalizeName(operation.transitionType, location + " transitionType");
           normalizeName(operation.from, location + " from");
@@ -696,11 +1549,51 @@
         normalizeName(condition.a, context.location + " association a");
         normalizeName(condition.b, context.location + " association b");
         validateNonNegativeNumber(condition.min, context.location + " association min");
+        this._validatePerspective(condition.perspective, context.location);
       } else if (type === "activation") {
         validateConcepts(condition.starts, this.story, context.location + " starts");
         normalizeName(condition.contains, context.location + " contains");
         validateNonNegativeNumber(condition.min, context.location + " activation min");
         validateActivationOptions(condition.options, context.location + " options");
+        this._validatePerspective(condition.perspective, context.location);
+      } else if (type === "trait") {
+        this._validateTraitName(condition.trait, context.location);
+        this._validatePerspective(condition.perspective, context.location);
+        if (condition.subject !== undefined) {
+          normalizeName(condition.subject, context.location + " subject");
+        }
+        if (condition.min === undefined && condition.max === undefined) {
+          throw storyError(this.story, context.location + " trait condition needs min or max.");
+        }
+        for (const bound of ["min", "max"]) {
+          if (condition[bound] !== undefined &&
+              (typeof condition[bound] !== "number" || !Number.isFinite(condition[bound]))) {
+            throw storyError(this.story, context.location + " trait " + bound + " must be a finite number.");
+          }
+        }
+      } else if (type === "dominantTrait") {
+        if (!Array.isArray(condition.among) || condition.among.length < 2) {
+          throw storyError(this.story, context.location + " dominantTrait among needs at least two traits.");
+        }
+        for (const trait of condition.among) {
+          this._validateTraitName(trait, context.location);
+        }
+        if (condition.among.indexOf(condition.is) === -1) {
+          throw storyError(this.story, context.location + " dominantTrait is must be listed in among.");
+        }
+        this._validatePerspective(condition.perspective, context.location);
+        if (condition.subject !== undefined) {
+          normalizeName(condition.subject, context.location + " subject");
+        }
+        if (condition.margin !== undefined) {
+          validateNonNegativeNumber(condition.margin, context.location + " margin");
+        }
+      } else if (type === "knows") {
+        this._validateCharacter(condition.perspective, context.location + " perspective");
+        this._validateAbout(condition.about, context.location, true);
+        if (condition.min !== undefined) {
+          validateBelief(condition.min, context.location + " knows min");
+        }
       } else if (type === "transition") {
         normalizeName(condition.transitionType, context.location + " transitionType");
         normalizeName(condition.from, context.location + " from");
@@ -756,16 +1649,125 @@
     }
   }
 
+  // Returns { text, segments }. Segments concatenate to exactly `text`; a
+  // segment has a `cause` when memory made it appear.
   function resolveText(definition, engine) {
     if (typeof definition === "string") {
-      return definition;
+      return { text: definition, segments: [{ text: definition }] };
     }
     for (const variant of definition) {
       if (variant.if === undefined || engine._evaluateCondition(variant.if)) {
-        return variant.value;
+        const cause = variant.if === undefined ? null : engine._cause(variant.if, variant.tag);
+        const segments = typeof variant.value === "string"
+          ? [{ text: variant.value }]
+          : composeParts(variant.value, engine);
+        const text = segments.map(function (segment) { return segment.text; }).join("");
+        if (text.trim().length === 0) {
+          throw storyError(engine.story, "node '" + engine.currentNodeId + "' text resolved to nothing.");
+        }
+        if (cause !== null) {
+          // A variant's cause belongs to its opening passage.
+          segments[0] = Object.assign({}, segments[0], { cause: segments[0].cause || cause });
+        }
+        return { text: text, segments: segments };
       }
     }
     throw storyError(engine.story, "node '" + engine.currentNodeId + "' has no matching text variant.");
+  }
+
+  // Text parts are joined with single spaces; a part that starts or ends with
+  // whitespace (for example "\n\n" for a paragraph break) is joined as-is.
+  // Each joined part becomes a segment that carries its own separator.
+  function composeParts(parts, engine) {
+    const segments = [];
+    let output = "";
+    for (const part of parts) {
+      let piece;
+      let cause = null;
+      if (typeof part === "string") {
+        piece = part;
+      } else if (part.if !== undefined && !engine._evaluateCondition(part.if)) {
+        piece = part.else === undefined ? "" : part.else;
+      } else if (part.text !== undefined) {
+        piece = part.text;
+        if (part.if !== undefined) {
+          cause = engine._cause(part.if, part.tag);
+        }
+      } else {
+        const memory = engine.recall(part.recall);
+        if (memory === null) {
+          piece = part.otherwise === undefined ? "" : part.otherwise;
+        } else {
+          piece = (part.format === undefined ? "{summary}" : part.format)
+            .split("{summary}").join(memory.summary);
+          cause = engine._recallCause(part.recall, memory);
+          if (part.tag !== undefined) {
+            cause.tag = part.tag;
+          }
+        }
+      }
+      if (piece.length === 0) {
+        continue;
+      }
+      const joined = output.length === 0 || /\s$/.test(output) || /^\s/.test(piece)
+        ? piece
+        : " " + piece;
+      output += joined;
+      const segment = { text: joined };
+      if (cause !== null) {
+        segment.cause = cause;
+      }
+      segments.push(segment);
+    }
+    return segments.length === 0 ? [{ text: "" }] : segments;
+  }
+
+  function beliefNote(belief) {
+    return belief < 1 ? " (heard secondhand)" : "";
+  }
+
+  function displayName(id) {
+    return capitalise(id.replace(/_/g, " "));
+  }
+
+  function capitalise(text) {
+    return text.length === 0 ? text : text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function validateParts(parts, engine, context) {
+    if (!Array.isArray(parts) || parts.length === 0) {
+      throw storyError(engine.story, context.location + " parts must be a non-empty array.");
+    }
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index];
+      const location = context.location + " part " + index;
+      if (typeof part === "string") {
+        continue;
+      }
+      if (!isPlainRecord(part)) {
+        throw storyError(engine.story, location + " must be a string or an object.");
+      }
+      if ((part.text === undefined) === (part.recall === undefined)) {
+        throw storyError(engine.story, location + " must define exactly one of text or recall.");
+      }
+      validateTag(part.tag, engine.story, location);
+      for (const key of ["text", "else", "format", "otherwise"]) {
+        if (part[key] !== undefined && typeof part[key] !== "string") {
+          throw storyError(engine.story, location + " " + key + " must be a string.");
+        }
+      }
+      if (part.text === undefined && part.recall !== undefined) {
+        engine._validateRecall(part.recall, location);
+      } else if (part.format !== undefined || part.otherwise !== undefined) {
+        throw storyError(engine.story, location + " format and otherwise only apply to recall parts.");
+      }
+      if (part.if !== undefined) {
+        engine._validateCondition(part.if, { allowUnregistered: context.allowUnregistered,
+          macroStack: context.macroStack, location: location });
+      } else if (part.else !== undefined) {
+        throw storyError(engine.story, location + " else requires if.");
+      }
+    }
   }
 
   function validateText(text, engine, context) {
@@ -782,7 +1784,12 @@
       if (!isPlainRecord(variant)) {
         throw storyError(engine.story, context.location + " variant " + index + " must be an object.");
       }
-      normalizeName(variant.value, context.location + " variant value");
+      if (Array.isArray(variant.value)) {
+        validateParts(variant.value, engine, context);
+      } else {
+        normalizeName(variant.value, context.location + " variant value");
+      }
+      validateTag(variant.tag, engine.story, context.location + " variant " + index);
       if (variant.if === undefined) {
         fallbacks += 1;
         if (index !== text.length - 1) {
@@ -814,6 +1821,7 @@
         throw storyError(story, context.location + " route " + index + " must be an object.");
       }
       const nodeId = normalizeName(entry.node, context.location + " destination");
+      validateTag(entry.tag, story, context.location + " route " + index);
       if (!hasOwn(story.nodes, nodeId)) {
         throw storyError(story, context.location + " targets unknown node '" + nodeId + "'.");
       }
@@ -833,11 +1841,11 @@
 
   function resolveRoute(route, engine) {
     if (typeof route === "string") {
-      return route;
+      return { node: route, entry: null };
     }
     for (const entry of route) {
       if (entry.if === undefined || engine._evaluateCondition(entry.if)) {
-        return entry.node;
+        return { node: entry.node, entry: entry };
       }
     }
     throw storyError(engine.story, "node '" + engine.currentNodeId + "' has no matching route.");
@@ -1013,6 +2021,23 @@
       throw new TypeError(label + " must be a non-negative safe integer.");
     }
     return value;
+  }
+
+  function validateTag(tag, story, location) {
+    if (tag !== undefined && (typeof tag !== "string" || tag.trim().length === 0)) {
+      throw storyError(story, location + " tag must be a non-empty string.");
+    }
+  }
+
+  function validateBelief(value, label) {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || value > 1) {
+      throw new TypeError(label + " must be a number in (0, 1].");
+    }
+    return value;
+  }
+
+  function compareNames(a, b) {
+    return a < b ? -1 : a > b ? 1 : 0;
   }
 
   function storyError(story, message) {
