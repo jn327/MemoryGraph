@@ -28,7 +28,13 @@ registerStory({
   },
   "nodes": {
     "application": {
-      "text": "In 1936 the revolution in the East has failed, and the old governments of the Danube survived it by promising order. They speak of continuity now, never of fear. You are Anna Kovacs, a third-grade clerk in the Ministry of Continuity's Office of Assemblies. You review applications for public gatherings. Nothing is ever refused here. Things are only postponed, relocated, referred.\n\nOn your desk this morning: an application from Laszlo Kovacs, your brother, to hold a meeting of teachers about the dismissal of Professor Gábor Kovacs, your father. The file is thin enough to fit in one hand. Clipped to it, in Director Halmi's green ink: Kovacs matters to me personally. H.",
+      "text": [{ "value": [
+        "In 1936 the revolution in the East has failed, and the old governments of the Danube survived it by promising order. They speak of continuity now, never of fear. You are Anna Kovacs, a third-grade clerk in the Ministry of Continuity's Office of Assemblies. You review applications for public gatherings. Nothing is ever refused here. Things are only postponed, relocated, referred.",
+        "\n\n",
+        "On your desk this morning: an application from Laszlo Kovacs, your brother, to hold a meeting of teachers about the dismissal of Professor Gábor Kovacs, your father. The file is thin enough to fit in one hand. Clipped to it, in Director Halmi's green ink: Kovacs matters to me personally. H.",
+        { "if": { "type": "knows", "perspective": "file", "about": { "concepts": ["player"] } }, "tag": "your file",
+          "text": "Under it is a second folder that nobody has told you about. Buff card, your name on the tab. It is already thicker than it has any right to be on a Monday morning, for someone who has not yet done anything." }
+      ] }],
       "onEnter": [{ "type": "remember", "concepts": ["ministry", "application", "laszlo", "father", "dismissal"] }],
       "choices": [
         { "id": "approve", "text": "Approve it yourself, before Halmi sees it",
@@ -74,6 +80,7 @@ registerStory({
           "value": "Laszlo changes the venue three times. Each new application is refused for a new and reasonable reason: a railway line nearby, a school nearby, too many people expected for the fire regulations. Nobody forbids anything. The rules are written as if nobody is forbidding anything. Laszlo brings you the refusals in a biscuit tin. 'You knew,' he says. 'Thank you for telling me you knew.'" },
         { "value": "The application comes back down from Halmi's office a week later stamped REFERRED FOR FURTHER CONSIDERATION, which is how the Ministry says never. Laszlo finds out, of course; your initials are on the routing slip. He doesn't come to Sunday dinner. Your father sets his place anyway." }
       ],
+      "onEnter": [{ "type": "reveal", "to": ["laszlo"], "about": { "concepts": ["obey", "laszlo"] } }],
       "choices": [{ "id": "go_laszlo", "text": "Meet Laszlo at the café on Szent Street", "goto": "laszlo_ask" }]
     },
     "laszlo_ask": {
@@ -194,16 +201,20 @@ registerStory({
         { "value": [
           "Erzsi waits for you after work under the lime trees by the tram stop, in the rain, without an umbrella.",
           "'I've been reporting on you,' she says. 'Since May. Every Friday. Since my mother's pension.' She is shaking.",
-          { "recall": { "perspective": "erzsi", "among": ["subversive", "brave", "careful", "trusting"] },
+          { "if": { "type": "not", "condition": { "type": "knows", "perspective": "erzsi", "about": { "concepts": ["conceal", "erzsi"] } } },
+            "recall": { "perspective": "erzsi", "among": ["subversive", "brave", "careful", "trusting"] },
             "format": "'The last thing I told them was that you {summary}. I made it sound smaller than it was. I always tried to make it sound smaller.'",
-            "otherwise": "'I never had anything to tell them. You never gave me anything. I think I hated you for it.'" },
+            "else": "'I never had anything to tell them. You never gave me anything. Every Friday I sat in that office with nothing. I think I hated you for it.'" },
           "She wipes her face with the back of her hand and looks at you properly. 'I'm telling you because I can't sleep. I'm telling you because you're the only person I've got.'"
         ] }
       ],
       "choices": [
         { "id": "forgive_erzsi", "text": "Forgive her, and ask her to keep reporting, but only what you give her",
-          "do": [{ "type": "remember", "concepts": ["player", "forgive", "confide", "erzsi"], "witnesses": ["erzsi"],
-            "summary": "forgave an informer under the lime trees and made her your ally" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "forgive", "confide", "erzsi"], "witnesses": ["erzsi"],
+              "summary": "forgave an informer under the lime trees and made her your ally" },
+            { "type": "doubt", "to": ["file"], "about": { "trait": "subversive" }, "belief": 0.25 }
+          ],
           "goto": "the_raid" },
         { "id": "report_erzsi", "text": "Report her to Halmi for indiscretion. It will make you look loyal",
           "do": [{ "type": "remember", "concepts": ["player", "inform", "betray", "erzsi"], "witnesses": ["halmi", "file", "erzsi"],
@@ -247,7 +258,16 @@ registerStory({
           "value": "They come for the astronomers at four in the morning. You know it was the astronomers because you gave Halmi their names. Nobody is arrested; the society is merely dissolved, and its telescope impounded pending review. On Sunday Laszlo tells the story at dinner, furious, and asks how they could possibly have known." },
         { "value": "They come for a choir at four in the morning, three streets away. Nobody you know. The choir's conductor is held for two days and released without explanation, and when he comes home he cannot remember the words to anything. Laszlo brings the news on Sunday. 'They're getting closer,' he says. 'The list has to go somewhere, soon.'" }
       ],
+      "onEnter": [{ "type": "gossip", "from": "erzsi", "to": ["laszlo"], "about": { "trait": "treacherous" }, "belief": 0.8 }],
       "choices": [
+        { "id": "confess_laszlo", "text": "Tell Laszlo the truth: the names came from you",
+          "showIf": { "type": "macroCondition", "name": "informed" },
+          "do": [
+            { "type": "remember", "concepts": ["player", "speak", "laszlo", "confession"], "witnesses": ["laszlo"],
+              "summary": "told your brother, at Sunday dinner, that the names had come from you" },
+            { "type": "reveal", "to": ["laszlo"], "about": { "concepts": ["inform"] } }
+          ],
+          "goto": "the_circles" },
         { "id": "to_newspaper", "text": "Take the list to the independent newspapers tonight",
           "do": [{ "type": "remember", "concepts": ["player", "leak", "speak", "list"], "witnesses": ["laszlo", "father"],
             "summary": "carried the list to the newspapers yourself" }],
@@ -268,7 +288,11 @@ registerStory({
           "The list, or its ashes, has taught you this much: no single law forbids anything in Danubia. A hundred small decisions make everything impossible. People are meeting anyway, in kitchens and workshops and the back rooms of cafés. They are asking what comes next. Laszlo asks you.",
           { "if": { "type": "macroCondition", "name": "laszloTrusts" },
             "text": "He asks you the way he used to ask you about homework, as if you'll know.",
-            "else": "He asks you warily, the way you'd ask a stranger for directions." }
+            "else": "He asks you warily, the way you'd ask a stranger for directions." },
+          { "if": { "type": "knows", "perspective": "laszlo", "about": { "concepts": ["confession", "laszlo"] } },
+            "text": "Since Sunday he has not once said your name. But he is still here, at the same table, asking. You don't know what that costs him." },
+          { "if": { "type": "knows", "perspective": "laszlo", "about": { "concepts": ["inform", "erzsi"] } }, "tag": "Erzsi told him",
+            "text": "'Erzsi Tóth came to my lodgings,' he says. 'She'd just come from the Director's office. She wanted me to know who put her there.' He doesn't ask whether it's true." }
         ] }
       ],
       "onEnter": [{ "type": "gossip", "from": "halmi", "to": ["file"], "belief": 1 }],
@@ -321,7 +345,7 @@ registerStory({
       "text": [{ "value": [
         "Halmi listens to everything you tell him, writes none of it down in front of you, and pours you another cup of coffee. Your father's pension is restored in a fortnight. Laszlo's teachers are dissolved, then dispersed, then forgotten. Laszlo himself is not arrested. You made sure of that. He is only watched, for the rest of his life, and he never finds out why the watchers always knew where to stand.",
         { "if": { "type": "knows", "perspective": "laszlo", "about": { "concepts": ["inform", "laszlo"] } },
-          "text": "He finds out in 1990. The archives open and he reads his file, and your initials are on forty pages of it. He sends you a single sheet of paper with one of them photocopied. Nothing else.",
+          "text": "He knew some of it already. You told him yourself, at Sunday dinner, and he went on sitting at the table. In 1990 the archives open and he reads the rest: your initials on forty pages of his file, most of them dated after that Sunday. He sends you a single sheet of paper with one of them photocopied. Nothing else.",
           "else": "He dies in 1978 without ever knowing. You carry it for both of you." },
         "\n\n",
         { "if": { "type": "knows", "perspective": "erzsi", "about": { "concepts": ["inform", "erzsi"] } },

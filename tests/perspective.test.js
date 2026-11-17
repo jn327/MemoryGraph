@@ -156,16 +156,18 @@ test("'all' witnesses, reveal, knows, and dominantTrait", function () {
   assert.equal(reveal.getView().choices.length, 4);
 });
 
-test("perspective association and activation conditions use a character's memory", function () {
+test("perspective association conditions use a character's memory", function () {
   const story = makeStory();
   story.nodes.end.text = [
     { if: { type: "association", a: "player", b: "lie", min: 1, perspective: "tomas" }, value: "Tomas knows." },
-    { if: { type: "activation", starts: ["player"], contains: "lie", min: 0.1, perspective: "mira" }, value: "Mira knows." },
+    { if: { type: "association", a: "player", b: "lie", min: 1, perspective: "mira" }, value: "Mira knows." },
     { value: "Nobody knows." }
   ];
   const engine = new NarrativeEngine(story);
   engine.start();
   engine.choose(0);
+  assert.equal(engine.linkWeight("player", "lie", "mira"), 1);
+  assert.equal(engine.linkWeight("player", "lie", "tomas"), 0);
   assert.equal(engine.choose(2).text, "Mira knows.");
 });
 

@@ -14,7 +14,7 @@ or selected JSON files. Invalid files are skipped and reported. Reload the
 page to restore the built-in library. Browsers without folder selection can
 use **Choose JSON files**.
 
-Choices can add memories and transitions to the current story's graph. Each
+Choices add memories to the current story's graph. Each
 character remembers only what they witnessed or were told, and gossip spreads
 between them, so a player who lies, steals or shows mercy is treated
 accordingly by the people who know. Every ending lists how each character
@@ -31,45 +31,34 @@ ending, **Begin again · keep memory** starts a new run with that graph intact;
 **Clear memory & restart** starts over with an empty graph. The **Graph State**
 button (`i`) shows the current story and its graph data.
 
-## Edit and add stories
+## Write a story
 
-A story definition is a JSON object with an `id`, `title`, `start` node, and
-`nodes` object; `synopsis` and `macros` are optional. Non-ending nodes need
-one or more choices, each with a `goto` destination. Ending nodes use
-`"ending": true` and have no choices. Conditional text and routes use ordered
-rules with a final unconditional fallback. Operations and conditions are
-declarative JSON.
+Start with the **[story-writing guide](docs/writing-stories.md)**. To try
+it straight away, upload [`docs/story-template.json`](docs/story-template.json)
+from the story menu, then copy it and change it.
+[*The Night Ferry*](stories/the_night_ferry.js) is a short built-in story
+that uses every feature.
 
-Stories can also declare `characters`, a `traits` lexicon (specific acts
-mapped to weighted judgements such as "a liar" or "merciful"), and an
-optional `memory.halfLife` so that recent behaviour counts more. Mark who
-sees an act with `witnesses` and describe it with a `summary`. Then
-`gossip`, `reveal`, and the `trait`, `dominantTrait` and `knows` conditions
-let characters react to what *they* know. Text can be composed from
-conditional parts and `recall`s of specific remembered acts, which keeps
-endings from becoming a combinatorial list of variants. See section 12 of
-the specification below.
+Stories are JSON: scenes with choices, plus memories that choices record
+(`remember`), characters who witness them, and traits that turn specific
+acts into judgements such as "a liar" or "kind". Characters can gossip,
+be shown evidence, or be talked out of what they believe. Text can be
+assembled from conditional parts, recalled memories, and `{name:…}` /
+`{var:…}` placeholders.
 
-Built-in stories live in `stories/<name>.js`. Each file wraps its JSON
-definition in a single call, so the page can load it with a `<script>` tag
-under `file://`, where browsers block `fetch()`:
+While you write, open **Graph State** (the `i` button). It lists likely
+mistakes, such as a concept you test for but never remember. **Check
+story** plays the story 300 times at random and reports crashes, dead
+ends, how often each ending came up, and any text no run ever showed.
 
-```js
-registerStory({
-  "id": "my_story",
-  "title": "My Story",
-  ...
-});
-```
+To add a built-in story, save it as `stories/<name>.js` wrapped in
+`registerStory({...})`, and add `<name>` to `STORY_FILES` at the top of
+`scripts/storyPlayer.js`. The tests fail if a story file is missing from
+that list. Uploaded stories are plain `.json` files containing just the
+object.
 
-To add a built-in story, create the file and add its name (without `.js`) to
-`STORY_FILES` at the top of `scripts/storyPlayer.js`. The tests fail if a
-story file is missing from that list. Uploaded stories are plain `.json`
-files containing just the object.
-
-See the [project design specification](agents/ProjectDesign.md) for the full
-story schema, operation and condition reference, validation rules, and engine
-API.
+The [project design specification](agents/ProjectDesign.md) is the full
+reference for the story schema, engine API, and validation rules.
 
 ## Test
 
@@ -80,8 +69,11 @@ root:
 node --test
 ```
 
-The suite covers the memory graph, narrative engine, story player, and
-built-in stories. No `npm install` is required.
+The suite covers the memory graph, narrative engine, authoring tools,
+story player, and built-in stories. Each built-in story is played 1,500
+times at random and must reach every node with no authoring warnings; text
+that no run showed is printed as a test diagnostic. No `npm install` is
+required.
 
 `tests/browser.test.js` also opens `index.html` over `file://` in headless
 Chrome or Edge and checks that every built-in story loads. It finds the usual
@@ -101,13 +93,15 @@ serve the folder locally if you want to preview it inside VS Code.
 
 ## Project layout
 
-- `scripts/MemoryGraph.js` — memory events, associations, transitions, and
-  activation.
-- `scripts/NarrativeEngine.js` — story validation, state, operations, and
-  conditions.
+- `scripts/MemoryGraph.js` — the memory event log and concept associations.
+- `scripts/NarrativeEngine.js` — story validation, state, operations,
+  conditions, perspectives, and authoring warnings.
+- `scripts/StoryCheck.js` — random playthroughs that report problems; used
+  by the tests and the **Check story** button.
 - `scripts/storyPlayer.js` — browser demo, built-in story loading, and
   uploaded-story handling.
 - `stories/*.js` — built-in stories, each a `registerStory({...})` call.
+- `docs/` — the story-writing guide and a starter template.
 - `styles/shared.css` and `index.html` — demo presentation and markup.
 - `tests/` — Node.js built-in test-runner tests, including a headless-browser
   `file://` check.

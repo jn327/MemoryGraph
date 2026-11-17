@@ -4,20 +4,17 @@
   const CONDITION_OPERATORS = ["eq", "neq", "gt", "gte", "lt", "lte"];
   const BUILTIN_OPERATIONS = [
     "remember",
-    "learnTransition",
-    "activate",
     "set",
     "inc",
     "dec",
     "macro",
     "gossip",
-    "reveal"
+    "reveal",
+    "doubt"
   ];
   const BUILTIN_CONDITIONS = [
     "always",
     "association",
-    "activation",
-    "transition",
     "variable",
     "visited",
     "not",
@@ -51,10 +48,8 @@
         : settings.graph;
       if (!this.graph || typeof this.graph.remember !== "function" ||
           typeof this.graph.associationScore !== "function" ||
-          typeof this.graph.activateMany !== "function" ||
-          typeof this.graph.learnTransition !== "function" ||
-          typeof this.graph.transitionCount !== "function" ||
-          typeof this.graph.clear !== "function") {
+          typeof this.graph.clear !== "function" ||
+          !Array.isArray(this.graph.events)) {
         throw new TypeError("graph must be a compatible MemoryGraph instance.");
       }
 
@@ -81,6 +76,12 @@
         "condition"
       );
 
+      if (settings.onBranch !== undefined && typeof settings.onBranch !== "function") {
+        throw new TypeError("onBranch must be a function.");
+      }
+      // Called with a branch ID (see branches()) whenever text, a choice, or
+      // a route is used. For coverage tools; it must not change engine state.
+      this.onBranch = settings.onBranch === undefined ? null : settings.onBranch;
       this.initialVariables = settings.initialVariables === undefined
         ? {}
         : isPlainRecord(settings.initialVariables)
@@ -88,8 +89,6 @@
           : invalidInitialVariables();
       this._validateStory(true);
       this.knowledge = {};
-      this._knowledgeRevision = 0;
-      this._perspectiveCache = new Map();
       this._recording = null;
       this._clearProgress();
     }
@@ -119,10 +118,11 @@
         if (!node.ending) {
           for (const choice of node.choices) {
             if (choice.showIf === undefined || this._evaluateCondition(choice.showIf)) {
+              this._branch(branchId(this.currentNodeId, "choice '" + choice.id + "' offered"));
               const entry = {
                 index: choices.length,
                 id: choice.id,
-                text: choice.text
+                text: substitute(choice.text, this)
               };
               const cause = choice.showIf === undefined
                 ? null
@@ -207,8 +207,11 @@
       try {
         const route = resolveRoute(choice.goto, this);
         destination = route.node;
-        if (route.entry !== null && route.entry.if !== undefined) {
-          arrival = this._cause(route.entry.if, route.entry.tag);
+        if (route.entry !== null) {
+          this._branch(branchId(nodeId, "choice '" + choice.id + "' goto " + route.index));
+          if (route.entry.if !== undefined) {
+            arrival = this._cause(route.entry.if, route.entry.tag);
+          }
         }
       } catch (error) {
         throw new Error(
@@ -221,7 +224,7 @@
 
     goTo(nodeId) {
       if (this.currentNodeId === null) {
-        throw new Error("Story '" + this.story.id + " has not started.");
+        throw new Error("Story '" + this.story.id + "' has not started.");
       }
       const target = normalizeName(nodeId, "destination node ID");
       if (!hasOwn(this.story.nodes, target)) {
@@ -244,9 +247,7 @@
       if (!keepMemory) {
         this.graph.clear();
         this.knowledge = {};
-        this._knowledgeRevision += 1;
       }
-      this._perspectiveCache.clear();
       this._clearProgress();
     }
 
@@ -255,41 +256,34 @@
       return character.name === undefined ? character.id : character.name;
     }
 
-    // Returns a MemoryGraph containing only what one character knows, with
-    // each event weighted by that character's belief and, when the story
-    // sets memory.halfLife, by how recently it happened. Omit perspective for
-    // the whole world's (recency-weighted) view. Treat the result as read-only.
-    perspectiveGraph(perspective) {
-      const key = this._perspectiveKey(perspective);
-      const revision = this._memoryRevision();
-      const cached = this._perspectiveCache.get(key);
-      if (cached && revision !== null && cached.revision === revision) {
-        return cached.graph;
+    // How text refers to a subject: "you" for the player, a character's name,
+    // or the concept itself with underscores as spaces.
+    subjectName(subject) {
+      if (subject === DEFAULT_SUBJECT) {
+        return "you";
       }
-      const snapshot = this._memorySnapshot();
-      const graph = new root.MemoryGraph();
-      for (const event of snapshot.events) {
-        const weight = event.strength * this._belief(key, event.id) *
-          this._recency(event.sequence, snapshot.sequence);
-        if (weight > 0) {
-          graph.remember({
-            concepts: event.concepts,
-            strength: weight,
-            metadata: event.metadata
-          });
-        }
-      }
-      this._perspectiveCache.set(key, { revision: revision, graph: graph });
-      return graph;
+      return hasOwn(this.story.characters, subject) ? this.characterName(subject) : displayName(subject);
     }
 
+    // How strongly a perspective links two concepts: the summed weight of the
+    // events it knows that contain both. Omit perspective for the world view,
+    // which knows every event. See _eventWeight for how events are weighted.
+    linkWeight(a, b, perspective) {
+      return this._linkWeight(
+        this._perspectiveKey(perspective),
+        normalizeName(a, "concept"),
+        normalizeName(b, "concept")
+      );
+    }
+
+    // Σ weight(concept) × linkWeight(subject, concept), from one perspective.
     traitScore(trait, perspective, subject) {
       const definition = this._trait(trait);
       const who = subject === undefined ? DEFAULT_SUBJECT : normalizeName(subject, "subject");
-      const graph = this.perspectiveGraph(perspective);
+      const key = this._perspectiveKey(perspective);
       let total = 0;
       for (const concept of Object.keys(definition.concepts).sort()) {
-        total += definition.concepts[concept] * graph.associationScore(who, concept);
+        total += definition.concepts[concept] * this._linkWeight(key, who, concept);
       }
       return total;
     }
@@ -319,11 +313,9 @@
         }
         about = { trait: trait };
       }
-      const snapshot = this._memorySnapshot();
       const candidates = [];
-      for (const event of snapshot.events) {
-        if (!isRecord(event.metadata) || typeof event.metadata.summary !== "string" ||
-            event.concepts.indexOf(subject) === -1) {
+      for (const event of this.graph.events) {
+        if (!hasSummary(event) || this._eventSubject(event) !== subject) {
           continue;
         }
         const relevance = this._recallWeight(event, about);
@@ -333,7 +325,7 @@
           ? PERSONAL_RECALL_BONUS
           : 1;
         const score = event.strength * belief * relevance * personal *
-          this._recency(event.sequence, snapshot.sequence);
+          this._recency(event.sequence, this.graph.sequence);
         if (score > 0) {
           candidates.push({ event: event, score: score, belief: belief });
         }
@@ -496,8 +488,6 @@
       this.choiceHistory = choiceHistory;
       this.variables = variables;
       this.knowledge = knowledge;
-      this._knowledgeRevision += 1;
-      this._perspectiveCache.clear();
       this.arrivalCause = null;
       this.choiceEcho = null;
       this.ended = data.ended;
@@ -561,18 +551,24 @@
       return halfLife === undefined ? 1 : Math.pow(0.5, (now - sequence) / halfLife);
     }
 
-    _memoryRevision() {
-      return typeof this.graph.sequence === "number"
-        ? this.graph.sequence + ":" + this._knowledgeRevision
-        : null;
+    // An event's weight from one perspective: its strength × how much the
+    // perspective believes it × how recent it is (when memory.halfLife is set).
+    _eventWeight(key, event) {
+      return event.strength * this._belief(key, event.id) *
+        this._recency(event.sequence, this.graph.sequence);
     }
 
-    _memorySnapshot() {
-      if (typeof this.graph.toJSON !== "function") {
-        throw new TypeError("Perspective features require a graph with toJSON().");
+    _linkWeight(key, a, b) {
+      if (a === b) {
+        return 0;
       }
-      const data = this.graph.toJSON();
-      return { events: data.events, sequence: data.sequence };
+      let total = 0;
+      for (const event of this.graph.events) {
+        if (event.concepts.indexOf(a) !== -1 && event.concepts.indexOf(b) !== -1) {
+          total += this._eventWeight(key, event);
+        }
+      }
+      return total;
     }
 
     _learn(character, eventId, belief) {
@@ -584,7 +580,6 @@
       const current = hasOwn(known, eventId) ? known[eventId] : 0;
       if (belief > current) {
         defineValue(known, eventId, belief);
-        this._knowledgeRevision += 1;
       }
     }
 
@@ -631,7 +626,7 @@
     _knows(condition) {
       const key = this._perspectiveKey(condition.perspective);
       const min = condition.min === undefined ? Number.MIN_VALUE : condition.min;
-      return this._memorySnapshot().events.some((event) =>
+      return this.graph.events.some((event) =>
         this._concerns(event, condition.about) && this._belief(key, event.id) >= min
       );
     }
@@ -639,7 +634,7 @@
     // ---- Explanations -------------------------------------------------
     // A cause tells the player which remembered acts made a piece of text,
     // a choice, or a route appear. Only memory conditions (trait,
-    // dominantTrait, knows, and association/activation) produce one;
+    // dominantTrait, knows, and association) produce one;
     // variables, visits and negations do not, unless the author tags them.
 
     _cause(condition, tag) {
@@ -710,7 +705,7 @@
           : names.length + " people saw";
       const tag = changes.slice(0, 2).map(arrow).concat([seen]).join(" · ");
       const summaries = own
-        .filter(function (record) { return isRecord(record.event.metadata) && typeof record.event.metadata.summary === "string"; })
+        .filter((record) => hasSummary(record.event) && this._eventSubject(record.event) === DEFAULT_SUBJECT)
         .map(function (record) { return "you " + record.event.metadata.summary + "."; });
       const explanation = [];
       if (summaries.length > 0) {
@@ -737,13 +732,14 @@
     _recallCause(spec, memory) {
       const key = this._perspectiveKey(spec.perspective);
       const who = key === WORLD_PERSPECTIVE ? null : this.characterName(key);
+      const subject = spec.subject === undefined ? DEFAULT_SUBJECT : normalizeName(spec.subject, "subject");
       return {
         tag: who === null ? "remembered" : who + " remembers",
         kind: "recall",
         trait: null,
         color: null,
         explanation: [{
-          heading: (who === null ? "Remembered" : who + " remembers") + " that you:",
+          heading: (who === null ? "Remembered" : who + " remembers") + " that " + this.subjectName(subject) + ":",
           items: [memory.summary + beliefNote(memory.belief)]
         }]
       };
@@ -767,10 +763,6 @@
         case "association":
           return this._evaluateCondition(condition)
             ? [{ kind: "association", a: condition.a, b: condition.b, perspective: condition.perspective }]
-            : [];
-        case "activation":
-          return this._evaluateCondition(condition)
-            ? [{ kind: "activation", contains: condition.contains, perspective: condition.perspective }]
             : [];
         case "all":
           return condition.conditions.reduce((facts, child) =>
@@ -811,69 +803,66 @@
       if (fact.kind === "knows") {
         return (who === null ? "known" : who + " knows");
       }
-      const concept = (fact.kind === "association" ? fact.b : fact.contains).replace(/_/g, " ");
+      const concept = fact.b.replace(/_/g, " ");
       return who === null ? concept : who + ": " + concept;
     }
 
     _explainFact(fact) {
       const who = fact.perspective === undefined ? null : this.characterName(fact.perspective);
-      const subject = fact.subject === undefined ? DEFAULT_SUBJECT : fact.subject;
-      const aboutPlayer = subject === DEFAULT_SUBJECT;
       if (fact.kind === "trait") {
+        const subject = fact.subject === undefined ? DEFAULT_SUBJECT : fact.subject;
         const label = this.traitLabel(fact.trait);
-        const items = aboutPlayer
-          ? this._evidence(fact.perspective, subject, (event) => this._recallWeight(event, { trait: fact.trait }))
-          : [];
-        const target = aboutPlayer ? "you" : displayName(subject);
-        const heading = (who === null
-          ? capitalise(target) + (aboutPlayer ? " are" : " is") + " seen as " + label
-          : who + " sees " + target + " as " + label) + (items.length > 0 ? ", because you:" : ".");
-        return { heading: heading, items: items };
+        const target = this.subjectName(subject);
+        const stem = who === null
+          ? capitalise(target) + (subject === DEFAULT_SUBJECT ? " are" : " is") + " seen as " + label
+          : who + " sees " + target + " as " + label;
+        return this._evidenceSection(stem, ", because", this._evidence(fact.perspective, subject,
+          (event) => this._recallWeight(event, { trait: fact.trait })));
       }
       if (fact.kind === "knows") {
-        const items = this._evidence(fact.perspective, null, (event) =>
-          this._concerns(event, fact.about) ? 1 : 0, fact.min);
-        return {
-          heading: (who === null ? "It is known" : who + " knows") + (items.length > 0 ? " that you:" : " about this."),
-          items: items
-        };
+        return this._evidenceSection(who === null ? "It is known" : who + " knows", " that",
+          this._evidence(fact.perspective, null, (event) =>
+            this._concerns(event, fact.about) ? 1 : 0, fact.min), " about this.");
       }
-      if (fact.kind === "association") {
-        const items = this._evidence(fact.perspective, null, (event) =>
-          event.concepts.indexOf(fact.a) !== -1 && event.concepts.indexOf(fact.b) !== -1 ? 1 : 0);
-        const pair = fact.a === DEFAULT_SUBJECT
-          ? "you with “" + fact.b.replace(/_/g, " ") + "”"
-          : "“" + fact.a.replace(/_/g, " ") + "” with “" + fact.b.replace(/_/g, " ") + "”";
-        return {
-          heading: (who === null ? "Memory links " : who + " links ") + pair + (items.length > 0 ? ", because you:" : "."),
-          items: items
-        };
+      const pair = fact.a === DEFAULT_SUBJECT
+        ? "you with “" + fact.b.replace(/_/g, " ") + "”"
+        : "“" + fact.a.replace(/_/g, " ") + "” with “" + fact.b.replace(/_/g, " ") + "”";
+      return this._evidenceSection((who === null ? "Memory links " : who + " links ") + pair, ", because",
+        this._evidence(fact.perspective, null, (event) =>
+          event.concepts.indexOf(fact.a) !== -1 && event.concepts.indexOf(fact.b) !== -1 ? 1 : 0));
+    }
+
+    // "Mira sees you as a liar, because you:" followed by bare summaries when
+    // every act is the player's; otherwise "…, because:" with each act
+    // phrased with its own subject ("you accused Jory", "Jory took the brooch").
+    _evidenceSection(stem, joiner, entries, emptyEnding) {
+      if (entries.length === 0) {
+        return { heading: stem + (emptyEnding === undefined ? "." : emptyEnding), items: [] };
       }
+      const allPlayer = entries.every(function (entry) { return entry.subject === DEFAULT_SUBJECT; });
       return {
-        heading: "“" + fact.contains.replace(/_/g, " ") + "” comes to " +
-          (who === null ? "mind" : who + "'s mind") + ".",
-        items: []
+        heading: stem + joiner + (allPlayer ? " you:" : ":"),
+        items: entries.map((entry) => (allPlayer || entry.subject === null
+          ? entry.summary
+          : this.subjectName(entry.subject) + " " + entry.summary) + entry.note)
       };
     }
 
-    // Summaries of the remembered acts that most support a fact, strongest
-    // first, noting when a character only heard about one secondhand.
+    // The remembered acts that most support a fact, strongest first, noting
+    // when a character only heard about one secondhand.
     _evidence(perspective, subject, relevance, minBelief) {
       const key = this._perspectiveKey(perspective);
-      const snapshot = this._memorySnapshot();
       const ranked = [];
-      for (const event of snapshot.events) {
-        if (!isRecord(event.metadata) || typeof event.metadata.summary !== "string" ||
-            (subject !== null && event.concepts.indexOf(subject) === -1)) {
+      for (const event of this.graph.events) {
+        if (!hasSummary(event) || (subject !== null && event.concepts.indexOf(subject) === -1)) {
           continue;
         }
         const belief = this._belief(key, event.id);
         if (minBelief !== undefined && belief < minBelief) {
           continue;
         }
-        const weight = relevance(event);
-        const score = event.strength * belief * weight *
-          this._recency(event.sequence, snapshot.sequence);
+        const score = event.strength * belief * relevance(event) *
+          this._recency(event.sequence, this.graph.sequence);
         if (score > 0) {
           ranked.push({ event: event, score: score, belief: belief });
         }
@@ -881,9 +870,20 @@
       ranked.sort(function (a, b) {
         return b.score - a.score || b.event.sequence - a.event.sequence;
       });
-      return ranked.slice(0, MAX_EXPLANATION_ITEMS).map(function (entry) {
-        return entry.event.metadata.summary + (key === WORLD_PERSPECTIVE ? "" : beliefNote(entry.belief));
-      });
+      return ranked.slice(0, MAX_EXPLANATION_ITEMS).map((entry) => ({
+        subject: this._eventSubject(entry.event),
+        summary: entry.event.metadata.summary,
+        note: key === WORLD_PERSPECTIVE ? "" : beliefNote(entry.belief)
+      }));
+    }
+
+    // Whose act an event's summary describes: remember's `subject`, else the
+    // player when the event involves them, else null.
+    _eventSubject(event) {
+      if (isRecord(event.metadata) && typeof event.metadata.subject === "string") {
+        return event.metadata.subject;
+      }
+      return event.concepts.indexOf(DEFAULT_SUBJECT) !== -1 ? DEFAULT_SUBJECT : null;
     }
 
     // The highest-scoring trait among `traits` (ties broken by name), or null
@@ -969,7 +969,10 @@
       if (operation.type === "remember") {
         let metadata = operation.metadata;
         if (operation.summary !== undefined) {
-          metadata = Object.assign({}, metadata || {}, { summary: operation.summary });
+          metadata = Object.assign({}, metadata || {}, { summary: substitute(operation.summary, this) });
+        }
+        if (operation.subject !== undefined) {
+          metadata = Object.assign({}, metadata || {}, { subject: normalizeName(operation.subject, "subject") });
         }
         const event = this.graph.remember({
           concepts: operation.concepts,
@@ -995,7 +998,7 @@
         const listeners = this._characters(operation.to).filter(function (id) {
           return id !== from;
         });
-        for (const event of this._memorySnapshot().events) {
+        for (const event of this.graph.events) {
           const belief = this._belief(from, event.id);
           if (belief > 0 && this._concerns(event, operation.about)) {
             for (const listener of listeners) {
@@ -1006,26 +1009,33 @@
       } else if (operation.type === "reveal") {
         const belief = operation.belief === undefined ? DEFAULT_REVEAL_BELIEF : operation.belief;
         const listeners = this._characters(operation.to);
-        for (const event of this._memorySnapshot().events) {
+        for (const event of this.graph.events) {
           if (this._concerns(event, operation.about)) {
             for (const listener of listeners) {
               this._learn(listener, event.id, belief);
             }
           }
         }
-      } else if (operation.type === "learnTransition") {
-        this.graph.learnTransition(
-          operation.transitionType,
-          operation.from,
-          operation.to,
-          operation.amount
-        );
-      } else if (operation.type === "activate") {
-        const values = this.graph.activateMany(
-          operation.starts,
-          operation.options || {}
-        );
-        defineValue(this.variables, operation.storeAs, values);
+      } else if (operation.type === "doubt") {
+        // Talked out of it: belief in matching events drops to at most
+        // `belief`; at 0 the character no longer counts the event at all.
+        const ceiling = operation.belief === undefined ? 0 : operation.belief;
+        for (const character of this._characters(operation.to)) {
+          const known = this.knowledge[character];
+          if (known === undefined) {
+            continue;
+          }
+          for (const event of this.graph.events) {
+            if (hasOwn(known, event.id) && known[event.id] > ceiling &&
+                this._concerns(event, operation.about)) {
+              if (ceiling === 0) {
+                delete known[event.id];
+              } else {
+                defineValue(known, event.id, ceiling);
+              }
+            }
+          }
+        }
       } else if (operation.type === "set") {
         defineValue(
           this.variables,
@@ -1072,15 +1082,10 @@
         case "always":
           return true;
         case "association":
-          return this._conditionGraph(condition)
-            .associationScore(condition.a, condition.b) >= condition.min;
-        case "activation":
-          return this._conditionGraph(condition)
-            .activateMany(condition.starts, condition.options || {})
-            .some(function (item) {
-              return item.concept === condition.contains &&
-                item.activation >= condition.min;
-            });
+          // Without a perspective this reads the raw graph (no recency fade).
+          return (condition.perspective === undefined
+            ? this.graph.associationScore(condition.a, condition.b)
+            : this.linkWeight(condition.a, condition.b, condition.perspective)) >= condition.min;
         case "trait": {
           const score = this.traitScore(condition.trait, condition.perspective, condition.subject);
           return (condition.min === undefined || score >= condition.min) &&
@@ -1090,12 +1095,6 @@
           return this._dominantTrait(condition);
         case "knows":
           return this._knows(condition);
-        case "transition":
-          return this.graph.transitionCount(
-            condition.transitionType,
-            condition.from,
-            condition.to
-          ) >= condition.min;
         case "variable":
           return this._compareVariable(condition);
         case "visited":
@@ -1115,12 +1114,6 @@
         default:
           throw new Error("Unsupported condition type '" + condition.type + "'.");
       }
-    }
-
-    _conditionGraph(condition) {
-      return condition.perspective === undefined
-        ? this.graph
-        : this.perspectiveGraph(condition.perspective);
     }
 
     _compareVariable(condition) {
@@ -1261,6 +1254,7 @@
           }
           choiceIds.add(choiceId);
           normalizeName(choice.text, "choice text");
+          this._validateTemplate(choice.text, "node '" + nodeId + "' choice '" + choiceId + "' text");
           validateTag(choice.tag, story, "node '" + nodeId + "' choice '" + choiceId + "'");
           if (choice.showIf !== undefined) {
             this._validateCondition(choice.showIf, {
@@ -1311,6 +1305,284 @@
       if (!reachesEnding) {
         throw storyError(story, "has no reachable explicitly marked ending.");
       }
+    }
+
+    _branch(id) {
+      if (this.onBranch !== null) {
+        this.onBranch(id);
+      }
+    }
+
+    // Every branch ID that onBranch can report: each text variant, each
+    // conditional text part's outcomes, each choice being offered, and each
+    // conditional route entry. Coverage tools compare this with what fired.
+    branches() {
+      const ids = [];
+      for (const [nodeId, node] of Object.entries(this.story.nodes)) {
+        if (Array.isArray(node.text)) {
+          node.text.forEach(function (variant, index) {
+            const where = "text variant " + index;
+            ids.push(branchId(nodeId, where));
+            if (!Array.isArray(variant.value)) {
+              return;
+            }
+            variant.value.forEach(function (part, partIndex) {
+              if (typeof part === "string") {
+                return;
+              }
+              const at = where + " part " + partIndex + " (";
+              if (part.else !== undefined) {
+                ids.push(branchId(nodeId, at + "else)"));
+              }
+              if (part.text !== undefined) {
+                ids.push(branchId(nodeId, at + "text)"));
+              } else {
+                ids.push(branchId(nodeId, at + "recall)"));
+                if (part.otherwise !== undefined) {
+                  ids.push(branchId(nodeId, at + "otherwise)"));
+                }
+              }
+            });
+          });
+        }
+        for (const choice of node.choices || []) {
+          ids.push(branchId(nodeId, "choice '" + choice.id + "' offered"));
+          if (Array.isArray(choice.goto)) {
+            choice.goto.forEach(function (entry, index) {
+              ids.push(branchId(nodeId, "choice '" + choice.id + "' goto " + index));
+            });
+          }
+        }
+      }
+      return ids;
+    }
+
+    // ---- Authoring warnings ----------------------------------------------
+    // lint() reports things that are valid but almost certainly mistakes,
+    // such as a concept that is checked for but never remembered (usually a
+    // typo). It returns [{ location, message }] and never throws for them.
+
+    lint() {
+      const story = this.story;
+      const found = this._collect();
+      const warnings = [];
+      const warn = function (location, message) {
+        warnings.push({ location: location, message: message });
+      };
+      const remembered = new Set();
+      for (const { operation } of found.remembers) {
+        for (const concept of operation.concepts) {
+          remembered.add(concept.trim());
+        }
+      }
+      const unremembered = function (concepts, location, consequence) {
+        for (const concept of concepts) {
+          if (!remembered.has(concept.trim())) {
+            warn(location, "concept '" + concept.trim() + "' is never remembered, so " + consequence + ".");
+          }
+        }
+      };
+
+      for (const [name, trait] of Object.entries(story.traits)) {
+        const concepts = Object.keys(trait.concepts);
+        const missing = concepts.filter(function (concept) { return !remembered.has(concept.trim()); });
+        if (missing.length === concepts.length) {
+          warn("trait '" + name + "'", "none of its concepts is ever remembered, so it can never score.");
+        } else {
+          unremembered(missing, "trait '" + name + "'", "it never counts toward this trait");
+        }
+      }
+
+      const traitConcepts = new Set();
+      for (const trait of Object.values(story.traits)) {
+        Object.keys(trait.concepts).forEach(function (concept) { traitConcepts.add(concept.trim()); });
+      }
+      for (const { operation, location } of found.remembers) {
+        const concepts = operation.concepts.map(function (concept) { return concept.trim(); });
+        const hasSubject = operation.subject !== undefined || concepts.indexOf(DEFAULT_SUBJECT) !== -1;
+        if (operation.summary === undefined) {
+          if (hasSubject && concepts.some(function (concept) { return traitConcepts.has(concept); })) {
+            warn(location, "this act counts toward a trait but has no summary, so recalls and memory tags can't mention it.");
+          }
+          continue;
+        }
+        const summary = operation.summary.trim();
+        if (!hasSubject) {
+          warn(location, "summary has no subject: add \"subject\" (or include \"player\") so the story knows whose act it describes.");
+        }
+        if (/^you\b/i.test(summary)) {
+          warn(location, "summaries already complete \"you …\"; drop the leading \"you\".");
+        }
+        if (/[.!]$/.test(summary)) {
+          warn(location, "summaries are used mid-sentence; drop the final punctuation.");
+        }
+      }
+
+      const learners = new Set();
+      const learn = function (who) {
+        (who === "all" ? Object.keys(story.characters) : who).forEach(function (id) { learners.add(id.trim()); });
+      };
+      for (const { operation } of found.remembers) {
+        if (operation.witnesses !== undefined) {
+          learn(operation.witnesses);
+        }
+      }
+      for (const { operation, location } of found.operations) {
+        if (operation.type === "gossip" || operation.type === "reveal") {
+          learn(operation.to);
+        }
+        if ((operation.type === "gossip" || operation.type === "reveal" || operation.type === "doubt") &&
+            operation.about !== undefined && operation.about.concepts !== undefined) {
+          unremembered(operation.about.concepts, location, "this never matches anything");
+        }
+        if (operation.type === "set" || operation.type === "inc" || operation.type === "dec") {
+          found.variablesSet.add(operation.variable.trim());
+        }
+      }
+      for (const id of Object.keys(story.characters)) {
+        if (!learners.has(id)) {
+          warn("character '" + id + "'", "never witnesses or hears about anything, so they never form a view of anyone.");
+        }
+      }
+
+      for (const { condition, location } of found.conditions) {
+        if (condition.type === "knows" && condition.about !== undefined && condition.about.concepts !== undefined) {
+          unremembered(condition.about.concepts, location, "this condition is never true");
+        } else if (condition.type === "association") {
+          unremembered([condition.a, condition.b], location, "this condition is never true");
+        } else if ((condition.type === "trait" || condition.type === "dominantTrait") &&
+            condition.subject !== undefined) {
+          unremembered([condition.subject], location, "this subject never gains a reputation");
+        } else if (condition.type === "variable") {
+          found.variablesRead.push({ name: condition.name.trim(), location: location });
+        }
+      }
+      for (const { spec, location } of found.recalls) {
+        if (spec.about !== undefined && spec.about.concepts !== undefined) {
+          unremembered(spec.about.concepts, location, "this recall never finds anything");
+        }
+      }
+
+      for (const { text, location, isFormat } of found.templates) {
+        for (const match of text.matchAll(/\{([A-Za-z]+)(?::([^{}]*))?\}/g)) {
+          if (match[1] === "var" && match[2] !== undefined && match[2].trim().length > 0) {
+            found.variablesRead.push({ name: match[2].trim(), location: location });
+          } else if (match[1] === "summary" && match[2] === undefined) {
+            if (!isFormat) {
+              warn(location, "{summary} only works in a recall part's format.");
+            }
+          } else if (match[1] !== "name" || match[2] === undefined) {
+            warn(location, "'" + match[0] + "' is not a placeholder; use {name:character} or {var:variable}.");
+          }
+        }
+      }
+      for (const { name, location } of found.variablesRead) {
+        if (!found.variablesSet.has(name) && !hasOwn(this.initialVariables, name)) {
+          warn(location, "variable '" + name + "' is never set, inc'd, or dec'd.");
+        }
+      }
+      for (const name of Object.keys(story.macros)) {
+        if (!found.macroUses.has(name)) {
+          warn("macro '" + name + "'", "is never used.");
+        }
+      }
+      return warnings;
+    }
+
+    // Gathers every operation, condition, recall, and text template in the
+    // story, with a readable location for each.
+    _collect() {
+      const story = this.story;
+      const found = {
+        operations: [],
+        remembers: [],
+        conditions: [],
+        recalls: [],
+        templates: [],
+        macroUses: new Set(),
+        variablesSet: new Set(),
+        variablesRead: []
+      };
+      const operations = (list, location) => {
+        (list || []).forEach(function (operation, index) {
+          const where = location + " operation " + index;
+          found.operations.push({ operation: operation, location: where });
+          if (operation.type === "remember") {
+            found.remembers.push({ operation: operation, location: where });
+            if (operation.summary !== undefined) {
+              found.templates.push({ text: operation.summary, location: where + " summary" });
+            }
+          } else if (operation.type === "macro") {
+            found.macroUses.add(operation.name);
+          }
+        });
+      };
+      const condition = (value, location) => {
+        if (!isPlainRecord(value)) {
+          return;
+        }
+        found.conditions.push({ condition: value, location: location });
+        if (value.type === "not") {
+          condition(value.condition, location);
+        } else if (value.type === "all" || value.type === "any") {
+          value.conditions.forEach(function (child) { condition(child, location); });
+        } else if (value.type === "macroCondition") {
+          found.macroUses.add(value.name);
+        }
+      };
+      const template = (text, location, isFormat) => {
+        if (typeof text === "string") {
+          found.templates.push({ text: text, location: location, isFormat: isFormat === true });
+        }
+      };
+      const text = (value, location) => {
+        if (typeof value === "string") {
+          template(value, location);
+          return;
+        }
+        value.forEach(function (variant, index) {
+          const where = location + " variant " + index;
+          condition(variant.if, where);
+          if (typeof variant.value === "string") {
+            template(variant.value, where);
+            return;
+          }
+          variant.value.forEach(function (part, partIndex) {
+            const at = where + " part " + partIndex;
+            if (typeof part === "string") {
+              template(part, at);
+              return;
+            }
+            condition(part.if, at);
+            template(part.text, at);
+            template(part.else, at + " else");
+            template(part.otherwise, at + " otherwise");
+            template(part.format, at + " format", true);
+            if (part.recall !== undefined) {
+              found.recalls.push({ spec: part.recall, location: at });
+            }
+          });
+        });
+      };
+
+      for (const [name, macro] of Object.entries(story.macros)) {
+        operations(macro.do, "macro '" + name + "'");
+        condition(macro.condition, "macro '" + name + "'");
+      }
+      for (const [nodeId, node] of Object.entries(story.nodes)) {
+        text(node.text, "node '" + nodeId + "' text");
+        operations(node.onEnter, "node '" + nodeId + "' onEnter");
+        for (const choice of node.choices || []) {
+          const where = "node '" + nodeId + "' choice '" + choice.id + "'";
+          template(choice.text, where + " text");
+          condition(choice.showIf, where + " showIf");
+          operations(choice.do, where + " do");
+          if (Array.isArray(choice.goto)) {
+            choice.goto.forEach(function (entry, index) { condition(entry.if, where + " goto " + index); });
+          }
+        }
+      }
+      return found;
     }
 
     _validateMemoryModel() {
@@ -1412,6 +1684,14 @@
       }
     }
 
+    _validateTemplate(text, location) {
+      for (const match of text.matchAll(PLACEHOLDER)) {
+        if (match[1] === "name") {
+          this._validateCharacter(match[2], location + " {name:…}");
+        }
+      }
+    }
+
     _validateBeliefOption(value, location) {
       if (value !== undefined) {
         validateBelief(value, location + " belief");
@@ -1478,6 +1758,15 @@
           if (operation.witnesses !== undefined) {
             this._validateCharacters(operation.witnesses, location + " witnesses");
           }
+          if (operation.subject !== undefined) {
+            const subject = normalizeName(operation.subject, location + " subject");
+            if (!operation.concepts.some(function (concept) { return concept.trim() === subject; })) {
+              throw storyError(this.story, location + " subject '" + subject + "' must be one of its concepts.");
+            }
+          }
+          if (operation.summary !== undefined) {
+            this._validateTemplate(operation.summary, location + " summary");
+          }
         } else if (type === "gossip") {
           this._validateCharacter(operation.from, location + " from");
           this._validateCharacters(operation.to, location + " to");
@@ -1487,17 +1776,13 @@
           this._validateCharacters(operation.to, location + " to");
           this._validateAbout(operation.about, location, false);
           this._validateBeliefOption(operation.belief, location);
-        } else if (type === "learnTransition") {
-          normalizeName(operation.transitionType, location + " transitionType");
-          normalizeName(operation.from, location + " from");
-          normalizeName(operation.to, location + " to");
-          if (operation.amount !== undefined) {
-            validatePositiveNumber(operation.amount, location + " amount");
+        } else if (type === "doubt") {
+          this._validateCharacters(operation.to, location + " to");
+          this._validateAbout(operation.about, location, true);
+          if (operation.belief !== undefined && (typeof operation.belief !== "number" ||
+              !Number.isFinite(operation.belief) || operation.belief < 0 || operation.belief >= 1)) {
+            throw storyError(this.story, location + " doubt belief must be a number in [0, 1).");
           }
-        } else if (type === "activate") {
-          validateConcepts(operation.starts, this.story, location + " starts");
-          validateActivationOptions(operation.options, location + " options");
-          normalizeName(operation.storeAs, location + " storeAs");
         } else if (type === "set") {
           normalizeName(operation.variable, location + " variable");
           cloneJsonValue(operation.value, location + " value");
@@ -1550,12 +1835,6 @@
         normalizeName(condition.b, context.location + " association b");
         validateNonNegativeNumber(condition.min, context.location + " association min");
         this._validatePerspective(condition.perspective, context.location);
-      } else if (type === "activation") {
-        validateConcepts(condition.starts, this.story, context.location + " starts");
-        normalizeName(condition.contains, context.location + " contains");
-        validateNonNegativeNumber(condition.min, context.location + " activation min");
-        validateActivationOptions(condition.options, context.location + " options");
-        this._validatePerspective(condition.perspective, context.location);
       } else if (type === "trait") {
         this._validateTraitName(condition.trait, context.location);
         this._validatePerspective(condition.perspective, context.location);
@@ -1594,11 +1873,6 @@
         if (condition.min !== undefined) {
           validateBelief(condition.min, context.location + " knows min");
         }
-      } else if (type === "transition") {
-        normalizeName(condition.transitionType, context.location + " transitionType");
-        normalizeName(condition.from, context.location + " from");
-        normalizeName(condition.to, context.location + " to");
-        validateNonNegativeNumber(condition.min, context.location + " transition min");
       } else if (type === "variable") {
         normalizeName(condition.name, context.location + " variable name");
         if (CONDITION_OPERATORS.indexOf(condition.operator) === -1) {
@@ -1653,14 +1927,18 @@
   // segment has a `cause` when memory made it appear.
   function resolveText(definition, engine) {
     if (typeof definition === "string") {
-      return { text: definition, segments: [{ text: definition }] };
+      const text = substitute(definition, engine);
+      return { text: text, segments: [{ text: text }] };
     }
-    for (const variant of definition) {
+    for (let index = 0; index < definition.length; index += 1) {
+      const variant = definition[index];
       if (variant.if === undefined || engine._evaluateCondition(variant.if)) {
+        const where = "text variant " + index;
+        engine._branch(branchId(engine.currentNodeId, where));
         const cause = variant.if === undefined ? null : engine._cause(variant.if, variant.tag);
         const segments = typeof variant.value === "string"
-          ? [{ text: variant.value }]
-          : composeParts(variant.value, engine);
+          ? [{ text: substitute(variant.value, engine) }]
+          : composeParts(variant.value, engine, where);
         const text = segments.map(function (segment) { return segment.text; }).join("");
         if (text.trim().length === 0) {
           throw storyError(engine.story, "node '" + engine.currentNodeId + "' text resolved to nothing.");
@@ -1678,27 +1956,39 @@
   // Text parts are joined with single spaces; a part that starts or ends with
   // whitespace (for example "\n\n" for a paragraph break) is joined as-is.
   // Each joined part becomes a segment that carries its own separator.
-  function composeParts(parts, engine) {
+  function composeParts(parts, engine, where) {
     const segments = [];
     let output = "";
-    for (const part of parts) {
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index];
+      const branch = function (outcome) {
+        engine._branch(branchId(engine.currentNodeId, where + " part " + index + " (" + outcome + ")"));
+      };
       let piece;
       let cause = null;
       if (typeof part === "string") {
-        piece = part;
+        piece = substitute(part, engine);
       } else if (part.if !== undefined && !engine._evaluateCondition(part.if)) {
-        piece = part.else === undefined ? "" : part.else;
+        piece = part.else === undefined ? "" : substitute(part.else, engine);
+        if (part.else !== undefined) {
+          branch("else");
+        }
       } else if (part.text !== undefined) {
-        piece = part.text;
+        branch("text");
+        piece = substitute(part.text, engine);
         if (part.if !== undefined) {
           cause = engine._cause(part.if, part.tag);
         }
       } else {
         const memory = engine.recall(part.recall);
         if (memory === null) {
-          piece = part.otherwise === undefined ? "" : part.otherwise;
+          piece = part.otherwise === undefined ? "" : substitute(part.otherwise, engine);
+          if (part.otherwise !== undefined) {
+            branch("otherwise");
+          }
         } else {
-          piece = (part.format === undefined ? "{summary}" : part.format)
+          branch("recall");
+          piece = substitute(part.format === undefined ? "{summary}" : part.format, engine)
             .split("{summary}").join(memory.summary);
           cause = engine._recallCause(part.recall, memory);
           if (part.tag !== undefined) {
@@ -1722,6 +2012,35 @@
     return segments.length === 0 ? [{ text: "" }] : segments;
   }
 
+  // {name:mira} becomes a character's name and {var:coins} a variable's
+  // current value. Other braces, including recall's {summary}, are left as-is.
+  const PLACEHOLDER = /\{(name|var):([^{}]+)\}/g;
+
+  function substitute(text, engine) {
+    return text.replace(PLACEHOLDER, function (match, kind, value) {
+      const name = value.trim();
+      if (kind === "name") {
+        return engine.characterName(name);
+      }
+      if (!hasOwn(engine.variables, name)) {
+        throw storyError(engine.story, "text uses {var:" + name + "} before the variable is set.");
+      }
+      const current = engine.variables[name];
+      if (!isScalar(current)) {
+        throw storyError(engine.story, "{var:" + name + "} must hold a string, number, boolean, or null.");
+      }
+      return String(current);
+    });
+  }
+
+  function branchId(nodeId, detail) {
+    return "node '" + nodeId + "' " + detail;
+  }
+
+  function hasSummary(event) {
+    return isRecord(event.metadata) && typeof event.metadata.summary === "string";
+  }
+
   function beliefNote(belief) {
     return belief < 1 ? " (heard secondhand)" : "";
   }
@@ -1742,6 +2061,7 @@
       const part = parts[index];
       const location = context.location + " part " + index;
       if (typeof part === "string") {
+        engine._validateTemplate(part, location);
         continue;
       }
       if (!isPlainRecord(part)) {
@@ -1752,8 +2072,11 @@
       }
       validateTag(part.tag, engine.story, location);
       for (const key of ["text", "else", "format", "otherwise"]) {
-        if (part[key] !== undefined && typeof part[key] !== "string") {
-          throw storyError(engine.story, location + " " + key + " must be a string.");
+        if (part[key] !== undefined) {
+          if (typeof part[key] !== "string") {
+            throw storyError(engine.story, location + " " + key + " must be a string.");
+          }
+          engine._validateTemplate(part[key], location + " " + key);
         }
       }
       if (part.text === undefined && part.recall !== undefined) {
@@ -1773,6 +2096,7 @@
   function validateText(text, engine, context) {
     if (typeof text === "string") {
       normalizeName(text, context.location);
+      engine._validateTemplate(text, context.location);
       return;
     }
     if (!Array.isArray(text) || text.length === 0) {
@@ -1788,6 +2112,7 @@
         validateParts(variant.value, engine, context);
       } else {
         normalizeName(variant.value, context.location + " variant value");
+        engine._validateTemplate(variant.value, context.location + " variant " + index);
       }
       validateTag(variant.tag, engine.story, context.location + " variant " + index);
       if (variant.if === undefined) {
@@ -1841,11 +2166,12 @@
 
   function resolveRoute(route, engine) {
     if (typeof route === "string") {
-      return { node: route, entry: null };
+      return { node: route, entry: null, index: null };
     }
-    for (const entry of route) {
+    for (let index = 0; index < route.length; index += 1) {
+      const entry = route[index];
       if (entry.if === undefined || engine._evaluateCondition(entry.if)) {
-        return { node: entry.node, entry: entry };
+        return { node: entry.node, entry: entry, index: index };
       }
     }
     throw storyError(engine.story, "node '" + engine.currentNodeId + "' has no matching route.");
@@ -1866,39 +2192,6 @@
     }
     for (const concept of concepts) {
       normalizeName(concept, location + " concept");
-    }
-  }
-
-  function validateActivationOptions(options, location) {
-    if (options === undefined) {
-      return;
-    }
-    if (!isPlainRecord(options)) {
-      throw new TypeError(location + " must be an object.");
-    }
-    if (options.depth !== undefined) {
-      validateNonNegativeInteger(options.depth, location + " depth");
-    }
-    if (options.decay !== undefined) {
-      const decay = validatePositiveNumber(options.decay, location + " decay");
-      if (decay > 1) {
-        throw new RangeError(location + " decay must be in (0, 1].");
-      }
-    }
-    if (options.edgeK !== undefined) {
-      validatePositiveNumber(options.edgeK, location + " edgeK");
-    }
-    if (options.minActivation !== undefined) {
-      validateNonNegativeNumber(options.minActivation, location + " minActivation");
-    }
-    if (options.limit !== undefined) {
-      validateNonNegativeInteger(options.limit, location + " limit");
-    }
-    if (options.maxExpansions !== undefined) {
-      validateNonNegativeInteger(options.maxExpansions, location + " maxExpansions");
-    }
-    if (options.includeStart !== undefined && typeof options.includeStart !== "boolean") {
-      throw new TypeError(location + " includeStart must be a boolean.");
     }
   }
 

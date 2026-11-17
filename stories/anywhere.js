@@ -8,7 +8,8 @@ registerStory({
     "pim": { "name": "Pim" },
     "abara": { "name": "Inspector Abara" },
     "saul": { "name": "Saul Vey" },
-    "teo": { "name": "Teo" }
+    "teo": { "name": "Teo" },
+    "notebook": { "name": "Teo's notebook", "hidden": true }
   },
   "traits": {
     "honest": { "label": "honest", "concepts": { "truth": 1, "admit": 1.5 } },
@@ -37,7 +38,13 @@ registerStory({
   },
   "nodes": {
     "intrusion": {
-      "text": "It has been three years since the Shift, since the morning people discovered that anyone who could picture a room clearly enough could simply be in it. Locks became ornaments. Your trade became rooms nobody can picture: crooked walls, shifting panels, light that never falls the same way twice.\n\nAt 6:40 a.m. a man appears at the foot of your bed holding a birthday cake, nine candles still lit, wax running onto his wrist. 'Oh no,' he says. 'Oh no, no. I pictured my niece's room. Your flat is the mirror of theirs.' Through the wall you can hear a child next door start to cry.",
+      "text": [{ "value": [
+        "It has been three years since the Shift, since the morning people discovered that anyone who could picture a room clearly enough could simply be in it. Locks became ornaments. Your trade became rooms nobody can picture: crooked walls, shifting panels, light that never falls the same way twice.",
+        "\n\n",
+        "At 6:40 a.m. a man appears at the foot of your bed holding a birthday cake, nine candles still lit, wax running onto his wrist. 'Oh no,' he says. 'Oh no, no. I pictured my niece's room. Your flat is the mirror of theirs.' Through the wall you can hear a child next door start to cry.",
+        { "if": { "type": "association", "a": "player", "b": "oren", "min": 1 }, "tag": "déjà vu",
+          "text": "Then he frowns at you over the candles. 'Have I done this before?' he says. 'I've got the strangest feeling I've stood in this exact room, holding this exact cake.'" }
+      ] }],
       "onEnter": [
         { "type": "remember", "concepts": ["shift", "arrival", "oren", "cake"] },
         { "type": "set", "variable": "hours", "value": 0 }
@@ -48,7 +55,7 @@ registerStory({
             "summary": "walked a lost stranger to the Brenners' door with his cake still lit" }],
           "goto": "next_door" },
         { "id": "report_him", "text": "Order him out and report the arrival to the neighborhood Watch",
-          "do": [{ "type": "remember", "concepts": ["player", "exclude", "surveil", "oren"], "witnesses": ["dalia", "teo"],
+          "do": [{ "type": "remember", "concepts": ["player", "exclude", "surveil", "oren"], "witnesses": ["dalia", "teo", "notebook"],
             "summary": "reported a lost uncle with a birthday cake to the Watch" }],
           "goto": "next_door" },
         { "id": "pretend", "text": "Tell him you were expecting him, so he doesn't feel like an intruder",
@@ -197,7 +204,7 @@ registerStory({
             "summary": "watched the Watch captain copy down every room a child described" }],
           "goto": "afternoon" },
         { "id": "patrol_ask", "text": "Ask Teo, lightly, why the Watch needs such detail",
-          "do": [{ "type": "remember", "concepts": ["player", "evidence", "restraint", "teo"], "witnesses": ["teo", "pim"],
+          "do": [{ "type": "remember", "concepts": ["player", "evidence", "restraint", "teo"], "witnesses": ["teo", "pim", "notebook"],
             "summary": "asked the Watch captain why he needed every detail of every room" }],
           "goto": "patrol_answer" }
       ]
@@ -221,15 +228,16 @@ registerStory({
       ],
       "onEnter": [
         { "type": "gossip", "from": "dalia", "to": ["teo"], "belief": 0.6 },
-        { "type": "gossip", "from": "teo", "to": ["dalia"], "belief": 0.6 }
+        { "type": "gossip", "from": "teo", "to": ["dalia"], "belief": 0.6 },
+        { "type": "gossip", "from": "teo", "to": ["notebook"], "belief": 1 }
       ],
       "choices": [
         { "id": "back_registry", "text": "Stand up for the Registry. It might have saved Hollis",
-          "do": [{ "type": "remember", "concepts": ["player", "surveil", "lock", "registry"], "witnesses": ["teo", "dalia", "pim"],
+          "do": [{ "type": "remember", "concepts": ["player", "surveil", "lock", "registry"], "witnesses": ["teo", "dalia", "pim", "notebook"],
             "summary": "stood up for the Registry in front of the whole street" }],
           "goto": "pims_room" },
         { "id": "oppose_registry", "text": "Speak against it: a list of who can picture what is a map for whoever holds it",
-          "do": [{ "type": "remember", "concepts": ["player", "welcome", "restraint", "registry"], "witnesses": ["teo", "dalia", "pim"],
+          "do": [{ "type": "remember", "concepts": ["player", "welcome", "restraint", "registry"], "witnesses": ["teo", "dalia", "pim", "notebook"],
             "summary": "argued against the Registry in front of everyone" }],
           "goto": "pims_room" },
         { "id": "watch_signing", "text": "Stay quiet and watch who signs first",
@@ -295,7 +303,7 @@ registerStory({
           "It is the community hall, drawn in black crayon, with a tall figure beside a small one. You find them there: Pim wrapped in Teo's coat, Teo making cocoa on the urn. 'Kid's a natural,' Teo says warmly. 'Turned up here at midnight. This is why we need the Registry.' Pim will not look at you.",
           { "if": { "type": "association", "a": "player", "b": "teo_clue", "min": 1 }, "tag": "what you noticed",
             "text": "You watch Teo's hands on the cups and think about everything he writes down." },
-          { "if": { "type": "trait", "perspective": "pim", "trait": "honest", "min": 0.5 },
+          { "if": { "type": "knows", "perspective": "pim", "about": { "concepts": ["teo_clue", "fenn_study"] } }, "tag": "Pim told you once",
             "text": "As Dalia lifts Pim, Pim whispers into her shoulder, loud enough for you: 'Ask him about Mr Fenn's chair.'" }
         ] }
       ],
@@ -305,11 +313,11 @@ registerStory({
             "summary": "took a lost child home and listened before doing anything else" }],
           "goto": "dalia_truth" },
         { "id": "confront_teo", "text": "Confront Teo here, in front of Pim and Dalia",
-          "do": [{ "type": "remember", "concepts": ["player", "accuse", "teo"], "witnesses": ["teo", "dalia", "pim"],
+          "do": [{ "type": "remember", "concepts": ["player", "accuse", "teo"], "witnesses": ["teo", "dalia", "pim", "notebook"],
             "summary": "accused the Watch captain to his face in the hall" }],
           "goto": "teo_flees" },
         { "id": "thank_teo", "text": "Thank Teo, and say nothing",
-          "do": [{ "type": "remember", "concepts": ["player", "restraint", "conceal", "teo"], "witnesses": ["teo", "pim"],
+          "do": [{ "type": "remember", "concepts": ["player", "restraint", "conceal", "teo"], "witnesses": ["teo", "pim", "notebook"],
             "summary": "thanked the Watch captain and let him keep his coat around the child" }],
           "goto": "abara_choice" }
       ]
@@ -431,6 +439,9 @@ registerStory({
         "The Picture Laws pass by two votes. Arriving uninvited becomes a crime; so does trading pictures of other people's rooms. Nobody can enforce either rule perfectly. But consent stops being something a family has to argue for after the fact, and becomes something the city owes them before.",
         { "if": { "type": "macroCondition", "name": "teoCaught" },
           "text": "Teo's notebooks are the first evidence burned under the new law, eleven hundred rooms going up in a council furnace, and half the city comes to watch." },
+        { "if": { "type": "macroCondition", "name": "teoCaught" },
+          "recall": { "perspective": "notebook", "among": ["open", "guarded", "honest", "deceptive", "fair", "suspicious"] },
+          "format": "Before they go in, Abara shows you the page with your address on it. You never knew he was writing you down. In neat capitals it notes that you {summary}." },
         { "if": { "type": "macroCondition", "name": "corwinBlamed" },
           "text": "Corwin Fenn's appeal cites the new law. It will take years. You testify for him, which helps less than you had hoped." },
         "\n\n",
@@ -438,6 +449,7 @@ registerStory({
           "text": "Pim draws your studio on every birthday card after that, always with a small figure under the table, always with the door open.",
           "else": "Pim grows up careful. They never describe a room to anyone again, including you, and you are never sure whether that is the lesson you meant to teach." },
         { "recall": { "perspective": "dalia", "among": ["open", "guarded", "honest", "deceptive", "fair", "suspicious"] }, "format": "When people ask Dalia about you, she tells them first that you {summary}." },
+        { "recall": { "perspective": "dalia", "among": ["open", "guarded", "honest", "deceptive", "fair", "suspicious"], "rank": 2 }, "format": "Then, if they're still listening, that you {summary}." },
         { "if": { "type": "dominantTrait", "perspective": "abara", "among": ["honest", "deceptive"], "is": "honest" },
           "text": "Abara sends you a postcard of a door every Christmas. No message. You keep all of them.",
           "else": "Abara never calls again. When your name comes up in her office, she says only that you were useful." }
@@ -450,6 +462,9 @@ registerStory({
         { "if": { "type": "macroCondition", "name": "teoCaught" },
           "text": "The Watch has a new captain. She is very sincere. She asks children to close their eyes and describe rooms, for safety, and she writes everything down.",
           "else": "Teo Lindqvist is appointed Registrar. He thanks you, in his acceptance speech, by name." },
+        { "if": { "type": "not", "condition": { "type": "macroCondition", "name": "teoCaught" } },
+          "recall": { "perspective": "notebook", "among": ["open", "guarded", "honest", "deceptive", "fair", "suspicious"] },
+          "format": "His notebooks become the Registry's founding volumes. The page with your address is near the front. You never knew he was writing you down. It notes that you {summary}." },
         "\n\n",
         { "if": { "type": "macroCondition", "name": "pimTrusts" },
           "text": "Pim refuses to register. At nine, it is the first law they ever break, and they do it looking straight at you.",

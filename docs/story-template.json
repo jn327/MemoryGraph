@@ -1,0 +1,68 @@
+{
+  "id": "my_story",
+  "title": "My Story",
+  "synopsis": "One line that makes someone want to play it.",
+  "start": "opening",
+  "characters": {
+    "ana": { "name": "Ana" },
+    "ben": { "name": "Ben" }
+  },
+  "traits": {
+    "kind": { "label": "kind", "concepts": { "help": 1 } },
+    "selfish": { "label": "selfish", "concepts": { "take": 1, "ignore": 0.5 } }
+  },
+  "macros": {
+    "anaLikesYou": { "tag": "Ana remembers",
+      "condition": { "type": "dominantTrait", "perspective": "ana", "among": ["kind", "selfish"], "is": "kind" } }
+  },
+  "nodes": {
+    "opening": {
+      "text": "{name:ana} has dropped her shopping all over the pavement. {name:ben} is watching from across the road.",
+      "choices": [
+        { "id": "help", "text": "Help her pick it up",
+          "do": [{ "type": "remember", "concepts": ["player", "help", "ana"], "witnesses": ["ana", "ben"],
+            "summary": "helped Ana pick up her shopping" }],
+          "goto": "corner" },
+        { "id": "take", "text": "Pocket an orange that rolled your way",
+          "do": [{ "type": "remember", "concepts": ["player", "take", "ana"], "witnesses": ["ben"],
+            "summary": "pocketed one of Ana's oranges" }],
+          "goto": "corner" }
+      ]
+    },
+    "corner": {
+      "text": [{ "value": [
+        "At the corner, Ben catches up with Ana.",
+        { "if": { "type": "knows", "perspective": "ben", "about": { "concepts": ["take"] } },
+          "text": "He nods back toward you and says something you can't hear." }
+      ] }],
+      "onEnter": [{ "type": "gossip", "from": "ben", "to": ["ana"] }],
+      "choices": [
+        { "id": "wave", "text": "Wave to them",
+          "goto": [
+            { "if": { "type": "macroCondition", "name": "anaLikesYou" }, "node": "friends" },
+            { "node": "strangers" }
+          ] },
+        { "id": "walk_on", "text": "Walk on",
+          "do": [{ "type": "remember", "concepts": ["player", "ignore", "ana"], "witnesses": ["ana"],
+            "summary": "walked past without a word" }],
+          "goto": "strangers" }
+      ]
+    },
+    "friends": {
+      "ending": true,
+      "text": [{ "value": [
+        "Ana waves back and calls you over.",
+        { "recall": { "perspective": "ana", "among": ["kind", "selfish"] },
+          "format": "'You're the one who {summary},' she says." }
+      ] }]
+    },
+    "strangers": {
+      "ending": true,
+      "text": [{ "value": [
+        "They turn the corner without you.",
+        { "recall": { "perspective": "ana", "among": ["kind", "selfish"] },
+          "format": "Ana will remember you as the one who {summary}." }
+      ] }]
+    }
+  }
+}

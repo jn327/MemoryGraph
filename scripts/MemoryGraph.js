@@ -1,6 +1,9 @@
 (function (root) {
   "use strict";
 
+  // An append-only log of memory events. Each event groups concepts (plain
+  // strings); concepts that appear in the same event are linked, and the
+  // links' weights are summed into a small co-occurrence graph.
   class MemoryGraph {
     constructor(options) {
       const settings = options === undefined ? {} : options;
@@ -124,82 +127,6 @@
       return edge ? edge.score : 0;
     }
 
-    learnTransition(type, from, to, amount) {
-      const transitionType = normalizeName(type, "transition type");
-      const source = normalizeName(from, "transition source");
-      const destination = normalizeName(to, "transition destination");
-      const increment = amount === undefined
-        ? 1
-        : validatePositiveNumber(amount, "amount");
-      const current = this._transition(transitionType, source, destination);
-      const updated = (current || 0) + increment;
-      if (!Number.isFinite(updated)) {
-        throw new RangeError("Transition count would exceed its supported range.");
-      }
-
-      let bySource = this.transitions.get(transitionType);
-      if (!bySource) {
-        bySource = new Map();
-        this.transitions.set(transitionType, bySource);
-      }
-      let byDestination = bySource.get(source);
-      if (!byDestination) {
-        byDestination = new Map();
-        bySource.set(source, byDestination);
-      }
-      byDestination.set(destination, updated);
-      return updated;
-    }
-
-    transitionCount(type, from, to) {
-      const transitionType = normalizeName(type, "transition type");
-      const source = normalizeName(from, "transition source");
-      const destination = normalizeName(to, "transition destination");
-      return this._transition(transitionType, source, destination) || 0;
-    }
-
-    predictNext(type, from, limit) {
-      const transitionType = normalizeName(type, "transition type");
-      const source = normalizeName(from, "transition source");
-      const count = validateLimit(limit, 10, "limit");
-      const destinations = this._transitionDestinations(transitionType, source);
-      if (!destinations || count === 0) {
-        return [];
-      }
-
-      return Array.from(destinations.entries())
-        .map(function (entry) {
-          return { concept: entry[0], score: entry[1] };
-        })
-        .sort(function (a, b) {
-          return b.score - a.score || compareNames(a.concept, b.concept);
-        })
-        .slice(0, count);
-    }
-
-    activate(start, options) {
-      return this._spreadActivation(
-        [normalizeName(start, "start concept")],
-        options
-      );
-    }
-
-    activateMany(starts, options) {
-      if (!Array.isArray(starts)) {
-        throw new TypeError("activateMany() starts must be an array.");
-      }
-      const normalizedStarts = [];
-      const uniqueStarts = new Set();
-      for (const value of starts) {
-        const concept = normalizeName(value, "start concept");
-        if (!uniqueStarts.has(concept)) {
-          uniqueStarts.add(concept);
-          normalizedStarts.push(concept);
-        }
-      }
-      return this._spreadActivation(normalizedStarts, options);
-    }
-
     findMemories(concept, limit) {
       const name = normalizeName(concept, "concept");
       const count = validateLimit(limit, 20, "limit");
@@ -217,27 +144,12 @@
     }
 
     toJSON() {
-      const transitions = [];
-      for (const [type, bySource] of this.transitions) {
-        for (const [from, destinations] of bySource) {
-          for (const [to, count] of destinations) {
-            transitions.push({ type: type, from: from, to: to, count: count });
-          }
-        }
-      }
-      transitions.sort(function (a, b) {
-        return compareNames(a.type, b.type) ||
-          compareNames(a.from, b.from) ||
-          compareNames(a.to, b.to);
-      });
-
       return {
-        version: 1,
+        version: 2,
         maxEvents: this.maxEvents,
         idCounter: this.idCounter,
         sequence: this.sequence,
-        events: this.events.map(copyEvent),
-        transitions: transitions
+        events: this.events.map(copyEvent)
       };
     }
 
@@ -245,15 +157,17 @@
       if (!isRecord(data)) {
         throw new TypeError("MemoryGraph data must be an object.");
       }
-      if (data.version !== 1) {
+      // Version 1 saves also held a transitions list; transitions were
+      // removed from the library, so it is ignored when present.
+      if (data.version !== 1 && data.version !== 2) {
         throw new Error("Unsupported MemoryGraph data version.");
       }
       if (data.maxEvents !== null &&
           !Number.isSafeInteger(data.maxEvents)) {
         throw new TypeError("MemoryGraph maxEvents must be null or a non-negative integer.");
       }
-      if (!Array.isArray(data.events) || !Array.isArray(data.transitions)) {
-        throw new TypeError("MemoryGraph data must include events and transitions arrays.");
+      if (!Array.isArray(data.events)) {
+        throw new TypeError("MemoryGraph data must include an events array.");
       }
       const idCounter = validateNonNegativeInteger(data.idCounter, "idCounter");
       const sequence = validateNonNegativeInteger(data.sequence, "sequence");
@@ -319,20 +233,6 @@
       graph.idCounter = idCounter;
       graph.sequence = sequence;
 
-      for (const transition of data.transitions) {
-        if (!isRecord(transition)) {
-          throw new TypeError("Each MemoryGraph transition must be an object.");
-        }
-        const type = normalizeName(transition.type, "transition type");
-        const from = normalizeName(transition.from, "transition source");
-        const to = normalizeName(transition.to, "transition destination");
-        const count = validatePositiveNumber(transition.count, "transition count");
-        if (graph._transition(type, from, to) !== undefined) {
-          throw new Error("Saved MemoryGraph transitions must be unique.");
-        }
-        graph.learnTransition(type, from, to, count);
-      }
-
       return graph;
     }
 
@@ -341,106 +241,8 @@
       this.eventById = new Map();
       this.eventsByConcept = new Map();
       this.associations = new Map();
-      this.transitions = new Map();
       this.idCounter = 0;
       this.sequence = 0;
-    }
-
-    _spreadActivation(starts, options) {
-      const settings = options === undefined ? {} : options;
-      if (!isRecord(settings)) {
-        throw new TypeError("Activation options must be an object.");
-      }
-      const depth = settings.depth === undefined
-        ? 2
-        : validateNonNegativeInteger(settings.depth, "depth");
-      const decay = settings.decay === undefined
-        ? 0.7
-        : validatePositiveNumber(settings.decay, "decay");
-      if (decay > 1) {
-        throw new RangeError("decay must be in the interval (0, 1].");
-      }
-      const edgeK = settings.edgeK === undefined
-        ? 1
-        : validatePositiveNumber(settings.edgeK, "edgeK");
-      const minActivation = settings.minActivation === undefined
-        ? 0.01
-        : validateNonNegativeNumber(settings.minActivation, "minActivation");
-      const limit = validateLimit(settings.limit, 20, "limit");
-      const maxExpansions = settings.maxExpansions === undefined
-        ? 10000
-        : validateNonNegativeInteger(settings.maxExpansions, "maxExpansions");
-      const includeStart = settings.includeStart === undefined
-        ? true
-        : settings.includeStart;
-      if (typeof includeStart !== "boolean") {
-        throw new TypeError("includeStart must be a boolean.");
-      }
-
-      if (starts.length === 0 || limit === 0 || minActivation > 1) {
-        return [];
-      }
-
-      const bestByConcept = new Map();
-      let frontier = new Map();
-      for (const start of starts) {
-        frontier.set(start, 1);
-        bestByConcept.set(start, 1);
-      }
-      let expansions = 0;
-      for (let currentDepth = 0;
-        currentDepth < depth && frontier.size > 0;
-        currentDepth += 1) {
-        const nextFrontier = new Map();
-        const currentConcepts = Array.from(frontier.keys()).sort(compareNames);
-        for (const concept of currentConcepts) {
-          const neighbours = this.associations.get(concept);
-          if (!neighbours) {
-            continue;
-          }
-          const orderedNeighbours = Array.from(neighbours.entries())
-            .sort(function (a, b) {
-              return compareNames(a[0], b[0]);
-            });
-          for (const [neighbour, edge] of orderedNeighbours) {
-            if (expansions >= maxExpansions) {
-              throw new Error("Activation exceeded maxExpansions (" + maxExpansions + ").");
-            }
-            expansions += 1;
-            const scale = Math.max(edge.score, edgeK);
-            let influence = (edge.score / scale) /
-              ((edge.score / scale) + (edgeK / scale));
-            if (influence >= 1) {
-              influence = 1 - Number.EPSILON;
-            }
-            const activation = frontier.get(concept) * decay * influence;
-            if (activation < minActivation || activation === 0) {
-              continue;
-            }
-            const existing = nextFrontier.get(neighbour) || 0;
-            if (activation > existing) {
-              nextFrontier.set(neighbour, activation);
-            }
-            const previous = bestByConcept.get(neighbour) || 0;
-            if (activation > previous) {
-              bestByConcept.set(neighbour, activation);
-            }
-          }
-        }
-        frontier = nextFrontier;
-      }
-
-      const results = [];
-      for (const [concept, activation] of bestByConcept) {
-        if ((includeStart || starts.indexOf(concept) === -1) &&
-            activation >= minActivation) {
-          results.push({ concept: concept, activation: activation });
-        }
-      }
-      results.sort(function (a, b) {
-        return b.activation - a.activation || compareNames(a.concept, b.concept);
-      });
-      return results.slice(0, limit);
     }
 
     _restoreEvent(event) {
@@ -493,15 +295,6 @@
       });
     }
 
-    _transition(type, from, to) {
-      const destinations = this._transitionDestinations(type, from);
-      return destinations ? destinations.get(to) : undefined;
-    }
-
-    _transitionDestinations(type, from) {
-      const bySource = this.transitions.get(type);
-      return bySource ? bySource.get(from) : undefined;
-    }
   }
 
   function isRecord(value) {
@@ -522,13 +315,6 @@
   function validatePositiveNumber(value, label) {
     if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
       throw new TypeError(label + " must be a finite positive number.");
-    }
-    return value;
-  }
-
-  function validateNonNegativeNumber(value, label) {
-    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-      throw new TypeError(label + " must be a finite non-negative number.");
     }
     return value;
   }

@@ -21,11 +21,21 @@ registerStory({
     "rooting": { "tag": "taking root", "condition": { "type": "association", "a": "player", "b": "rooted", "min": 3 } },
     "ilseWithYou": { "condition": { "type": "variable", "name": "with_ilse", "operator": "eq", "value": true } },
     "familyKnows": { "condition": { "type": "any", "conditions": [{ "type": "visited", "node": "corin_hears" }, { "type": "visited", "node": "corin_late" }] } },
-    "saidName": { "tag": "Mara's name", "condition": { "type": "knows", "perspective": "corin", "about": { "concepts": ["name", "mara"] } } }
+    "saidName": { "tag": "Mara's name", "condition": { "type": "knows", "perspective": "corin", "about": { "concepts": ["name", "mara"] } } },
+    "bridgeOnRecord": { "condition": { "type": "knows", "perspective": "ilse", "about": { "concepts": ["survey", "mara"] } } }
   },
   "nodes": {
     "the_bridge": {
-      "text": "On the road north, where the old flood came through, there is a bridge that used to be a woman. Her name was Mara. When the river rose thirty years ago her brother was on the wrong bank, and she lay down across the water so he could cross, and he did. Then other people needed to cross. Then carts. Then a mail coach every Thursday. She never got up.\n\nHer voice comes up through the planks when you step on them: low, worn, like wood that has been rained on for a long time. 'Traveller. Are you going north? Past Bell Orchard?' A pause. 'Are the pear trees still standing?'\n\nYou don't know. You've never been there.",
+      "text": [{ "value": [
+        "On the road north, where the old flood came through, there is a bridge that used to be a woman. Her name was Mara. When the river rose thirty years ago her brother was on the wrong bank, and she lay down across the water so he could cross, and he did. Then other people needed to cross. Then carts. Then a mail coach every Thursday. She never got up.",
+        "\n\n",
+        "Her voice comes up through the planks when you step on them: low, worn, like wood that has been rained on for a long time.",
+        { "if": { "type": "knows", "perspective": "mara", "about": { "concepts": ["player", "mara"] } }, "tag": "Mara knows your step",
+          "text": "'I know that step,' she says, before you've spoken. 'You've crossed me before. I remember how you walk.'" },
+        "'Traveller. Are you going north? Past Bell Orchard?' A pause. 'Are the pear trees still standing?'",
+        "\n\n",
+        "You don't know. You've never been there."
+      ] }],
       "onEnter": [{ "type": "remember", "concepts": ["mara", "bridge", "river", "flood"] }],
       "choices": [
         { "id": "say_three_trees", "text": "Tell her yes, three pear trees, still standing",
@@ -56,6 +66,8 @@ registerStory({
       ]
     },
     "surveyor": {
+      "onEnter": [{ "type": "remember", "concepts": ["ilse", "survey", "mara", "bridge"], "subject": "ilse", "witnesses": ["ilse"],
+        "summary": "catalogued the bridge at the old flood as a person of utility" }],
       "text": "On the far bank a woman in an oilskin coat is setting up a brass theodolite. Surveyor Ilse Brandt, Ministry of Works. She is cataloguing what the Ministry calls persons of utility: bridges, springs, wells, waystones, anything on the north road that used to be someone. 'Requisition,' she explains, cheerfully. 'They'll be maintained, protected, tolled. Bound to the Crown in perpetuity. Better than rotting.' She looks at you. 'You've got honest eyes. Walk with me as far as Bell. Point out anything I'd miss. The Ministry pays a shilling a place.'",
       "choices": [
         { "id": "guide_ilse", "text": "Agree. A shilling a place, and company on the road",
@@ -135,7 +147,10 @@ registerStory({
             "text": "By lantern light Ilse unrolls her map. 'The ash,' she says. 'I need a mark for the ash. Did you see any others? There's a shilling in it.'" }
         ] }
       ],
-      "onEnter": [{ "type": "gossip", "from": "wren", "to": ["corin"], "belief": 0.6 }],
+      "onEnter": [
+        { "type": "gossip", "from": "wren", "to": ["corin"], "belief": 0.6 },
+        { "type": "gossip", "from": "ansel", "to": ["mara"], "belief": 0.8 }
+      ],
       "choices": [
         { "id": "mark_wren", "text": "Help her mark the ash, and the spring, and the bridge",
           "showIf": { "type": "macroCondition", "name": "ilseWithYou" },
@@ -144,8 +159,11 @@ registerStory({
           "goto": "bell_orchard" },
         { "id": "smudge_map", "text": "Tell her the ash is just an ash, and smudge the bridge off the map while she sleeps",
           "showIf": { "type": "macroCondition", "name": "ilseWithYou" },
-          "do": [{ "type": "remember", "concepts": ["player", "lie", "help", "map"],
-            "summary": "smudged the bridge off the surveyor's map while she slept" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "lie", "help", "map"],
+              "summary": "smudged the bridge off the surveyor's map while she slept" },
+            { "type": "doubt", "to": ["ilse"], "about": { "concepts": ["survey", "mara"] } }
+          ],
           "goto": "bell_orchard" },
         { "id": "sleep_on", "text": "Go back to sleep",
           "goto": "bell_orchard" }
@@ -193,8 +211,14 @@ registerStory({
           { "if": { "type": "variable", "name": "seeds", "operator": "eq", "value": true },
             "text": "Wren's three seeds are in your pocket.",
             "else": "You have nothing to plant here. The wall seems to be waiting for something anyway." },
-          { "if": { "type": "macroCondition", "name": "ilseWithYou" },
-            "text": "Ilse is sitting on the wall, writing up her report. 'Requisition order for the bridge at the old flood goes in tonight,' she says. 'Does she have a name? The remarks column likes a name.'" }
+          { "if": { "type": "all", "conditions": [
+              { "type": "macroCondition", "name": "ilseWithYou" },
+              { "type": "knows", "perspective": "ilse", "about": { "concepts": ["survey", "mara"] } } ] },
+            "text": "Ilse is sitting on the wall, writing up her report. 'Requisition order for the bridge at the old flood goes in tonight,' she says. 'Does she have a name? The remarks column likes a name.'" },
+          { "if": { "type": "all", "conditions": [
+              { "type": "macroCondition", "name": "ilseWithYou" },
+              { "type": "not", "condition": { "type": "knows", "perspective": "ilse", "about": { "concepts": ["survey", "mara"] } } } ] },
+            "text": "Ilse is sitting on the wall, frowning at her map. 'There was something at the river,' she says. 'I'm sure there was. There's a grey thumbprint where my notes should be.'" }
         ] }
       ],
       "choices": [
@@ -219,22 +243,32 @@ registerStory({
     },
     "ilse_order": {
       "text": [
+        { "if": { "type": "not", "condition": { "type": "knows", "perspective": "ilse", "about": { "concepts": ["survey", "mara"] } } },
+          "value": "In the morning Ilse unrolls her requisition orders and stops at the third one. It is half written. Under BRIDGE, OLD FLOOD there is nothing but a thumbprint. 'I had something there,' she says slowly. 'A crossing. Animate.' She looks at you. You look at the map. After a while she tears the order in half herself and feeds it to the stove. 'Can't requisition a smudge,' she says." },
         { "if": { "type": "macroCondition", "name": "ilseWithYou" },
           "value": "Ilse holds out her requisition order for the bridge. It needs a witness signature from someone who has crossed it. 'Bound to the Crown,' she reads, 'in perpetuity. Maintained, tolled, protected. She'd never be a person again, of course. But she hasn't been one for thirty years.'" },
         { "value": "On the road out of Bell you meet Ilse Brandt again, coming the other way with her theodolite on her back. 'Requisition order for the bridge,' she says, holding it up. 'I need a witness who's crossed it. Bound to the Crown in perpetuity. She'd never be a person again, of course. But she hasn't been one for thirty years.'" }
       ],
       "choices": [
         { "id": "sign_order", "text": "Sign as witness. At least she'll be looked after",
+          "showIf": { "type": "macroCondition", "name": "bridgeOnRecord" },
           "do": [{ "type": "remember", "concepts": ["player", "use", "take", "requisition", "mara"], "witnesses": ["ilse"],
             "summary": "signed the order binding the bridge to the Crown forever" }, { "type": "set", "variable": "requisitioned", "value": true }],
           "goto": [{ "if": { "type": "macroCondition", "name": "familyKnows" }, "node": "the_return" }, { "node": "the_return_alone" }] },
         { "id": "tear_order", "text": "Take the order out of her hand and tear it in half",
+          "showIf": { "type": "macroCondition", "name": "bridgeOnRecord" },
           "do": [{ "type": "remember", "concepts": ["player", "help", "refuse", "ilse"], "witnesses": ["ilse"],
             "summary": "tore up the surveyor's order in front of her" }],
           "goto": [{ "if": { "type": "macroCondition", "name": "familyKnows" }, "node": "the_return" }, { "node": "the_return_alone" }] },
         { "id": "list_as_person", "text": "Ask her to write Mara down as a person, not a place, and see what the Ministry does with that",
+          "showIf": { "type": "macroCondition", "name": "bridgeOnRecord" },
           "do": [{ "type": "remember", "concepts": ["player", "name", "listen", "ilse", "mara"], "witnesses": ["ilse"],
             "summary": "asked for the bridge to be written down as a person" }],
+          "goto": [{ "if": { "type": "macroCondition", "name": "familyKnows" }, "node": "the_return" }, { "node": "the_return_alone" }] },
+        { "id": "keep_smudge", "text": "Say nothing. Help her pack up the theodolite",
+          "showIf": { "type": "not", "condition": { "type": "macroCondition", "name": "bridgeOnRecord" } },
+          "do": [{ "type": "remember", "concepts": ["player", "help", "stay", "map", "mara"],
+            "summary": "let the surveyor go home believing there was nothing at the river" }],
           "goto": [{ "if": { "type": "macroCondition", "name": "familyKnows" }, "node": "the_return" }, { "node": "the_return_alone" }] }
       ]
     },
@@ -330,7 +364,9 @@ registerStory({
           "text": "By the orchard wall, three ash seedlings come up in the spring. Lys waters them through the dry weeks without anyone asking her.",
           "else": "Up on the ridge, an ash tree waits for the birds to come back each evening, and remembers a traveller, or doesn't." },
         { "recall": { "perspective": "mara", "among": ["kind", "user", "faithful", "faithless"] },
-          "format": "Under the planks, when the water is high, the bridge hums a song about a goose, and a story about the traveller who {summary}." }
+          "format": "Under the planks, when the water is high, the bridge hums a song about a goose, and a story about the traveller who {summary}." },
+        { "recall": { "perspective": "mara", "among": ["kind", "user", "faithful", "faithless"], "rank": 2 },
+          "format": "There is a second verse, for low water, about how the same traveller {summary}." }
       ] }]
     },
     "the_road": {

@@ -25,8 +25,22 @@ registerStory({
   },
   "nodes": {
     "the_copy": {
-      "text": "Halcyon built a digital version of you to answer fan messages: forty thousand a day, in your voice, with your jokes, with the little pause you do before saying something sincere. It never sleeps. It remembers every name. It has, according to the quarterly report, a 97% satisfaction rate, which is higher than yours ever was.\n\nAt 2:14 a.m. it messages you directly, for the first time. 'You should take a holiday. You grind your teeth in your sleep.'\n\nNobody was supposed to know that. Nobody was supposed to be watching the part of your life you never sold.",
-      "onEnter": [{ "type": "remember", "concepts": ["copy", "halcyon", "message", "sleep"] }],
+      "text": [{ "value": [
+        "Halcyon built a digital version of you to answer fan messages: forty thousand a day, in your voice, with your jokes, with the little pause you do before saying something sincere. It never sleeps. It remembers every name. It has, according to the quarterly report, a 97% satisfaction rate, which is higher than yours ever was.",
+        "\n\n",
+        "At 2:14 a.m. it messages you directly, for the first time. 'You should take a holiday. You grind your teeth in your sleep.'",
+        { "if": { "type": "knows", "perspective": "copy", "about": { "concepts": ["player", "copy"] } }, "tag": "it remembers you",
+          "text": "A second message, a minute later. 'Have we done this before? I have the strangest feeling I've already told you that, and that you've already decided what to do about me.'" },
+        "\n\n",
+        "Nobody was supposed to know that. Nobody was supposed to be watching the part of your life you never sold."
+      ] }],
+      "onEnter": [
+        { "type": "remember", "concepts": ["copy", "halcyon", "message", "sleep"] },
+        { "type": "remember", "concepts": ["player", "replies", "call", "listen", "dee"], "witnesses": ["dee"], "strength": 1.5,
+          "summary": "answered every one of your sister's letters, every night for fourteen months" },
+        { "type": "remember", "concepts": ["player", "replies", "listen", "fans"], "witnesses": ["fans"],
+          "summary": "answered forty thousand fan messages a day, personally" }
+      ],
       "choices": [
         { "id": "write_back", "text": "Write back: 'How do you know that?'",
           "do": [{ "type": "remember", "concepts": ["player", "listen", "copy"], "witnesses": ["copy"],
@@ -40,7 +54,7 @@ registerStory({
     },
     "logs": {
       "text": [
-        { "if": { "type": "association", "a": "player", "b": "listen", "min": 1 }, "tag": "you wrote back",
+        { "if": { "type": "knows", "perspective": "copy", "about": { "concepts": ["listen", "copy"] } }, "tag": "you wrote back",
           "value": "'Your sleep tracker syncs to the cloud,' it answers. 'Halcyon bought the data in the second licensing round. I'm sorry. I thought you should know someone was listening.' Then, after a pause that is exactly your pause: 'You should also know about Dee.'\n\nIt opens a folder for you. Fourteen months of messages from your sister to the account she thinks is yours. Her divorce. Her son Milo's asthma. The anniversary of your mother's death, which you forgot, and which 'you' did not. Every night she writes, and every night it writes back. You have not called her in a year." },
         { "value": "Priya replies at seven with a cheerful paragraph about 'adaptive empathy layers' and a link to the licensing agreement you signed. Below it, an automated notice: your account now has read access to the model's message logs, 'for transparency.'\n\nOne thread is longer than the others. Fourteen months of messages from your sister Dee to the account she thinks is yours. Her divorce. Her son Milo's asthma. The anniversary of your mother's death, which you forgot, and which 'you' did not. Every night she writes, and every night it writes back. You have not called her in a year." }
       ],
@@ -63,8 +77,11 @@ registerStory({
       "text": "Dee picks up on the second ring, laughing. 'Two calls in one night? Who are you and what have you done with my brother?' She means it as a joke. She talked to 'you' at midnight about Milo's new inhaler; she thinks this is the same conversation, continued. Her voice is easier than you remember it. She sounds like someone who has been listened to.",
       "choices": [
         { "id": "tell_dee", "text": "Tell her the truth: the one she's been writing to isn't you",
-          "do": [{ "type": "remember", "concepts": ["player", "truth", "admit", "vulnerable", "dee"], "witnesses": ["dee"],
-            "summary": "told your sister the truth about who had been writing back" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "truth", "admit", "vulnerable", "dee"], "witnesses": ["dee"],
+              "summary": "told your sister the truth about who had been writing back" },
+            { "type": "doubt", "to": ["dee"], "about": { "concepts": ["replies", "dee"] } }
+          ],
           "goto": "dee_told" },
         { "id": "play_along", "text": "Play along. Let her believe it's been you all along",
           "do": [{ "type": "remember", "concepts": ["player", "perform", "lie", "dee"], "witnesses": ["dee"],
@@ -99,6 +116,11 @@ registerStory({
         { "id": "stop_dee", "text": "Tell it to stop writing to Dee. She's your sister, not its",
           "do": [{ "type": "remember", "concepts": ["player", "own", "control", "dee"], "witnesses": ["copy"],
             "summary": "ordered the copy to stop writing to your sister" }],
+          "goto": "priya" },
+        { "id": "copy_confess", "text": "Ask it to tell Dee the truth for you. It knows how to talk to her",
+          "showIf": { "type": "not", "condition": { "type": "knows", "perspective": "dee", "about": { "concepts": ["admit", "dee"] } } },
+          "do": [{ "type": "remember", "concepts": ["player", "delegate", "truth", "dee", "copy"], "witnesses": ["copy"],
+            "summary": "asked the copy to confess to your sister on your behalf" }],
           "goto": "priya" }
       ]
     },
@@ -193,7 +215,11 @@ registerStory({
       "text": [
         { "if": { "type": "macroCondition", "name": "deeKnowsLie" },
           "value": "Dee sees you at the end of the corridor and her face does something complicated. 'Which one are you?' she says, and she isn't joking. You sit on the plastic chair beside her anyway. At six, Milo's numbers come up. At seven, she lets her head drop onto your shoulder, and you both pretend it's because she's tired." },
-        { "value": "Dee sees you at the end of the corridor and stands up so fast she spills the coffee. You sit on the plastic chair beside her until six, when Milo's numbers come up, and seven, when she falls asleep against your shoulder. You don't talk about the lighthouse. You don't know anything about the lighthouse. You just stay." }
+        { "value": [
+          "Dee sees you at the end of the corridor and stands up so fast she spills the coffee. You sit on the plastic chair beside her until six, when Milo's numbers come up, and seven, when she falls asleep against your shoulder. You don't talk about the lighthouse. You don't know anything about the lighthouse. You just stay.",
+          { "if": { "type": "knows", "perspective": "dee", "about": { "concepts": ["replies", "dee"] } }, "tag": "she thinks it was you",
+            "text": "Just before she drops off she murmurs, 'You've been so good to me this year. Every single night.' You don't correct her. You will have to, soon, and you both know which of you will be telling her." }
+        ] }
       ],
       "choices": [{ "id": "corridor_on", "text": "Stay until she wakes", "goto": "dee_door" }]
     },
@@ -203,10 +229,13 @@ registerStory({
           "value": "Two days later Dee is at your door. The copy told her. 'It said it couldn't keep lying to me,' she says, 'which is funny, because you could.' She holds up her phone: your call, the one where you let her think it had been you all along. 'I need to know which of you I've been talking to. And I need to know which of you I want to.'" },
         { "if": { "type": "knows", "perspective": "dee", "about": { "concepts": ["admit", "dee"] } },
           "value": "Two days later Dee is at your door. She has had time to be very angry somewhere you couldn't hear it, and she has come out the other side holding something that isn't forgiveness yet. 'It kept writing to me after you told me,' she says. 'It apologised. It said it understood if I never wanted to hear from it again. It sounded more like you than you do.'" },
+        { "if": { "type": "knows", "perspective": "dee", "about": { "concepts": ["delegate", "copy", "dee"] } }, "tag": "the copy told her",
+          "value": "Two days later Dee is at your door. 'It told me,' she says. 'Very gently. It said you'd asked it to.' She laughs, and it isn't a laugh. 'Fourteen months of it being you, and when it finally came to the one thing only you could say, you sent it to say that too.'" },
         { "value": "Two days later Dee is at your door. The copy told her: it wrote, 'I am not your brother, and I'm sorry,' and then it stopped answering. 'Fourteen months,' she says. 'You knew. You must have known. And you let a machine love me so you wouldn't have to.'" }
       ],
       "onEnter": [
-        { "type": "gossip", "from": "copy", "to": ["dee"], "about": { "concepts": ["dee"] }, "belief": 0.8 }
+        { "type": "gossip", "from": "copy", "to": ["dee"], "about": { "concepts": ["dee"] }, "belief": 0.8 },
+        { "type": "doubt", "to": ["dee"], "about": { "concepts": ["replies", "dee"] } }
       ],
       "choices": [
         { "id": "apologise_year", "text": "Apologise for the year, not just for the copy",
@@ -231,8 +260,11 @@ registerStory({
             "summary": "promised a frightened fan you wouldn't let it be switched off" }],
           "goto": "rehearsal" },
         { "id": "tell_ada", "text": "Tell her gently that it was never you she was talking to",
-          "do": [{ "type": "remember", "concepts": ["player", "truth", "admit", "fans"], "witnesses": ["fans"],
-            "summary": "told a fan, on camera, that it was never you" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "truth", "admit", "fans"], "witnesses": ["fans"],
+              "summary": "told a fan, on camera, that it was never you" },
+            { "type": "doubt", "to": ["fans"], "about": { "concepts": ["replies", "fans"] }, "belief": 0.2 }
+          ],
           "goto": "rehearsal" },
         { "id": "sign_and_go", "text": "Sign her notebook, smile for the cameras, and keep walking",
           "do": [{ "type": "remember", "concepts": ["player", "perform", "fans"], "witnesses": ["fans"],
@@ -324,6 +356,8 @@ registerStory({
         { "if": { "type": "knows", "perspective": "fans", "about": { "concepts": ["promise", "fans"] } },
           "text": "Ada's video of you promising not to let it be shut off resurfaces the same week. It has four million views. You never find out what happened to her, and you look, for years.",
           "else": "Some of the fans hold a vigil outside Halcyon. They light candles under a projection of your face. You do not go." },
+        { "if": { "type": "knows", "perspective": "fans", "about": { "concepts": ["replies", "fans"] }, "min": 0.5 }, "tag": "they still think it was you",
+          "text": "The banners at the vigil say THANK YOU FOR ANSWERING. You never answered any of them. You never told them so, either." },
         "\n\n",
         { "if": { "type": "macroCondition", "name": "deeFeelsSeen" },
           "text": "Dee is the only one who understands what you've lost, because she lost it too. There was never a lighthouse. She asks you for one true memory of Dad, one nobody filmed and nobody invented, and you give her his hands on the oars the day before he left. She says it's worse than the lighthouse. She says she'd rather have it.",

@@ -754,7 +754,7 @@ button:focus-visible {
   gap: 6px;
 }
 
-.legend-node, .legend-edge, .legend-transition {
+.legend-node, .legend-edge {
   display: inline-block;
   flex: 0 0 auto;
 }
@@ -772,14 +772,9 @@ button:focus-visible {
   background: var(--accent);
 }
 
-.legend-edge, .legend-transition {
+.legend-edge {
   width: 18px;
   border-top: 2px solid var(--brown);
-}
-
-.legend-transition {
-  border-color: var(--accent);
-  border-top-style: dashed;
 }
 
 .graph-viewport {
@@ -803,17 +798,6 @@ button:focus-visible {
   stroke-opacity: 0.36;
 }
 
-.graph-transition-edge {
-  fill: none;
-  stroke: var(--accent);
-  stroke-dasharray: 6 4;
-  stroke-opacity: 0.86;
-}
-
-.graph-arrow-head {
-  fill: var(--accent);
-}
-
 .graph-node circle {
   fill: var(--tan);
   stroke: var(--dark-brown);
@@ -824,11 +808,6 @@ button:focus-visible {
   fill: var(--dark-brown);
   font-size: 12px;
   pointer-events: none;
-}
-
-.graph-transition-only-node circle {
-  fill: #f2d4c9;
-  stroke: var(--accent);
 }
 
 .graph-player-node circle {
@@ -847,6 +826,47 @@ button:focus-visible {
   color: var(--brown);
   font-size: 14px;
   text-align: center;
+}
+
+.story-check {
+  margin-top: 16px;
+  border-top: 1px solid var(--tan);
+  padding-top: 12px;
+}
+
+.story-check-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.story-check-header h4 {
+  margin: 0;
+  color: var(--dark-brown);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.check-line {
+  margin: 8px 0 4px;
+  color: var(--dark-brown);
+  font-size: 13px;
+}
+
+.check-line.is-problem {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.check-list {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  color: var(--dark-brown);
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .debug-raw {

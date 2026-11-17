@@ -41,13 +41,15 @@
   const graphVisualization = document.getElementById("graph-visualization");
   const graphEmpty = document.getElementById("graph-empty");
   const debugContent = document.getElementById("debug-content");
+  const checkButton = document.getElementById("check-button");
+  const checkResults = document.getElementById("check-results");
   const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
   // Built-in stories live in stories/<name>.js, each calling registerStory({...}).
   // Add a file's name here to include it in the picker.
   const STORY_FILES = [
     "anywhere", "the_better_version", "the_distance_between_us",
-    "the_house_with_two_kitchens", "the_mountain_accounts",
+    "the_house_with_two_kitchens", "the_mountain_accounts", "the_night_ferry",
     "the_places_that_help", "the_quiet_ministry", "the_village_remembers"
   ];
 
@@ -104,6 +106,9 @@
       showDebugInfo();
     });
   }
+  if (checkButton) {
+    checkButton.addEventListener("click", runStoryCheck);
+  }
   if (debugClose && debugPanel) {
     debugClose.addEventListener("click", function () {
       debugPanel.hidden = true;
@@ -149,7 +154,7 @@
             return;
           }
           try {
-            resolve({ fileName: fileName, definition: validateStory(definition) });
+            resolve(Object.assign({ fileName: fileName }, validateStory(definition)));
           } catch (error) {
             resolve({ fileName: fileName, error: error.message });
           }
@@ -178,6 +183,7 @@
     });
   }
 
+  // Returns { definition, warnings }; throws when the story is invalid.
   function validateStory(definition) {
     if (!definition || typeof definition !== "object" || Array.isArray(definition)) {
       throw new TypeError("story definition must be an object");
@@ -185,7 +191,16 @@
     const graph = new window.MemoryGraph();
     const probe = new window.NarrativeEngine(definition, { graph: graph });
     probe.start();
-    return definition;
+    const warnings = probe.lint();
+    if (warnings.length > 0 && typeof console !== "undefined" && console.warn) {
+      console.warn("Story '" + definition.id + "' has " + warnings.length + " authoring warning(s):\n" +
+        warnings.map(formatWarning).join("\n"));
+    }
+    return { definition: definition, warnings: warnings };
+  }
+
+  function formatWarning(warning) {
+    return warning.location + ": " + warning.message;
   }
 
   function sortStories(list) {
@@ -225,8 +240,13 @@
         clearPlayer();
       }
 
+      const warningCount = stories.reduce(function (total, story) {
+        return total + story.warnings.length;
+      }, 0);
       const summary = stories.length + " stor" +
-        (stories.length === 1 ? "y" : "ies") + " loaded.";
+        (stories.length === 1 ? "y" : "ies") + " loaded." + (warningCount === 0 ? "" : " " +
+        warningCount + " authoring warning" + (warningCount === 1 ? "" : "s") +
+        ": open Graph State (i) to see them.");
       setStatus(rejected.length === 0
         ? summary
         : summary + " Skipped " + rejected.length + " invalid file" +
@@ -241,10 +261,8 @@
       const reader = new FileReader();
       reader.onload = function () {
         try {
-          resolve({
-            fileName: file.name,
-            definition: validateStory(JSON.parse(String(reader.result)))
-          });
+          resolve(Object.assign({ fileName: file.name },
+            validateStory(JSON.parse(String(reader.result)))));
         } catch (error) {
           resolve({ file: file, error: error.message });
         }
@@ -861,8 +879,7 @@
             "concepts": event.concepts,
             "sequence": event.sequence
           };
-        }),
-        "Transitions": graphState.transitions
+        })
       } : "No engine loaded"
     };
     
@@ -886,7 +903,79 @@
     }
 
     debugContent.textContent = JSON.stringify(debugData, null, 2);
+    renderCheckResults(null);
     debugPanel.hidden = false;
+  }
+
+  // ---- Story check ----------------------------------------------------
+  // Authoring warnings for the selected story, and on request a batch of
+  // random playthroughs that reports crashes, unreached nodes, and text that
+  // never appeared.
+
+  const CHECK_RUNS = 300;
+
+  function runStoryCheck() {
+    if (!selectedStory || !window.StoryCheck) return;
+    try {
+      renderCheckResults(window.StoryCheck.check(selectedStory.definition, { runs: CHECK_RUNS }));
+    } catch (error) {
+      renderCheckResults(null);
+      appendCheckLine("Check failed: " + error.message, true);
+    }
+  }
+
+  function renderCheckResults(result) {
+    if (!checkResults) return;
+    checkResults.replaceChildren();
+    if (checkButton) checkButton.disabled = !selectedStory || !window.StoryCheck;
+    if (!selectedStory) {
+      appendCheckLine("Choose a story to check it.");
+      return;
+    }
+    const warnings = result ? result.warnings : selectedStory.warnings;
+    appendCheckList(warnings.length === 0
+      ? "No authoring warnings."
+      : warnings.length + " authoring warning" + (warnings.length === 1 ? "" : "s") + ":",
+    warnings.map(formatWarning), warnings.length > 0);
+    if (!result) {
+      appendCheckLine("Check story plays " + CHECK_RUNS + " random runs and lists anything they never reached.");
+      return;
+    }
+    appendCheckList(result.errors.length === 0
+      ? "All " + result.runs + " random runs finished cleanly."
+      : result.errors.length + " kind" + (result.errors.length === 1 ? "" : "s") + " of failure:",
+    result.errors.map(function (error) { return "Seed " + error.seed + ": " + error.message; }),
+    result.errors.length > 0);
+    appendCheckList("Endings reached:", Object.keys(result.endings).map(function (id) {
+      return id + ": " + result.endings[id] + " run" + (result.endings[id] === 1 ? "" : "s");
+    }), Object.keys(result.endings).some(function (id) { return result.endings[id] === 0; }));
+    appendCheckList(result.unvisitedNodes.length === 0
+      ? "Every node was reached."
+      : "Nodes never reached:", result.unvisitedNodes, result.unvisitedNodes.length > 0);
+    appendCheckList(result.missedBranches.length === 0
+      ? "Every piece of conditional text, choice, and route was used."
+      : "Never used in any run (may be unreachable, or just rare):", result.missedBranches,
+    result.missedBranches.length > 0);
+  }
+
+  function appendCheckLine(text, isProblem) {
+    const line = document.createElement("p");
+    line.className = "check-line" + (isProblem ? " is-problem" : "");
+    line.textContent = text;
+    checkResults.appendChild(line);
+  }
+
+  function appendCheckList(heading, items, isProblem) {
+    appendCheckLine(heading, isProblem);
+    if (items.length === 0) return;
+    const list = document.createElement("ul");
+    list.className = "check-list";
+    items.forEach(function (item) {
+      const entry = document.createElement("li");
+      entry.textContent = item;
+      list.appendChild(entry);
+    });
+    checkResults.appendChild(list);
   }
 
   function renderGraphVisualization(graphState) {
@@ -896,7 +985,6 @@
     const nodesById = new Map();
     const associationsByPair = new Map();
     const events = graphState ? graphState.events : [];
-    const transitions = graphState ? graphState.transitions : [];
 
     events.forEach(function (event) {
       event.concepts.forEach(function (concept) {
@@ -923,14 +1011,6 @@
       }
     });
 
-    transitions.forEach(function (transition) {
-      [transition.from, transition.to].forEach(function (concept) {
-        if (!nodesById.has(concept)) {
-          nodesById.set(concept, { id: concept, eventCount: 0 });
-        }
-      });
-    });
-
     const nodes = Array.from(nodesById.values())
       .sort(function (a, b) { return compareText(a.id, b.id); })
       .map(function (node) {
@@ -946,8 +1026,7 @@
     const associations = Array.from(associationsByPair.values());
     graphSummary.textContent = [
       formatGraphCount(nodes.length, "concept"),
-      formatGraphCount(associations.length, "association"),
-      formatGraphCount(transitions.length, "transition")
+      formatGraphCount(associations.length, "association")
     ].join(" · ");
     graphEmpty.hidden = nodes.length > 0;
     graphVisualization.hidden = nodes.length === 0;
@@ -955,7 +1034,7 @@
 
     const width = Math.max(840, Math.ceil(Math.sqrt(nodes.length) * 210));
     const height = Math.max(560, Math.ceil(Math.sqrt(nodes.length) * 150));
-    const positioned = layoutGraphNodes(nodes, associations, transitions, width, height);
+    const positioned = layoutGraphNodes(nodes, associations, width, height);
     const positionById = new Map(positioned.map(function (node) {
       return [node.id, node];
     }));
@@ -965,26 +1044,9 @@
     graphVisualization.setAttribute("viewBox", "0 0 " + width + " " + height);
     graphVisualization.setAttribute(
       "aria-label",
-      "Memory graph with " + formatGraphCount(nodes.length, "concept") + ", " +
-        formatGraphCount(associations.length, "association") + ", and " +
-        formatGraphCount(transitions.length, "transition") + "."
+      "Memory graph with " + formatGraphCount(nodes.length, "concept") + " and " +
+        formatGraphCount(associations.length, "association") + "."
     );
-
-    const definitions = createSvgElement("defs");
-    const arrow = createSvgElement("marker");
-    arrow.setAttribute("id", "memory-graph-arrow");
-    arrow.setAttribute("viewBox", "0 0 10 10");
-    arrow.setAttribute("refX", "9");
-    arrow.setAttribute("refY", "5");
-    arrow.setAttribute("markerWidth", "6");
-    arrow.setAttribute("markerHeight", "6");
-    arrow.setAttribute("orient", "auto-start-reverse");
-    const arrowHead = createSvgElement("path");
-    arrowHead.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-    arrowHead.setAttribute("class", "graph-arrow-head");
-    arrow.appendChild(arrowHead);
-    definitions.appendChild(arrow);
-    graphVisualization.appendChild(definitions);
 
     const edgeLayer = createSvgElement("g");
     edgeLayer.setAttribute("class", "graph-edge-layer");
@@ -1005,21 +1067,6 @@
       line.appendChild(title);
       edgeLayer.appendChild(line);
     });
-    transitions.forEach(function (transition, index) {
-      const source = positionById.get(transition.from);
-      const target = positionById.get(transition.to);
-      const path = createSvgElement("path");
-      const pathData = transitionPath(source, target, index);
-      path.setAttribute("d", pathData);
-      path.setAttribute("class", "graph-transition-edge");
-      path.setAttribute("marker-end", "url(#memory-graph-arrow)");
-      path.setAttribute("stroke-width", String(1.5 + Math.min(3, Math.log2(transition.count + 1))));
-      const title = createSvgElement("title");
-      title.textContent = transition.type + ": " + transition.from + " → " +
-        transition.to + " · " + transition.count;
-      path.appendChild(title);
-      edgeLayer.appendChild(path);
-    });
     graphVisualization.appendChild(edgeLayer);
 
     const nodeLayer = createSvgElement("g");
@@ -1027,7 +1074,6 @@
     positioned.forEach(function (node) {
       const group = createSvgElement("g");
       const classes = ["graph-node"];
-      if (node.eventCount === 0) classes.push("graph-transition-only-node");
       if (node.id === "player") classes.push("graph-player-node");
       group.setAttribute("class", classes.join(" "));
       const circle = createSvgElement("circle");
@@ -1056,7 +1102,7 @@
     graphVisualization.appendChild(nodeLayer);
   }
 
-  function layoutGraphNodes(nodes, associations, transitions, width, height) {
+  function layoutGraphNodes(nodes, associations, width, height) {
     const columns = Math.ceil(Math.sqrt(nodes.length * width / height));
     const rows = Math.ceil(nodes.length / columns);
     const cellWidth = (width - 180) / columns;
@@ -1085,13 +1131,7 @@
         target: nodeById.get(edge.target),
         weight: 0.8 + Math.min(0.6, Math.log2(edge.score + 1) * 0.12)
       };
-    }).concat(transitions.map(function (edge) {
-      return {
-        source: nodeById.get(edge.from),
-        target: nodeById.get(edge.to),
-        weight: 0.65 + Math.min(0.35, Math.log2(edge.count + 1) * 0.1)
-      };
-    }));
+    });
     const idealDistance = Math.sqrt(width * height / Math.max(1, nodes.length));
     const iterations = 160;
     const margin = 90;
@@ -1188,25 +1228,6 @@
       }
       if (!moved) break;
     }
-  }
-
-  function transitionPath(source, target, index) {
-    if (source.id === target.id) {
-      return "M " + (source.x - source.radius * 0.55) + " " + (source.y - source.radius * 0.8) +
-        " C " + (source.x - 42) + " " + (source.y - 54) + ", " +
-        (source.x + 42) + " " + (source.y - 54) + ", " +
-        (source.x + source.radius * 0.55) + " " + (source.y - source.radius * 0.8);
-    }
-    const vector = unitVector(source, target);
-    const startX = source.x + vector.x * source.radius;
-    const startY = source.y + vector.y * source.radius;
-    const endX = target.x - vector.x * target.radius;
-    const endY = target.y - vector.y * target.radius;
-    const offset = (index % 2 === 0 ? 1 : -1) * (12 + index % 3 * 5);
-    const controlX = (startX + endX) / 2 - vector.y * offset;
-    const controlY = (startY + endY) / 2 + vector.x * offset;
-    return "M " + startX + " " + startY + " Q " + controlX + " " +
-      controlY + " " + endX + " " + endY;
   }
 
   function unitVector(source, target) {

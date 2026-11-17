@@ -39,7 +39,7 @@ function createPlayer() {
     "ending-summary", "ending-traces", "ending-summary-empty", "ending-path",
     "ending-path-label", "ending-choices", "ending-reputation", "ending-reputation-list", "reputation-panel", "reputation-tabs", "reputation-body",
     "restart-button", "clear-button", "save-button", "restore-button", "status-message",
-    "info-button", "debug-panel", "debug-close", "debug-content"
+    "info-button", "debug-panel", "debug-close", "debug-content", "check-button", "check-results"
   ];
   const elements = Object.fromEntries(ids.map(function (id) {
     return [id, new Element()];
@@ -87,9 +87,10 @@ function createPlayer() {
     setItem: function (key, value) { storage.set(key, value); },
     getItem: function (key) { return storage.has(key) ? storage.get(key) : null; }
   };
-  context = vm.createContext({ document, FileReader, localStorage, console });
+  const quietConsole = { error: console.error, log: console.log, warn: function () {} };
+  context = vm.createContext({ document, FileReader, localStorage, console: quietConsole });
   context.window = context;
-  ["MemoryGraph.js", "NarrativeEngine.js", "storyPlayer.js"].forEach(function (file) {
+  ["MemoryGraph.js", "NarrativeEngine.js", "StoryCheck.js", "storyPlayer.js"].forEach(function (file) {
     vm.runInContext(fs.readFileSync(path.join(root, "scripts", file), "utf8"), context);
   });
   const ready = Promise.all(scriptLoads).then(function () {
@@ -125,10 +126,7 @@ const story = {
         {
           id: "again",
           text: "Choose again",
-          do: [
-            { type: "remember", concepts: ["player", "choice"] },
-            { type: "learnTransition", transitionType: "route", from: "loop", to: "end" }
-          ],
+          do: [{ type: "remember", concepts: ["player", "choice"] }],
           goto: "loop"
         },
         { id: "finish", text: "Finish", goto: "end" }
@@ -214,14 +212,13 @@ test("Graph State reports memory sequence numbers", async function () {
   assert.equal(debugInfo["Memory Graph"]["Events"][0].sequence, 1);
 });
 
-test("Graph State visualizes every concept, association, and transition", async function () {
+test("Graph State visualizes every concept and association", async function () {
   const player = createPlayer();
   await loadStory(player);
   player.elements["choice-list"].children[0].click();
   player.elements["info-button"].click();
 
-  assert.equal(player.elements["graph-summary"].textContent,
-    "4 concepts · 1 association · 1 transition");
+  assert.equal(player.elements["graph-summary"].textContent, "2 concepts · 1 association");
   const layers = player.elements["graph-visualization"].children;
   const edgeLayer = layers.find(function (layer) {
     return layer.className === "graph-edge-layer";
@@ -229,10 +226,8 @@ test("Graph State visualizes every concept, association, and transition", async 
   const nodeLayer = layers.find(function (layer) {
     return layer.className === "graph-node-layer";
   });
-  assert.equal(edgeLayer.children.length, 2);
-  assert.equal(nodeLayer.children.length, 4);
-  const debugInfo = JSON.parse(player.elements["debug-content"].textContent);
-  assert.equal(debugInfo["Memory Graph"]["Transitions"][0].type, "route");
+  assert.equal(edgeLayer.children.length, 1);
+  assert.equal(nodeLayer.children.length, 2);
 });
 
 test("transcript preserves shown text and choices across revisits and resets", async function () {
@@ -387,4 +382,29 @@ test("saving and restoring preserves the transcript and accepts older saves", as
   player.elements["restore-button"].click();
   assert.deepEqual(transcript(player), ["After choosing."]);
   assert.match(player.elements["status-message"].textContent, /Earlier story text is unavailable/);
+});
+
+test("uploads report authoring warnings, and Check story plays the story", async function () {
+  const player = createPlayer();
+  const warned = JSON.parse(JSON.stringify(story));
+  warned.traits = { kind: { concepts: { help: 1 } } };
+  player.elements["story-files"].files = [{ name: "w.json", content: JSON.stringify(warned) }];
+  player.elements["story-files"].listeners.change();
+  await new Promise(function (resolve) { setImmediate(resolve); });
+  assert.match(player.elements["status-message"].textContent,
+    /1 story loaded\. 1 authoring warning: open Graph State \(i\) to see them\./);
+
+  player.elements["info-button"].click();
+  const lines = function () {
+    return player.elements["check-results"].children.map(function (child) {
+      return child.textContent || child.children.map(function (item) { return item.textContent; }).join(" | ");
+    });
+  };
+  assert.equal(lines()[0], "1 authoring warning:");
+  assert.match(lines()[1], /trait 'kind': none of its concepts is ever remembered/);
+
+  player.elements["check-button"].click();
+  const report = lines();
+  assert.ok(report.indexOf("All 300 random runs finished cleanly.") !== -1, report.join("\n"));
+  assert.ok(report.indexOf("Every node was reached.") !== -1, report.join("\n"));
 });

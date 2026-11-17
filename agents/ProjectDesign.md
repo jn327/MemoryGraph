@@ -16,22 +16,23 @@ persistent associative memory.
 
 The system has two core library modules and a separate demo UI:
 
-1.  **MemoryGraph** stores events as collections of named concepts,
-    builds weighted associations between concepts, learns ordered
-    transitions, and can spread activation from one or more concepts to
-    find related memories.
+1.  **MemoryGraph** stores events as collections of named concepts and
+    builds weighted associations between concepts that appear together.
 2.  **NarrativeEngine** interprets a JSON story definition. It displays
     scene text and choices, evaluates declarative conditions, executes
     declarative operations, and moves between story nodes.
 
-The **StoryPlayer** is demo UI outside the core library. It offers built-in
+Two smaller pieces sit outside the core library. **StoryCheck** plays a
+story many times at random and reports problems (section 17). The
+**StoryPlayer** is demo UI. It offers built-in
 stories and lets the user upload a folder or JSON files, renders the
 engine's view, and sends selected visible choices back to the engine. It
 is not a required library module or a supported UI framework.
 
 A story author should be able to create or modify a story by editing
 JSON only. They should not need to write JavaScript for ordinary story
-logic.
+logic. The author-facing guide is [docs/writing-stories.md](../docs/writing-stories.md);
+this document is the full reference.
 
 The engine is not an LLM and does not understand natural language
 automatically. It operates on concepts and rules explicitly supplied by
@@ -93,19 +94,20 @@ Use the existing project structure:
   scripts/
     MemoryGraph.js
     NarrativeEngine.js
+    StoryCheck.js           # random-playthrough checker; used by tests and the demo
     storyPlayer.js          # demo UI only; not part of the core library
   styles/
     shared.css
   stories/
     *.js                    # registerStory({...}) around a JSON definition
+  docs/
+    writing-stories.md      # guide for story authors
+    story-template.json     # a minimal story to copy
   tests/                    # dependency-free unit tests using Node's built-in runner
-    memory-graph.test.js
-    narrative-engine.test.js
-    story-player.test.js
 ```
 
-Load `MemoryGraph.js`, `NarrativeEngine.js`, and `storyPlayer.js` in that
-order from `index.html`; `storyPlayer.js` loads the story files itself. The core scripts expose `MemoryGraph` and
+Load `MemoryGraph.js`, `NarrativeEngine.js`, `StoryCheck.js`, and
+`storyPlayer.js` in that order from `index.html`; `storyPlayer.js` loads the story files itself. The core scripts expose `MemoryGraph` and
 `NarrativeEngine` through explicit `window` properties. `storyPlayer.js`
 is the browser demo entry point; core scripts must not depend on the
 demo, DOM, or styles.
@@ -136,14 +138,14 @@ The graph also maintains indexes and weighted associations so queries
 are efficient. The event log is the source record; derived indexes can
 be rebuilt from it.
 
-### 5.3 Associations and transitions are different
+### 5.3 Associations
 
--   **Associations** are undirected weighted links created between every
-    pair of concepts in one event.
--   **Transitions** are directed counts of one item following another,
-    stored separately and grouped by a caller-supplied transition type.
+**Associations** are undirected weighted links created between every pair
+of concepts in one event. They carry no order: use node visits, variables,
+or separate events when sequence matters.
 
-Do not use association links as a substitute for sequence information.
+Earlier versions also had directed transitions and spreading activation.
+No story used them, so they were removed to keep the library small.
 
 ### 5.4 Deterministic and explainable
 
@@ -228,92 +230,6 @@ ascending alphabetical concept name.
 
 Return the direct association score, or `0` if no edge exists.
 
-#### `learnTransition(type, from, to, amount = 1)`
-
-Record a directed transition from `from` to `to` in the named transition
-group.
-
--   `type`, `from`, and `to` are non-empty strings.
--   `amount` defaults to `1` and must be finite and positive.
--   Store counts separately for each transition type.
--   Aggregate observations by transition type, `from`, and `to`; metadata
-    is not retained by the MVP.
--   Return the updated transition count.
-
-#### `predictNext(type, from, limit = 10)`
-
-Return possible next values ordered by descending count, breaking ties
-alphabetically by destination concept:
-
-``` js
-[
-  { concept: "strike", score: 8 },
-  { concept: "heal", score: 3 }
-]
-```
-
-This is a frequency-based prediction, not a guarantee. Return an empty
-array when there is no data.
-
-#### `activate(start, options = {})`
-
-Spread activation through association edges.
-
-Example:
-
-``` js
-const results = graph.activate("wolf", {
-  depth: 3,
-  decay: 0.7,
-  limit: 20
-});
-```
-
-Return:
-
-``` js
-[
-  { concept: "wolf", activation: 1 },
-  { concept: "forest", activation: 0.7 },
-  { concept: "help", activation: 0.7 }
-]
-```
-
-Required behaviour:
-
--   The starting concept has activation `1`.
--   At each hop, propagate activation to neighbours.
--   For an edge with positive score `s`, normalize edge influence as
-    `s / (s + edgeK)`, where `edgeK` is a finite positive option
-    (default `1`). This yields a value strictly between `0` and `1`;
-    never multiply activation directly by the unbounded raw score.
--   Propagate using `nextActivation = activation * decay * edgeInfluence`,
-    where `decay` is in `(0, 1]`.
--   Prevent cycles from causing infinite work.
--   Track the strongest activation reached for each `(concept, depth)`
-    pair; revisit that pair only when a stronger path is found. Return
-    each concept once, with its maximum activation across depths.
--   Stop at `depth` hops and optionally at a configurable minimum
-    activation.
--   Exclude or include the start concept according to a documented
-    option; default should include it.
--   Return results ordered by descending activation, with deterministic
-    tie-breaking.
--   `limit` bounds returned results, not traversal. Bound traversal
-    separately with `maxExpansions` (default `10000` edge examinations);
-    throw a descriptive error if the budget is exceeded rather than
-    returning an indistinguishable partial result.
-
-Suggested defaults: `depth: 2`, `decay: 0.7`, `edgeK: 1`,
-`minActivation: 0.01`, `limit: 20`, `maxExpansions: 10000`.
-
-#### `activateMany(starts, options = {})`
-
-Spread activation from several starting concepts and merge the results
-by taking the maximum activation per concept (not summing by default).
-`starts` is an array of concept strings and each start has initial
-activation `1`; weighted starts are not supported in the MVP.
-
 #### `findMemories(concept, limit = 20)`
 
 Return recent or relevant event records containing a concept, using a
@@ -326,8 +242,10 @@ learning:
 
 -   events and metadata
 -   association scores and counts, or enough source data to rebuild them
--   transitions
 -   sequence counter and ID counter
+
+`toJSON()` writes version 2. `fromJSON()` also accepts version 1 saves and
+ignores their retired `transitions` list.
 
 Validate loaded data and provide useful errors for malformed input. Do
 not serialize `Map` objects directly; convert them to plain
@@ -335,8 +253,7 @@ JSON-compatible objects or arrays.
 
 #### `clear()`
 
-Clear all stored events, indexes, associations, transitions, and
-counters.
+Clear all stored events, indexes, associations, and counters.
 
 ### 6.3 Association construction
 
@@ -493,12 +410,6 @@ Example:
               "type": "remember",
               "concepts": ["player", "help", "wolf", "mercy"],
               "metadata": { "actor": "player", "action": "help" }
-            },
-            {
-              "type": "learnTransition",
-              "transitionType": "player_choice",
-              "from": "wolf_encounter",
-              "to": "help_wolf"
             }
           ],
           "goto": "hunter"
@@ -534,10 +445,10 @@ Example:
           "id": "lie",
           "text": "Lie to protect the wolf",
           "showIf": {
-            "type": "activation",
-            "starts": ["wolf"],
-            "contains": "mercy",
-            "min": 0.1
+            "type": "association",
+            "a": "player",
+            "b": "mercy",
+            "min": 1
           },
           "do": [
             {
@@ -572,8 +483,7 @@ Example:
 ```
 
 This example uses the canonical `{ "type": "...", ... }` format for all
-operations and conditions. Transitions are learned only through explicit
-`learnTransition` operations; the engine does not infer them from choices.
+operations and conditions.
 
 ## 8. Declarative operations
 
@@ -586,10 +496,9 @@ Recommended representation:
 { "type": "remember", "concepts": ["player", "help", "wolf"] }
 ```
 
-Required MVP built-in operations are `remember`, `learnTransition`,
-`activate`, `set`, `inc`, `dec`, and `macro`; `gossip` and `reveal`, and
-the `witnesses` and `summary` fields of `remember`, are described in
-section 12. Every operation is expressed
+Built-in operations are `remember`, `set`, `inc`, `dec`, and `macro`;
+`gossip`, `reveal`, and `doubt`, and the `witnesses`, `summary`, and
+`subject` fields of `remember`, are described in section 12. Every operation is expressed
 with its own `type` property. The `goto` field is navigation data on a
 choice, not an operation; `forget` is deferred and is not supported in
 the MVP.
@@ -606,35 +515,6 @@ the MVP.
 ```
 
 Creates one memory event.
-
-### `learnTransition`
-
-``` json
-{
-  "type": "learnTransition",
-  "transitionType": "player_choice",
-  "from": "wolf_encounter",
-  "to": "help_wolf",
-  "amount": 1
-}
-```
-
-Records a directed transition.
-
-### `activate`
-
-``` json
-{
-  "type": "activate",
-  "starts": ["wolf", "hunter"],
-  "options": { "depth": 2, "decay": 0.7, "limit": 20 },
-  "storeAs": "currentThoughts"
-}
-```
-
-Stores activation results in a named variable for later conditions or UI
-use. Do not mutate global graph activation state unless a deliberate API
-is added.
 
 ### `set`
 
@@ -664,7 +544,7 @@ Use a consistent representation:
 
 Required condition types are listed below. The perspective conditions
 `trait`, `dominantTrait`, and `knows`, and the optional `perspective` field
-on `association` and `activation`, are described in section 12.
+on `association`, are described in section 12.
 
 Required condition types:
 
@@ -684,35 +564,6 @@ True when the direct association score is at least `min`.
   "a": "player",
   "b": "mercy",
   "min": 2
-}
-```
-
-### `activation`
-
-True when a concept reaches at least the requested activation after
-spreading from one or more start concepts.
-
-``` json
-{
-  "type": "activation",
-  "starts": ["wolf", "hunter"],
-  "contains": "lie",
-  "min": 0.2,
-  "options": { "depth": 3, "decay": 0.7 }
-}
-```
-
-### `transition`
-
-True when a directed transition count reaches a threshold.
-
-``` json
-{
-  "type": "transition",
-  "transitionType": "player_choice",
-  "from": "wolf_encounter",
-  "to": "help_wolf",
-  "min": 1
 }
 ```
 
@@ -808,7 +659,20 @@ Use the first matching route. Require exactly one unconditional route as
 the final fallback. Validate every destination node ID, including
 destinations on conditional routes.
 
-### 10.3 Branches that diverge and collect
+### 10.3 Placeholders
+
+Any node text, text part (`text`, `else`, `format`, `otherwise`), choice
+text, or `remember` summary can contain:
+
+-   `{name:mira}`: the character's `name` (validated against
+    `characters`).
+-   `{var:coins}`: the variable's current value. Using a variable that has
+    not been set, or that holds an object or array, is a runtime error.
+
+Summaries are filled in when the event is remembered. Other braces are
+left as they are, including a recall format's `{summary}`.
+
+### 10.4 Branches that diverge and collect
 
 Multiple choices may point to the same node. This is how branches
 collect again. The engine must not duplicate nodes or require separate
@@ -881,7 +745,7 @@ the exact path that got them there.
 
 All of this lives in `NarrativeEngine`. `MemoryGraph` is unchanged: the
 graph's event log is the single source of truth, and each perspective is
-a view over it.
+a weighted reading of it.
 
 ### 12.1 Story fields
 
@@ -918,10 +782,10 @@ All three fields are optional.
 ### 12.2 Knowledge and perspectives
 
 The engine keeps `knowledge`: for each character, the events they know
-and a belief in `(0, 1]`. A character's **perspective** is a
-`MemoryGraph` rebuilt from the events they know, each weighted by
-`strength × belief × recency`. Omitting the perspective gives the
-**world** view: every event at full belief, still recency-weighted.
+and a belief in `(0, 1]`. A character's **perspective** reads the event
+log with each event weighted by `strength × belief × recency`; events
+they don't know weigh 0. Omitting the perspective gives the **world**
+view: every event at full belief, still recency-weighted.
 
 -   `remember` accepts `witnesses` (an array of character IDs, or `"all"`).
     Each witness learns the new event at belief 1.
@@ -929,6 +793,9 @@ and a belief in `(0, 1]`. A character's **perspective** is a
     belief, so hearsay counts for less than seeing.
 -   `reveal` teaches characters events from the world log directly, for
     example evidence being shown, a confession, or a public record.
+-   `doubt` talks characters out of what they know: their belief in
+    matching events drops to at most `belief` (default 0, which removes
+    the event from their knowledge).
 
 A character's view can only include what they witnessed or were told.
 
@@ -936,10 +803,13 @@ A character's view can only include what they witnessed or were told.
 
 ```
 traitScore(trait, perspective, subject = "player")
-  = Σ weight(concept) × associationScore(subject, concept)
+  = Σ weight(concept) × linkWeight(subject, concept, perspective)
+
+linkWeight(a, b, perspective)
+  = Σ over events containing both a and b of strength × belief × recency
 ```
 
-The association score is read from the perspective graph. Events must
+The link weight is read from the perspective. Events must
 include the subject concept (normally `"player"`) to count. Using
 another subject scores a character instead. For example,
 `"subject": "ellis"` asks how dangerous the jury thinks Ellis is.
@@ -956,6 +826,21 @@ both are given). It is the text that recall uses. Write summaries as
 second-person past-tense verb phrases that complete "you …", for example
 "carried her flour" or "told the inspector you'd never seen it". Never
 write them in a character's first person ("asked us", "our door").
+
+`subject` (optional, stored as `metadata.subject`) names whose act the
+summary describes when it isn't the player's. It must be one of the
+event's concepts. The summary then completes "<subject> …": with
+`"subject": "jory"`, "was seen near the luggage". Without `subject`, an
+event that includes `"player"` is the player's act. Keep one subject per
+event: everyone in an event is linked to all of its concepts, so record
+an act and its consequence for someone else as two events.
+
+``` json
+{ "type": "doubt", "to": ["hale"], "about": { "concepts": ["jory", "suspected"] }, "belief": 0.25 }
+```
+
+`doubt` requires `about`. `belief` is in `[0, 1)` and defaults to 0.
+A later `gossip` or `reveal` can restore belief.
 
 ``` json
 { "type": "gossip", "from": "mira", "to": ["tomas"],
@@ -987,8 +872,8 @@ write them in a character's first person ("asked us", "our door").
 -   `knows` is true when the character knows a matching event with
     belief of at least `min` (any belief above zero by default). It does
     not require the player to be in the event.
--   `association` and `activation` accept an optional `perspective`.
-    Without one they read the raw graph, as before.
+-   `association` accepts an optional `perspective`, and then compares
+    `linkWeight`. Without one it reads the raw graph (no recency fade).
 
 ### 12.6 Composed text and recall
 
@@ -1021,6 +906,8 @@ and empty parts are skipped. Each part is either a string or an object:
         dominates the perspective, so a character recalls the act that
         defines you to them.
     -   `rank: 2` picks the second-best match.
+    -   `subject` (default `"player"`) only matches events whose subject
+        it is (see `remember`'s `subject`).
     -   Without `format`, the summary is used alone. When nothing
         matches, `otherwise` (default empty) is used.
     -   Formats should address the player as "you", because summaries
@@ -1033,12 +920,13 @@ combinatorial set of hand-written variants.
 ### 12.7 Engine API
 
 ``` js
-engine.perspectiveGraph("mira");          // read-only MemoryGraph view
+engine.linkWeight("player", "lie", "mira"); // number
 engine.traitScore("kind", "mira");        // number
 engine.traitScores("mira");               // { trait: score }
 engine.recall({ perspective: "mira", about: { trait: "kind" } }); // or null
 engine.describeReputation();              // per-character summary for UIs
 engine.characterName("mira");
+engine.subjectName("ellis");              // "you" for the player, else a name
 engine.traitLabel("kind");
 ```
 
@@ -1047,9 +935,8 @@ event, with their positive traits in descending order and the memory
 recalled for their dominant trait. The demo shows it at every ending as
 "How the people you met remember you".
 
-Perspective graphs are cached and rebuilt when the graph's sequence or
-the engine's knowledge changes. `reset()` and `loadState()` clear the
-cache.
+Perspectives are computed from the event log on demand; nothing is
+cached.
 
 ### 12.8 Explanations and memory tags
 
@@ -1071,7 +958,7 @@ branch. It reports a **cause** for:
     { text: " People step back from you. Not far. Just enough.",
       cause: {
         tag: "fear",
-        kind: "trait",            // trait | knows | association | activation | recall | author
+        kind: "trait",            // trait | knows | association | recall | author | echo
         trait: "dangerous",       // or null
         color: null,              // the trait's optional "color"
         explanation: [{
@@ -1091,12 +978,15 @@ Segments always concatenate to exactly `text`. A text variant's cause is
 attached to its first segment.
 
 Only memory conditions explain themselves: `trait` (with `min`),
-`dominantTrait`, `knows`, and `association`/`activation`. `all` collects
+`dominantTrait`, `knows`, and `association`. `all` collects
 the causes of its children, `any` uses its first true child, and
 `macroCondition` follows the macro. `not`, `variable`, and `visited`
 produce no cause. Explanations list up to three supporting remembered
 acts (those with a `summary`), strongest first, marking anything the
-character only heard about as "(heard secondhand)".
+character only heard about as "(heard secondhand)". When every listed act
+is the player's, the heading ends "because you:" and items are bare
+summaries; otherwise it ends "because:" and each item is prefixed with
+its subject ("you accused Jory", "Jory was seen near the luggage").
 
 **Tags.** The engine builds a default label: "Mira: a liar" for a trait,
 "Abara knows" for `knows`, the concept for an association, and
@@ -1174,7 +1064,7 @@ the choices:
 
 Its open or closed state is remembered per browser.
 
-## 13. Choice handling and state transitions
+## 13. Choice handling and state changes
 
 `getView()` returns only choices whose `showIf` condition is true. Each
 returned choice includes its original choice ID and a new visible index.
@@ -1186,11 +1076,9 @@ The visible-choice list is recalculated from current state on every call.
 2.  Validates the index.
 3.  Executes the selected choice's `do` operations in order.
 4.  Records the choice in choice history.
-5.  Does not learn a transition automatically. Transitions are recorded
-    only by an explicit `learnTransition` operation in the story.
-6.  Resolves `goto` if present.
-7.  Enters the destination node and runs its `onEnter`.
-8.  Returns the new `getView()` result.
+5.  Resolves `goto`.
+6.  Enters the destination node and runs its `onEnter`.
+7.  Returns the new `getView()` result.
 
 Choice operations run in order and stop at the first error. The engine
 does not undo operations that already succeeded. For example, if a
@@ -1258,7 +1146,9 @@ Validate a story definition before starting:
 -   All operation types are known.
 -   All referenced macros exist.
 -   Macro recursion is rejected.
--   Concepts and transition identifiers are non-empty strings.
+-   Concepts are non-empty strings.
+-   `{name:…}` placeholders name known characters, and a `remember`
+    `subject` is one of its concepts.
 -   At least one explicitly marked ending is reachable from `start`
     when all declared route destinations are considered.
 
@@ -1271,7 +1161,7 @@ reachability cannot detect.
 Errors should identify the story, node, choice, and offending field
 where possible. Do not silently ignore malformed rules.
 
-## 16. Extensibility
+## 16. Extensibility and authoring tools
 
 Expose registries on the engine:
 
@@ -1296,6 +1186,57 @@ receive unrestricted access to browser globals through the story JSON.
 Never use `eval`, `Function`, or execute arbitrary JavaScript strings
 from story data.
 
+### 16.1 Authoring warnings
+
+`engine.lint()` returns `[{ location, message }]` for things that are
+valid but almost certainly mistakes. It never throws for them:
+
+-   a concept used in a trait, `knows`, `association`, `about`, or
+    `subject` that no `remember` in the story ever produces (usually a
+    typo), or a trait none of whose concepts is ever remembered;
+-   a `remember` that counts toward a trait about a subject but has no
+    `summary`, so recall and tags can't cite it;
+-   a summary with no subject, one that starts with "you", or one that
+    ends with punctuation;
+-   a character who never witnesses or hears about anything;
+-   a variable that is read but never set (and isn't an initial
+    variable);
+-   a placeholder that isn't `{name:…}` or `{var:…}`, or `{summary}`
+    outside a recall format;
+-   a macro that is never used.
+
+Concepts produced only by custom operations are reported too; treat
+those warnings as expected.
+
+### 16.2 Branch coverage
+
+`engine.branches()` lists a stable ID for every text variant, each
+conditional text part's outcomes (`(text)`, `(else)`, `(recall)`,
+`(otherwise)`), each choice being offered, and each conditional route
+entry, for example `node 'galley' text variant 0 part 1 (else)`. Pass
+`onBranch: function (id) { … }` to the constructor to be told whenever
+one is used. The callback must not change engine state.
+
+### 16.3 StoryCheck
+
+`StoryCheck.check(definition, { runs, seed, maxSteps })` plays `runs`
+seeded random playthroughs (default 500) and returns:
+
+``` js
+{
+  runs: 500,
+  errors: [{ run, seed, message }],      // up to 10 distinct failures
+  unvisitedNodes: ["node_id"],
+  missedBranches: ["node 'x' text variant 1"],
+  endings: { ending_id: count },          // unreached endings count 0
+  warnings: [{ location, message }]       // engine.lint()
+}
+```
+
+The demo's **Graph State** panel shows the selected story's warnings and
+has a **Check story** button that runs 300 playthroughs. Uploads that
+have warnings say so in the status line.
+
 ## 17. Automated test requirements
 
 Write automated tests for:
@@ -1307,14 +1248,8 @@ Write automated tests for:
 -   duplicate concepts in one event do not create duplicate links
 -   repeated events increase scores and `seen`
 -   event metadata and event lookup work
--   transition counts and predictions are directional
--   activation spreads across multiple hops
--   activation decays and respects depth
--   cycles terminate
--   the edge normalization formula bounds influence as edge scores grow
--   best activation is tracked independently at each depth
--   activation throws when `maxExpansions` is exceeded
--   serialization and restoration preserve query results
+-   serialization and restoration preserve query results, and version 1
+    saves still load
 
 ### NarrativeEngine
 
@@ -1335,8 +1270,8 @@ Write automated tests for:
 -   `getView()` does not change engine or graph state
 -   non-ending nodes with no visible choices fail at runtime
 -   stories without a reachable explicit ending fail validation
--   transitions are learned only when an explicit `learnTransition`
-    operation runs
+-   retired `learnTransition`, `activate`, `transition`, and `activation`
+    rules are rejected as unknown
 -   macros execute and recursive macros fail clearly
 -   history and variables update correctly
 -   graph and engine state serialize and restore separately
@@ -1344,7 +1279,7 @@ Write automated tests for:
 -   witnesses learn only what they saw; gossip passes it on at reduced
     belief; reveal teaches from the world log
 -   trait scores, negative weights, `dominantTrait`, `knows`, and
-    perspective `association`/`activation` conditions
+    perspective `association` conditions
 -   `memory.halfLife` fades perspectives without changing the raw graph
 -   composed text parts, `if`/`else`, and recall with `about`, `among`,
     `format`, and `otherwise`
@@ -1356,6 +1291,13 @@ Write automated tests for:
 -   knowledge survives save/load (state version 2), accepts version 1
     saves, and follows `reset({ keepMemory })`
 -   malformed stories fail validation with useful errors
+-   `{name:…}` and `{var:…}` placeholders, including in summaries
+-   non-player subjects: reputations, recall, and explanations phrased
+    with each act's own subject
+-   `doubt` lowers or removes belief
+-   `lint()` reports each kind of warning in 16.1
+-   StoryCheck reports endings, unreached nodes, missed branches, and
+    failures
 
 ### StoryPlayer
 
@@ -1369,12 +1311,15 @@ Write automated tests for:
 -   memory-driven text and choices render tags with explanations
 -   picked choices show their echo (hidden witnesses unnamed), and the
     reputation panel lists Overall plus each known, non-hidden character
+-   uploads report authoring warnings, and **Check story** shows the
+    results of a run
 
 ### Built-in stories
 
--   1,500 seeded random playthroughs of every story finish without errors
-    or dead ends and between them reach every node; each story offers at
-    least three endings
+-   1,500 seeded random playthroughs of every story (via StoryCheck)
+    finish without errors or dead ends and between them reach every node;
+    each story offers at least three endings and has no authoring
+    warnings. Branches no run used are reported as test diagnostics.
 
 ### Browser (`file://`)
 
@@ -1390,9 +1335,9 @@ The implementation is complete when:
     browser.
 2.  A JSON-only story can present text and choices.
 3.  Choices can record multi-concept memories.
-4.  The graph exposes direct associations and spreading activation.
-5.  Story conditions can query association scores, activation,
-    transitions, variables, and visit history.
+4.  The graph exposes direct associations.
+5.  Story conditions can query association scores, character knowledge
+    and reputation, variables, and visit history.
 6.  Conditional text and conditional routing work.
 7.  Branches can diverge and later converge.
 8.  An engine save and graph save can be restored independently with the
@@ -1408,8 +1353,8 @@ The implementation is complete when:
 ## 19. Suggested implementation order
 
 1.  Implement and test `MemoryGraph` event storage, associations,
-    transitions, and serialization.
-2.  Add bounded activation spreading and event lookup.
+    serialization, and event lookup.
+2.  (Removed: activation spreading and transitions.)
 3.  Implement `NarrativeEngine` node lifecycle and `getView()` /
     `choose()`.
 4.  Add operations and condition evaluation.

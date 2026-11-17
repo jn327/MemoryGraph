@@ -25,7 +25,15 @@ registerStory({
   },
   "nodes": {
     "blue_room": {
-      "text": "You have narcolepsy. Your brain doesn't keep a clean border between waking and dreaming; sometimes it lets the dream through while your eyes are open. Dr Osei calls these hypnagogic episodes and helps you manage them with medication, a strict bedtime, and a diary.\n\nSince your father died in March, the episodes have a setting. A kitchen with blue tiles, a straight cupboard door, sun on the table. Your father at the table, peeling an orange in one long spiral the way he always did. You miss him so much your teeth hurt. You do not want grief to turn every symptom into a message you have to decode.\n\nTonight, at the end of a sixteen-hour day, he looks up from the orange. 'You left the gas on, Cassie.' You go to check. You did.",
+      "text": [{ "value": [
+        "You have narcolepsy. Your brain doesn't keep a clean border between waking and dreaming; sometimes it lets the dream through while your eyes are open. Dr Osei calls these hypnagogic episodes and helps you manage them with medication, a strict bedtime, and a diary.",
+        "\n\n",
+        "Since your father died in March, the episodes have a setting. A kitchen with blue tiles, a straight cupboard door, sun on the table. Your father at the table, peeling an orange in one long spiral the way he always did. You miss him so much your teeth hurt. You do not want grief to turn every symptom into a message you have to decode.",
+        "\n\n",
+        "Tonight, at the end of a sixteen-hour day, he looks up from the orange. 'You left the gas on, Cassie.' You go to check. You did.",
+        { "if": { "type": "macroCondition", "name": "fatherKnows" },
+          "text": "When you come back he is still looking at you, the way he never quite did in life. 'You know about the winter,' he says. 'You knew last time, too. You always find out.'" }
+      ] }],
       "onEnter": [{ "type": "remember", "concepts": ["father", "blue_kitchen", "orange", "episode"] }],
       "choices": [
         { "id": "diary", "text": "Write it in the sleep diary for Dr Osei, and go to bed",
@@ -78,9 +86,9 @@ registerStory({
     },
     "garden": {
       "text": [
-        { "if": { "type": "macroCondition", "name": "mumTrusts" },
-          "value": "She is standing by the dead hydrangeas. 'He was so proud of that sink,' she says. 'It was the only thing he ever fixed properly. The whole street flooded and he fixed the sink.' She laughs, and the laugh turns into something else halfway. 'There's more to it. I'll tell you. Not today. Let me get through today.'" },
-        { "value": "She is standing by the dead hydrangeas. 'It was a long time ago,' she says. 'The street flooded. He fixed the sink. That's all there is.' She says it like someone reading from a card. Then she goes back inside to help Mattie with the loft." }
+        { "if": { "type": "knows", "perspective": "halina", "about": { "concepts": ["chase", "house"] } }, "tag": "the boxes",
+          "value": "She is standing by the dead hydrangeas. 'You've been through every box in this house,' she says, not unkindly. 'You don't need to go through me as well.' Then, like someone reading from a card: 'It was a long time ago. The street flooded. He fixed the sink. That's all there is.' She goes back inside to help Mattie with the loft." },
+        { "value": "She is standing by the dead hydrangeas. 'He was so proud of that sink,' she says. 'It was the only thing he ever fixed properly. The whole street flooded and he fixed the sink.' She laughs, and the laugh turns into something else halfway. 'There's more to it. I'll tell you. Not today. Let me get through today.'" }
       ],
       "choices": [
         { "id": "let_her_be", "text": "Tell her that whenever she's ready is fine",
@@ -147,8 +155,8 @@ registerStory({
     },
     "orange_answer": {
       "text": [
-        { "if": { "type": "macroCondition", "name": "fatherKnows" },
-          "value": "'Because it was the first thing I did when I came back,' he says. 'I sat at this table and peeled an orange and your mother watched me and didn't say anything, and I thought, if I can just get the peel off in one piece, she'll let me stay.'" },
+        { "if": { "type": "knows", "perspective": "father", "about": { "concepts": ["flood"] } }, "tag": "the photograph under your pillow",
+          "value": "'Because of the sink,' he says. 'The Sunday after the flood. I sat at this table and peeled an orange, and your mother watched me and didn't say anything, and I thought, if I can just get the peel off in one piece, she'll let me...' He stops, as if he's walked to the edge of a room and found no more floor. 'I don't know the rest, love. You don't either. Not yet.'" },
         { "value": "He looks at the orange in his hands as if he's only just noticed it. 'I don't know, love,' he says. 'You'd have to ask someone who remembers.' The kitchen holds very still. You realise he can only know what you know." }
       ],
       "choices": [{ "id": "orange_wake", "text": "Wake up", "goto": "mattie_garage" }]
@@ -188,21 +196,29 @@ registerStory({
         { "value": "You ask your mother on Wednesday night at her kitchen table, and for a long time she doesn't answer. Then it comes out of her flatly, as if she's reading a statement. When you were five, your father left. Three months. The street flooded in February and she bailed water out with a saucepan. The Sunday after, he came back before anyone woke and fixed the sink, and she let him stay.\n\n'I've kept it for thirty years,' she says. 'I didn't plan to be made to give it up at a table.'" }
       ],
       "onEnter": [
-        { "type": "remember", "concepts": ["halina", "dad_left", "flood", "sink", "first_house"], "witnesses": ["halina"] },
-        { "type": "reveal", "to": ["father"], "about": { "concepts": ["dad_left"] } }
+        { "type": "remember", "concepts": ["halina", "dad_left", "flood", "sink", "first_house"], "witnesses": ["halina"] }
       ],
       "choices": [
         { "id": "hold_hand", "text": "Hold her hand and let her tell all of it",
-          "do": [{ "type": "remember", "concepts": ["player", "comfort", "listen", "halina"], "witnesses": ["halina"],
-            "summary": "held her hand and let her tell all of it" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "comfort", "listen", "halina"], "witnesses": ["halina"],
+              "summary": "held her hand and let her tell all of it" },
+            { "type": "reveal", "to": ["father"], "about": { "concepts": ["dad_left"] } }
+          ],
           "goto": "the_drive" },
         { "id": "why_lie", "text": "Ask her why she let you believe a story for thirty years",
-          "do": [{ "type": "remember", "concepts": ["player", "truth", "refuse", "halina"], "witnesses": ["halina"],
-            "summary": "asked her why she'd lied for thirty years" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "truth", "refuse", "halina"], "witnesses": ["halina"],
+              "summary": "asked her why she'd lied for thirty years" },
+            { "type": "reveal", "to": ["father"], "about": { "concepts": ["dad_left"] } }
+          ],
           "goto": "the_drive" },
-        { "id": "leave_table", "text": "Say you need to sleep, and leave",
-          "do": [{ "type": "remember", "concepts": ["player", "avoid", "halina"], "witnesses": ["halina"],
-            "summary": "left the table before she'd finished" }],
+        { "id": "leave_table", "text": "Say you need to sleep, and leave. You don't have to let it in",
+          "do": [
+            { "type": "remember", "concepts": ["player", "avoid", "halina"], "witnesses": ["halina"],
+              "summary": "left the table before she'd finished" },
+            { "type": "doubt", "to": ["father"], "about": { "concepts": ["dad_left"] } }
+          ],
           "goto": "the_drive" }
       ]
     },

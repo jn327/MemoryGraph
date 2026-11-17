@@ -24,7 +24,7 @@ function makeStory(overrides) {
             text: "Help",
             do: [
               { type: "remember", concepts: ["player", "help", "mercy"] },
-              { type: "learnTransition", transitionType: "choice", from: "start", to: "help" }
+              { type: "set", variable: "helped", value: true }
             ],
             goto: "merge"
           },
@@ -50,7 +50,7 @@ function makeStory(overrides) {
             text: "Finish",
             goto: [
               {
-                if: { type: "transition", transitionType: "choice", from: "start", to: "help", min: 1 },
+                if: { type: "variable", name: "helped", operator: "eq", value: true },
                 node: "kind_end"
               },
               { node: "end" }
@@ -91,7 +91,7 @@ test("start runs onEnter once, views are read-only, and branches converge", func
   const view = engine.choose(0);
   assert.equal(view.nodeId, "merge");
   assert.equal(view.text, "You are remembered kindly.");
-  assert.equal(graph.transitionCount("choice", "start", "help"), 1);
+  assert.equal(engine.variables.helped, true);
   assert.equal(engine.toJSON().choiceHistory.length, 1);
 });
 
@@ -174,10 +174,9 @@ test("conditional text and routes use first match then fallback", function () {
   assert.equal(engine.getView().ended, true);
 });
 
-test("activation and variable operations update serializable state", function () {
+test("variable operations update serializable state", function () {
   const story = makeStory();
   story.nodes.start.onEnter.push(
-    { type: "activate", starts: ["place"], storeAs: "thoughts", options: { depth: 1 } },
     { type: "set", variable: "trust", value: 2 },
     { type: "dec", variable: "trust", amount: 1 }
   );
@@ -185,8 +184,16 @@ test("activation and variable operations update serializable state", function ()
   engine.start();
 
   assert.equal(engine.variables.trust, 1);
-  assert.equal(engine.variables.thoughts[0].concept, "place");
   assert.equal(engine.toJSON().variables.trust, 1);
+});
+
+test("retired activation and transition rules are rejected", function () {
+  const withOperation = makeStory();
+  withOperation.nodes.start.onEnter.push({ type: "learnTransition", transitionType: "t", from: "a", to: "b" });
+  assert.throws(function () { new NarrativeEngine(withOperation).start(); }, /unknown type 'learnTransition'/);
+  const withCondition = makeStory();
+  withCondition.nodes.merge.text[0].if = { type: "activation", starts: ["player"], contains: "mercy", min: 0.1 };
+  assert.throws(function () { new NarrativeEngine(withCondition).start(); }, /unknown condition type 'activation'/);
 });
 
 test("macros execute and recursive macros fail validation", function () {

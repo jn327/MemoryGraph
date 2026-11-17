@@ -8,7 +8,8 @@ registerStory({
     "june": { "name": "June" },
     "jury": { "name": "The jury" },
     "calloway": { "name": "Calloway" },
-    "ravi": { "name": "Ravi Sallis" }
+    "ravi": { "name": "Ravi Sallis" },
+    "clearview": { "name": "Clearview's file on you", "hidden": true }
   },
   "traits": {
     "principled": { "label": "principled", "concepts": { "consent": 1, "privacy": 1, "truth": 1 } },
@@ -28,7 +29,15 @@ registerStory({
   },
   "nodes": {
     "the_scan": {
-      "text": "Lenses cost forty dollars now. You point one at a stranger on the train and it shows you, for a few seconds, what is passing through their mind. Some courts admit the recordings. This one does.\n\nYour client, Ellis Varga, has driven the 41 bus for nineteen years. A commuter named Ravi Sallis scanned him at a red light by the market and caught an image: the bus mounting the pavement, the stalls going under the wheels. Ellis is charged with planning a vehicular attack.\n\n'It comes every time I pass the market,' Ellis tells you in the holding room. His hands are folded so tightly the knuckles are white. 'Since I was nine. I saw a lorry go into a crowd. Every time, the picture comes, and then I think: slow down. Check the mirror. Every time.' He looks at the table. 'My daughter doesn't know. Nobody knows. Now strangers know me better than June does.'",
+      "text": [{ "value": [
+        "Lenses cost forty dollars now. You point one at a stranger on the train and it shows you, for a few seconds, what is passing through their mind. Some courts admit the recordings. This one does.",
+        "\n\n",
+        "Your client, Ellis Varga, has driven the 41 bus for nineteen years. A commuter named Ravi Sallis scanned him at a red light by the market and caught an image: the bus mounting the pavement, the stalls going under the wheels. Ellis is charged with planning a vehicular attack.",
+        "\n\n",
+        "'It comes every time I pass the market,' Ellis tells you in the holding room. His hands are folded so tightly the knuckles are white. 'Since I was nine. I saw a lorry go into a crowd. Every time, the picture comes, and then I think: slow down. Check the mirror. Every time.' He looks at the table. 'My daughter doesn't know. Nobody knows. Now strangers know me better than June does.'",
+        { "if": { "type": "knows", "perspective": "ellis", "about": { "concepts": ["player", "ellis"] } }, "tag": "Ellis remembers you",
+          "text": "Then he looks up and studies your face. 'Have we done this before?' he says. 'I feel like I've already told you all of this, and I can't remember how it went.'" }
+      ] }],
       "onEnter": [{ "type": "remember", "concepts": ["ellis", "scan", "market", "lens"] }],
       "choices": [
         { "id": "tell_june_advice", "text": "Tell him June should hear it from him before she hears it in court",
@@ -62,15 +71,15 @@ registerStory({
       "text": "Your investigator brings you three things. First: Ravi Sallis isn't a concerned citizen. He's a contractor for Clearview Risk, which pays four hundred dollars for every flagged 'threat thought' it can sell to insurers. He has flagged sixty-one people this year. Second: Clearview sold the court a trimmed recording; the original is longer.\n\nThird, she puts on your desk, without comment, a Lens of your own. 'Everyone on the other side has one,' she says. 'Calloway's office scans witnesses in the lifts. I'm just saying.'",
       "choices": [
         { "id": "scan_ravi", "text": "Scan Ravi Sallis in the corridor before the hearing",
-          "do": [{ "type": "remember", "concepts": ["player", "scan", "ravi", "secret"],
+          "do": [{ "type": "remember", "concepts": ["player", "scan", "ravi", "secret"], "witnesses": ["clearview"],
             "summary": "scanned the witness yourself, without his consent" }],
           "goto": "scan_ravi" },
         { "id": "scan_juror", "text": "Scan juror four, the one who won't look at Ellis",
-          "do": [{ "type": "remember", "concepts": ["player", "scan", "trick", "juror"],
+          "do": [{ "type": "remember", "concepts": ["player", "scan", "trick", "juror"], "witnesses": ["clearview"],
             "summary": "scanned a juror to find out what she was thinking" }],
           "goto": "scan_juror" },
         { "id": "refuse_lens", "text": "Put the Lens in a drawer and lock it",
-          "do": [{ "type": "remember", "concepts": ["player", "consent", "privacy", "lens"],
+          "do": [{ "type": "remember", "concepts": ["player", "consent", "privacy", "lens"], "witnesses": ["clearview"],
             "summary": "locked away the scanner you were offered" }],
           "goto": "hearing" }
       ]
@@ -99,7 +108,7 @@ registerStory({
           "goto": "cross" },
         { "id": "own_thoughts", "text": "Ask the court's permission to scan yourself, here, in front of the jury",
           "do": [
-            { "type": "remember", "concepts": ["player", "truth", "consent", "vulnerable"], "witnesses": ["jury", "calloway", "ellis", "june"],
+            { "type": "remember", "concepts": ["player", "truth", "consent", "vulnerable"], "witnesses": ["jury", "calloway", "ellis", "june", "clearview"],
               "summary": "let the jury scan your own mind to show them what an unchosen thought looks like" },
             { "type": "remember", "concepts": ["ellis", "doubt"], "strength": 1.5, "witnesses": ["jury"] }
           ],
@@ -112,7 +121,10 @@ registerStory({
     },
     "full_record": {
       "text": "The judge grants the order over Calloway's objection, and the next morning the full recording plays. The bus, the pavement, the stalls going under: four seconds. Then eight more that the jury has never seen. Ellis's hands tighten on the wheel. His eyes go to the mirror. In his head, in his own voice, steady as a prayer: Slow down. Check the mirror. Slow down. The bus in the recording brakes. A girl with a pushchair crosses safely in front of it.\n\nClearview cut those eight seconds before they sold the clip.",
-      "onEnter": [{ "type": "remember", "concepts": ["ellis", "careful", "mirror"], "strength": 2, "witnesses": ["jury", "june", "calloway"] }],
+      "onEnter": [
+        { "type": "remember", "concepts": ["ellis", "careful", "mirror"], "strength": 2, "witnesses": ["jury", "june", "calloway"] },
+        { "type": "doubt", "to": ["jury", "june"], "about": { "concepts": ["ellis", "danger", "market"] }, "belief": 0.4 }
+      ],
       "choices": [{ "id": "full_on", "text": "Call Ravi Sallis to the stand", "goto": "cross" }]
     },
     "cross": {
@@ -126,7 +138,7 @@ registerStory({
       "choices": [
         { "id": "use_his_mind", "text": "Confront him with what you saw in his head: the debt, the bounty, his daughter",
           "showIf": { "type": "variable", "name": "ravi_scanned", "operator": "eq", "value": true },
-          "do": [{ "type": "remember", "concepts": ["player", "scan", "expose", "humiliate", "ravi"], "witnesses": ["jury", "calloway", "ravi", "ellis", "june"],
+          "do": [{ "type": "remember", "concepts": ["player", "scan", "expose", "humiliate", "ravi"], "witnesses": ["jury", "calloway", "ravi", "ellis", "june", "clearview"],
             "summary": "used a man's own stolen thoughts against him on the stand" }],
           "goto": "calloway_objects" },
         { "id": "ask_bounty", "text": "Ask him, on the record, how much Clearview pays per flag",
@@ -249,15 +261,23 @@ registerStory({
           "goto": "verdict" },
         { "id": "close_company", "text": "Put Clearview on trial: a company that sells fear by the second",
           "do": [
-            { "type": "remember", "concepts": ["player", "expose", "clearview", "closing"], "witnesses": ["jury", "calloway"],
+            { "type": "remember", "concepts": ["player", "expose", "clearview", "closing"], "witnesses": ["jury", "calloway", "clearview"],
               "summary": "turned the closing into a war on Clearview" },
             { "type": "remember", "concepts": ["ellis", "doubt"], "strength": 0.5, "witnesses": ["jury"] }
           ],
           "goto": "verdict" },
         { "id": "close_juror", "text": "Address juror four directly: 'You know what it is to see something you can't stop seeing'",
           "showIf": { "type": "variable", "name": "juror_scanned", "operator": "eq", "value": true },
-          "do": [{ "type": "remember", "concepts": ["player", "scan", "expose", "trick", "juror"], "witnesses": ["jury", "calloway", "ellis"],
+          "do": [{ "type": "remember", "concepts": ["player", "scan", "expose", "trick", "juror"], "witnesses": ["jury", "calloway", "ellis", "clearview"],
             "summary": "used a juror's stolen grief in your closing" }],
+          "goto": "verdict" },
+        { "id": "close_recording", "text": "Play the jury what Ravi said at the vending machines: 'I want to take it back'",
+          "showIf": { "type": "association", "a": "trick", "b": "ravi", "min": 1 }, "tag": "your recording",
+          "do": [
+            { "type": "remember", "concepts": ["player", "trick", "expose", "ravi", "closing"], "witnesses": ["jury", "calloway", "ravi", "ellis"],
+              "summary": "played the jury a frightened man's words that you'd recorded in secret" },
+            { "type": "remember", "concepts": ["ellis", "doubt"], "strength": 1.5, "witnesses": ["jury"] }
+          ],
           "goto": "verdict" }
       ]
     },
@@ -290,7 +310,7 @@ registerStory({
             "summary": "helped your client explain himself in his own words" }],
           "goto": "a_new_rule" },
         { "id": "take_mic", "text": "Take the microphones yourself and announce a campaign against Clearview",
-          "do": [{ "type": "remember", "concepts": ["player", "expose", "clearview"], "witnesses": ["ellis", "june"],
+          "do": [{ "type": "remember", "concepts": ["player", "expose", "clearview"], "witnesses": ["ellis", "june", "clearview"],
             "summary": "turned your client's acquittal into your own press conference" }],
           "goto": "a_new_rule" }
       ]
@@ -328,7 +348,9 @@ registerStory({
           "text": "Ellis sends you a photograph each Christmas of the 41 bus at the market corner. On the back, every year, the same three words: Checked the mirror.",
           "else": "Ellis never calls you again. You learn later that he told a reporter you were 'good at your job,' and that he said it the way you'd describe a surgeon who left a scar." },
         { "recall": { "perspective": "june", "among": ["principled", "ruthless", "manipulative", "kind"] },
-          "format": "June, who becomes a lawyer, tells her students about the first one she ever watched, who {summary}." }
+          "format": "June, who becomes a lawyer, tells her students about the first one she ever watched, who {summary}." },
+        { "recall": { "perspective": "clearview", "among": ["principled", "ruthless", "manipulative", "kind"] },
+          "format": "The week before the Act takes effect, Clearview sells its last profiles to an insurer. Your Lens had been reporting home the whole time. Your profile, you find out years later, describes a lawyer who {summary}." }
       ] }]
     },
     "the_route": {
@@ -365,6 +387,8 @@ registerStory({
         "\n\n",
         { "recall": { "perspective": "ravi", "among": ["principled", "ruthless", "manipulative", "kind"] },
           "format": "Ravi Sallis, it turns out, tells everyone who will listen about the lawyer who {summary}." },
+        { "recall": { "perspective": "clearview", "about": { "trait": "ruthless" } },
+          "format": "The bar's evidence against you comes from Clearview. Your Lens logged every use and sent it home, and the report is very thorough. Page one notes that you {summary}." },
         { "if": { "type": "visited", "node": "own_scan" },
           "text": "Your Lens is still in the drawer where you should have left it. Some nights you take it out and point it at the mirror, and you see a wall, and your own car drifting toward it, and you think: slow down. Check the mirror.",
           "else": "Your Lens is still in the drawer where you should have left it. Some nights you take it out and point it at the mirror. You never turn it on. You are afraid of what it would show you." }

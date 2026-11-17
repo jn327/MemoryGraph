@@ -37,7 +37,22 @@ registerStory({
   },
   "nodes": {
     "arrival": {
-      "text": "Rain follows you into Brackenridge. The village sits in a fold of land between a black forest and a river that has burst its banks and stayed burst. Smoke hangs low over forty roofs. In the middle of it all stands a bell tower with no rope, and as you reach the first house, the bell rings once.\n\nNobody is near the tower. Nobody looks up. A woman pulling washing off a line goes very still, then carries on, faster. You have the feeling, which will not leave you, that from this moment on everything you do here will be seen by someone and repeated to someone else.",
+      "text": [{ "value": [
+        "Rain follows you into Brackenridge. The village sits in a fold of land between a black forest and a river that has burst its banks and stayed burst. Smoke hangs low over forty roofs. In the middle of it all stands a bell tower with no rope, and as you reach the first house, the bell rings once.",
+        "\n\n",
+        "Nobody is near the tower. Nobody looks up. A woman pulling washing off a line goes very still, then carries on, faster.",
+        { "if": { "type": "all", "conditions": [
+            { "type": "knows", "perspective": "village", "about": { "concepts": ["player"] } },
+            { "type": "macroCondition", "name": "villageFears" } ] },
+          "tag": "Brackenridge remembers",
+          "text": "Then she turns and sees you, and drops everything she is holding into the mud. 'It's them,' she says, to nobody, to the whole lane. 'It's them again.' Shutters close one after another all the way to the square." },
+        { "if": { "type": "all", "conditions": [
+            { "type": "knows", "perspective": "village", "about": { "concepts": ["player"] } },
+            { "type": "not", "condition": { "type": "macroCondition", "name": "villageFears" } } ] },
+          "tag": "Brackenridge remembers",
+          "text": "Then she turns and sees you, and her hands stop on the pegs. 'You came back,' she says quietly, as if she isn't sure she's allowed to remember you. 'You came back.'" },
+        "You have the feeling, which will not leave you, that from this moment on everything you do here will be seen by someone and repeated to someone else."
+      ] }],
       "onEnter": [
         { "type": "remember", "concepts": ["brackenridge", "village", "rain", "bell", "forest", "river"] },
         { "type": "set", "variable": "visits", "value": 0 }
@@ -143,7 +158,7 @@ registerStory({
         { "id": "take_candle", "text": "Take a candle from the rack without asking, for the dark later",
           "do": [{ "type": "remember", "concepts": ["player", "steal", "greed", "candle", "anwen"], "witnesses": ["anwen"],
             "summary": "pocketed a chapel candle when you thought nobody was looking" }],
-          "goto": "chapel_exit" }
+          "goto": "anwen_bell" }
       ]
     },
     "anwen_trust": {
@@ -405,7 +420,12 @@ registerStory({
       "choices": [{ "id": "ally_tower", "text": "Go to the tower with them at your back", "goto": "tower_gate" }]
     },
     "alleys": {
-      "text": "You lose the guards in the alleys behind the tannery, in the smell of lye and rot. The bell rings again. This time, under the bronze, you hear a voice in it. It is saying your name. You've never told anyone in Brackenridge your name.",
+      "text": [{ "value": [
+        "You lose the guards in the alleys behind the tannery, in the smell of lye and rot. The bell rings again. This time, under the bronze, you hear a voice in it. It is saying your name. You've never told anyone in Brackenridge your name.",
+        { "recall": { "among": ["violent", "deceptive", "greedy"] }, "tag": "the bell",
+          "format": "Then, in your own voice, it says the thing you most wish you hadn't done, loud enough for every shuttered window to hear: 'You {summary}.'",
+          "otherwise": "Then it stops, as if it had expected to have more to say about you, and was disappointed." }
+      ] }],
       "choices": [
         { "id": "follow_sound", "text": "Follow the sound", "goto": "tower_gate" },
         { "id": "hide_dawn", "text": "Hide in a woodshed until dawn",
@@ -550,7 +570,10 @@ registerStory({
       "text": "You say your name to the bell. The bell takes it. For a moment you are nobody. The reeve looks at you and frowns slightly, the way you'd frown at a coat left on a chair. Then every ring in the mechanism spins loose at once, and the names pour out of the tower like water out of a broken dam.",
       "choices": [
         { "id": "accept_forgotten", "text": "Let them forget you",
-          "do": [{ "type": "remember", "concepts": ["player", "mercy", "sacrifice", "name"], "summary": "gave the bell your own name" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "mercy", "sacrifice", "name"], "summary": "gave the bell your own name" },
+            { "type": "doubt", "to": "all", "about": { "concepts": ["player"] }, "belief": 0.1 }
+          ],
           "goto": "final_sacrifice" }
       ]
     },
@@ -619,14 +642,18 @@ registerStory({
       "ending": true,
       "text": [{ "value": [
         "Years later, a child in Brackenridge asks who saved the village. Nobody can tell her. There was a stranger, people say, the year of the flood; or there wasn't; or it was a saint. The bell is still there, cracked and silent in its tower, and it never rings again.",
-        { "if": { "type": "macroCondition", "name": "tomasTrusts" },
+        { "if": { "type": "dominantTrait", "perspective": "tomas", "among": ["merciful", "violent"], "is": "merciful" },
+          "tag": "Tomas, almost",
           "text": "Tomas, alone of all of them, has the feeling of having forgotten someone. He carves a blank space on the stone by the river, beside his mother's name. He couldn't tell you why.",
           "else": "Nobody carves anything. There's nothing to carve." },
         "\n\n",
         { "if": { "type": "macroCondition", "name": "miraAlly" },
           "text": "Mira bakes an extra loaf every morning and leaves it on the windowsill. She tells her customers it's for luck. She doesn't remember who it's for." },
         { "if": { "type": "knows", "perspective": "jory", "about": { "concepts": ["help", "jory"] } },
-          "text": "Jory's ledger has a page in it in his own handwriting about a stranger who fixed his sign in the rain. The name has been left blank. He reads that page sometimes, and it makes him unaccountably sad." }
+          "text": "Jory's ledger has a page in it in his own handwriting about a stranger who fixed his sign in the rain. The name has been left blank. He reads that page sometimes, and it makes him unaccountably sad." },
+        { "if": { "type": "macroCondition", "name": "tomasDied" },
+          "text": "On the stone by the river, Tomas's name is carved with the others the bell gave back. Nobody in Brackenridge can say any longer who put him in the water. That was in the bargain too, and you didn't ask." },
+        "Whatever Brackenridge thought of you, it thinks it faintly now, the way you remember a dream at noon."
       ] }]
     }
   }

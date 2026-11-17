@@ -8,14 +8,15 @@ registerStory({
     "arce": { "name": "Deputy Arce" },
     "tupaq": { "name": "Elder Tupaq" },
     "kusi": { "name": "Kusi" },
-    "sela": { "name": "Sela Ortiz" }
+    "sela": { "name": "Sela Ortiz" },
+    "hydro": { "name": "HydroAndina's file", "hidden": true }
   },
   "traits": {
     "respectful": { "label": "someone who asked first", "concepts": { "ask_permission": 1.5, "return": 1, "listen": 1 } },
-    "extractive": { "label": "one more census-taker", "concepts": { "take": 1, "copy": 0.7, "publish_names": 1.5 } },
+    "extractive": { "label": "one more census-taker", "concepts": { "take": 1, "copy": 0.7, "publish_names": 1.5, "delete": -1.5 } },
     "lawful": { "label": "a creature of procedure", "concepts": { "procedure": 1, "obey": 1 } },
     "defiant": { "label": "defiant", "concepts": { "defy": 1, "smuggle": 1.5 } },
-    "honest": { "label": "honest", "concepts": { "truth": 1, "admit": 1, "lie": -1.5 } }
+    "honest": { "label": "honest", "concepts": { "truth": 1, "lie": -1.5 } }
   },
   "macros": {
     "townTrusts": { "tag": "the town trusts you", "condition": { "type": "dominantTrait", "perspective": "tupaq", "among": ["respectful", "extractive"], "is": "respectful" } },
@@ -25,7 +26,13 @@ registerStory({
   },
   "nodes": {
     "records": {
-      "text": "The Confederation Archive says the conquest ended four centuries ago. Your grandmother says it never quite ended; it just learned to do paperwork. You are a junior archivist in the Office of Fiscal Continuity, correcting old tax ledgers for digitisation, and on a Tuesday in the cold season you find a town that has paid its dues for eighty years and appears on no map.\n\nQhapaq Pampa. Payments every quarter since 1944. No census entry. No road. No coordinates. Someone has been very careful to keep receiving the money without ever writing down where it came from.",
+      "text": [{ "value": [
+        "The Confederation Archive says the conquest ended four centuries ago. Your grandmother says it never quite ended; it just learned to do paperwork. You are a junior archivist in the Office of Fiscal Continuity, correcting old tax ledgers for digitisation, and on a Tuesday in the cold season you find a town that has paid its dues for eighty years and appears on no map.",
+        { "if": { "type": "knows", "perspective": "rosa", "about": { "concepts": ["player", "khipu"] } }, "tag": "Mama Rosa remembers",
+          "text": "Your grandmother rang last night, which she never does. 'If you find a town,' she said, 'ask first. You know which town.' Then she hung up. You have no idea what she meant, or you didn't until now." },
+        "\n\n",
+        "Qhapaq Pampa. Payments every quarter since 1944. No census entry. No road. No coordinates. Someone has been very careful to keep receiving the money without ever writing down where it came from."
+      ] }],
       "onEnter": [{ "type": "remember", "concepts": ["archive", "qhapaq_pampa", "ledger", "missing_town"] }],
       "choices": [
         { "id": "trace_properly", "text": "Log the anomaly and trace it through the proper request system",
@@ -160,18 +167,22 @@ registerStory({
           "value": "Two days later Sela Ortiz walks into the square in her HydroAndina fleece. 'You told me where you were going,' she says to you, not unkindly. 'I told my boss. I'm sorry. He told me to come and make an offer.' She has a folder: a 'community development fund', a new generator, a school roof. In exchange, the town signs a release, and the archive file is lost. Her father, she says, poured concrete for the dam. 'I grew up on its money. I didn't know whose it was.'" },
         { "value": "Two days later Sela Ortiz walks into the square in her HydroAndina fleece. The company has found out about the archive file. It doesn't matter how; companies always do. She has a folder: a 'community development fund', a new generator, a school roof. In exchange, the town signs a release, and the archive file is lost. Her father, she says, poured concrete for the dam. 'I grew up on its money. I didn't know whose it was.'" }
       ],
-      "onEnter": [{ "type": "gossip", "from": "sela", "to": ["arce"], "belief": 0.8 }],
+      "onEnter": [
+        { "type": "gossip", "from": "sela", "to": ["arce"], "belief": 0.8 },
+        { "type": "gossip", "from": "sela", "to": ["hydro"], "belief": 1 },
+        { "type": "reveal", "to": ["hydro"], "about": { "concepts": ["ledger"] } }
+      ],
       "choices": [
         { "id": "refuse_publicly", "text": "Refuse the offer loudly, in front of everyone in the square",
-          "do": [{ "type": "remember", "concepts": ["player", "defy", "truth", "sela"], "witnesses": ["sela", "tupaq", "kusi"],
+          "do": [{ "type": "remember", "concepts": ["player", "defy", "truth", "sela"], "witnesses": ["sela", "tupaq", "kusi", "hydro"],
             "summary": "refused the company's offer in the square before the town could answer it" }],
           "goto": "arce_call" },
         { "id": "negotiate_alone", "text": "Take Sela aside and negotiate a better number for them",
-          "do": [{ "type": "remember", "concepts": ["player", "take", "sela", "negotiate"], "witnesses": ["sela"],
+          "do": [{ "type": "remember", "concepts": ["player", "take", "sela", "negotiate"], "witnesses": ["sela", "hydro"],
             "summary": "negotiated on the town's behalf without asking it" }],
           "goto": "arce_call" },
         { "id": "bring_to_tupaq", "text": "Bring Sela to Elder Tupaq, and step back",
-          "do": [{ "type": "remember", "concepts": ["player", "ask_permission", "listen", "sela"], "witnesses": ["sela", "tupaq"],
+          "do": [{ "type": "remember", "concepts": ["player", "ask_permission", "listen", "sela"], "witnesses": ["sela", "tupaq", "hydro"],
             "summary": "brought the company to the elder and stepped back" }],
           "goto": "arce_call" }
       ]
@@ -195,8 +206,11 @@ registerStory({
             "summary": "told the Archive you weren't coming back" }],
           "goto": "kusi_night" },
         { "id": "ask_arce_smuggle", "text": "Ask Arce to get the original file out before Friday",
-          "do": [{ "type": "remember", "concepts": ["player", "smuggle", "defy", "arce"], "witnesses": ["arce"],
-            "summary": "asked an old man to risk his pension smuggling the file out" }],
+          "do": [
+            { "type": "remember", "concepts": ["player", "smuggle", "defy", "arce"], "witnesses": ["arce"],
+              "summary": "asked an old man to risk his pension smuggling the file out" },
+            { "type": "doubt", "to": ["hydro"], "about": { "concepts": ["ledger"] } }
+          ],
           "goto": "kusi_night" }
       ]
     },
@@ -204,11 +218,16 @@ registerStory({
       "text": [
         { "value": [
           "Kusi finds you on the schoolhouse step under more stars than you have ever seen. She has a question she has obviously practised. 'If it goes in the newspapers,' she says, 'will you put our names in? My grandfather's name is in the 1961 contract. The census people took his brother away in 1970 for not being on the list. My mother says names are how they find you.'",
-          { "if": { "type": "trait", "perspective": "kusi", "trait": "extractive", "min": 2 },
+          { "if": { "type": "trait", "perspective": "kusi", "trait": "extractive", "min": 1.5 },
             "text": "She sits at the far end of the step. She has seen you with your camera." }
         ] }
       ],
       "choices": [
+        { "id": "delete_photos", "text": "Take out your camera and delete every photograph while she watches",
+          "showIf": { "type": "trait", "perspective": "kusi", "trait": "extractive", "min": 1.5 }, "tag": "she saw your camera",
+          "do": [{ "type": "remember", "concepts": ["player", "delete", "return", "kusi"], "witnesses": ["kusi"],
+            "summary": "deleted every photograph on your camera while a child watched" }],
+          "goto": "assembly" },
         { "id": "promise_kusi", "text": "Promise her no name goes anywhere without the family's consent",
           "do": [{ "type": "remember", "concepts": ["player", "ask_permission", "promise", "kusi"], "witnesses": ["kusi"],
             "summary": "promised no name would leave the valley without consent" }],
@@ -232,7 +251,7 @@ registerStory({
       "onEnter": [{ "type": "gossip", "from": "kusi", "to": ["tupaq"], "belief": 1 }],
       "choices": [
         { "id": "publish", "text": "Publish the 1961 contract and let the country argue in daylight",
-          "do": [{ "type": "remember", "concepts": ["player", "truth", "defy", "publish"], "summary": "published the contract" }],
+          "do": [{ "type": "remember", "concepts": ["player", "truth", "defy", "publish"], "witnesses": ["hydro"], "summary": "published the contract" }],
           "goto": "public_hearing" },
         { "id": "settle", "text": "Help the town negotiate with HydroAndina for what it can get now",
           "do": [{ "type": "remember", "concepts": ["player", "negotiate", "listen"], "summary": "helped the town bargain with the company" }],
@@ -257,15 +276,19 @@ registerStory({
           "text": "The photographs of Mama Rosa's khipu appear in one article, uncredited. You don't know how. She doesn't speak to you until the spring, and when she does, she only says: 'You see? This is how it happens. Even with us.'",
           "else": "Mama Rosa cuts the article out and pins it above her radio, next to a photograph of her mother." },
         { "recall": { "perspective": "tupaq", "among": ["respectful", "extractive", "honest", "defiant"] },
-          "format": "At the hearing, Elder Tupaq is asked about the archivist. 'You mean the one who {summary}?' he says, and declines to say more." }
+          "format": "At the hearing, Elder Tupaq is asked about the archivist. 'You mean the one who {summary}?' he says, and declines to say more." },
+        { "recall": { "perspective": "hydro", "among": ["extractive", "defiant", "lawful", "honest", "respectful"] },
+          "format": "On the second day HydroAndina's lawyers enter a dossier on you into the record. You never knew the company was keeping one. Its summary describes an archivist who {summary}." }
       ] }]
     },
     "settlement": {
       "ending": true,
+      "onEnter": [{ "type": "gossip", "from": "sela", "to": ["tupaq"], "about": { "concepts": ["negotiate"] }, "belief": 1 }],
       "text": [{ "value": [
         "HydroAndina agrees to pay twelve percent of revenue into a town trust while the larger claim proceeds. Some families call it an insult. Others point to the clinic refrigerator that now runs all night, and the school lights, and a child who no longer has to be carried down the mountain for insulin. You helped secure an immediate, imperfect remedy instead of a reckoning. The dispute remains, now written in a contract the town helped shape.",
         { "if": { "type": "knows", "perspective": "tupaq", "about": { "concepts": ["take", "negotiate"] } },
-          "text": "Tupaq never quite forgives you for negotiating before you were asked. 'You got us a good number,' he says. 'You got it the way they get things.'" },
+          "tag": "Sela mentioned it",
+          "text": "At the signing, Sela thanks you across the table for 'the earlier conversation', and Tupaq turns to look at you. He never quite forgives you for negotiating before you were asked. 'You got us a good number,' he says. 'You got it the way they get things.'" },
         "\n\n",
         { "if": { "type": "knows", "perspective": "arce", "about": { "concepts": ["smuggle", "arce"] } },
           "text": "Arce gets the original file out on Thursday night in a box of retirement cards. He's dismissed in December. He sends you a postcard of the archive's front steps: 'Worth it. Probably.'",
@@ -300,7 +323,9 @@ registerStory({
         { "recall": { "perspective": "arce", "among": ["lawful", "defiant", "honest"] },
           "format": "When Arce retires, he leaves you his fountain pen and a note: he remembers that you {summary}." },
         { "recall": { "perspective": "tupaq", "among": ["respectful", "extractive", "honest"] },
-          "format": "In Qhapaq Pampa, Kusi ties a knot for the archivist who {summary}, and then went away like all the others." }
+          "format": "In Qhapaq Pampa, Kusi ties a knot for the archivist who {summary}, and then went away like all the others." },
+        { "recall": { "perspective": "hydro", "among": ["extractive", "defiant", "lawful", "honest", "respectful"] },
+          "format": "HydroAndina closes its file on you the same week. You never knew it had one. The last line describes an archivist who {summary}." }
       ] }]
     }
   }

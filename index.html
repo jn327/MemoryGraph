@@ -89,7 +89,6 @@
                 <span><i class="legend-node" aria-hidden="true"></i>Concept</span>
                 <span><i class="legend-player" aria-hidden="true"></i>Player</span>
                 <span><i class="legend-edge" aria-hidden="true"></i>Association</span>
-                <span><i class="legend-transition" aria-hidden="true"></i>Directional transition</span>
                 <span>Node size = memory events</span>
                 <span>Thicker lines = stronger connections</span>
               </div>
@@ -98,6 +97,13 @@
               <svg id="graph-visualization" role="img"></svg>
               <p id="graph-empty" class="graph-empty" hidden>No memories have been recorded yet. Start a story to build the graph.</p>
             </div>
+          </section>
+          <section class="story-check" aria-label="Story check">
+            <div class="story-check-header">
+              <h4>Story check</h4>
+              <button class="button button-quiet" id="check-button" type="button">Check story</button>
+            </div>
+            <div id="check-results"></div>
           </section>
           <details class="debug-raw">
             <summary>Raw graph data</summary>
@@ -109,6 +115,7 @@
   </main>
   <script src="scripts/MemoryGraph.js"></script>
   <script src="scripts/NarrativeEngine.js"></script>
+  <script src="scripts/StoryCheck.js"></script>
   <script src="scripts/storyPlayer.js"></script>
 </body>
 </html>

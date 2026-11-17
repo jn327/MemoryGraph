@@ -7,8 +7,11 @@ demo UI. Keep dependencies flowing in this direction:
 
 ```text
 story JSON -> NarrativeEngine -> MemoryGraph
-                   ^
-                   |
+                   ^      ^
+                   |      |
+                   |   StoryCheck
+                   |      ^
+                   |      |
         demo/UI (storyPlayer.js)
 ```
 
@@ -19,20 +22,25 @@ story JSON -> NarrativeEngine -> MemoryGraph
   conditions require memory behavior. It also owns character knowledge
   (who witnessed or heard about which event) and builds per-character
   perspective graphs, trait scores, and recall from the graph's event log.
-- **MemoryGraph** owns memory events, associations, transitions, and
-  activation. It has no dependency on the narrative engine or browser UI,
-  and no notion of characters: a perspective is just another
-  `MemoryGraph` the engine fills from the events a character knows.
+- **MemoryGraph** owns the memory event log and concept associations. It
+  has no dependency on the narrative engine or browser UI, and no notion
+  of characters: a perspective is the engine reading the same event log
+  with each event weighted by what one character believes.
+- **StoryCheck** plays a story many times with seeded random choices and
+  reports failures, unreached content, and the engine's authoring
+  warnings. It depends only on the engine, so the tests and the demo
+  share it.
 - **Demo/UI** loads a story, renders the engine's plain-data view, and
   forwards player input. It owns presentation only; it must not duplicate
   story rules or memory logic. It reads reputation through
   `engine.describeReputation()` rather than computing it.
 
 The core library consists of `scripts/MemoryGraph.js` and
-`scripts/NarrativeEngine.js`. The browser demo entry point is
+`scripts/NarrativeEngine.js`. `scripts/StoryCheck.js` is an optional
+authoring tool. The browser demo entry point is
 `scripts/storyPlayer.js`; it is not part of the core library. Story data
-belongs in `stories/`, page markup in `index.html`, and shared styles in
-`styles/`.
+belongs in `stories/`, author documentation in `docs/`, page markup in
+`index.html`, and shared styles in `styles/`.
 
 ## Runtime and dependencies
 
