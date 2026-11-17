@@ -10,7 +10,8 @@
     "macro",
     "gossip",
     "reveal",
-    "doubt"
+    "doubt",
+    "describe"
   ];
   const BUILTIN_CONDITIONS = [
     "always",
@@ -147,6 +148,13 @@
           choices: choices,
           ended: node.ending === true
         };
+        if (node.present !== undefined) {
+          view.present = node.present.map((id) => ({
+            id: id,
+            name: this.characterName(id),
+            description: this.characterDescription(id)
+          }));
+        }
         if (this.choiceEcho !== null) {
           view.echo = cloneJsonValue(this.choiceEcho, "choice echo");
         }
@@ -254,6 +262,34 @@
     characterName(id) {
       const character = this._character(id);
       return character.name === undefined ? character.id : character.name;
+    }
+
+    // The character's description as the story currently has it: the latest
+    // `describe` this run, else the one in `characters`, else null.
+    characterDescription(id) {
+      const character = this._character(id);
+      if (hasOwn(this.descriptions, character.id)) {
+        return this.descriptions[character.id];
+      }
+      const description = this.story.characters[character.id].description;
+      return description === undefined ? null : description;
+    }
+
+    // Runs operations outside any choice, before or during a run: for
+    // authoring tools that set up a scene, such as starting partway through
+    // with some memories already in place.
+    apply(operations) {
+      this._validateStory(false);
+      this._validateOperations(operations, {
+        allowUnregistered: false,
+        macroStack: [],
+        location: "applied operations"
+      });
+      this._executeOperations(operations, {
+        nodeId: this.currentNodeId === null ? "(none)" : this.currentNodeId,
+        choiceId: null,
+        path: "applied operation"
+      });
     }
 
     // How text refers to a subject: "you" for the player, a character's name,
@@ -429,6 +465,7 @@
         }),
         variables: cloneJsonValue(this.variables, "variables"),
         knowledge: cloneJsonValue(this.knowledge, "knowledge"),
+        descriptions: cloneJsonValue(this.descriptions, "descriptions"),
         ended: this.ended
       };
     }
@@ -482,12 +519,18 @@
         throw new TypeError("Saved variables must be a plain object.");
       }
       const variables = cloneJsonValue(data.variables, "saved variables");
+      const descriptions = data.descriptions === undefined ? {} : data.descriptions;
+      if (!isPlainRecord(descriptions) || Object.entries(descriptions).some((entry) =>
+        !hasOwn(this.story.characters, entry[0]) || typeof entry[1] !== "string")) {
+        throw new TypeError("Saved descriptions must map known characters to strings.");
+      }
 
       this.currentNodeId = data.currentNodeId;
       this.nodeVisits = nodeVisits;
       this.choiceHistory = choiceHistory;
       this.variables = variables;
       this.knowledge = knowledge;
+      this.descriptions = cloneJsonValue(descriptions, "saved descriptions");
       this.arrivalCause = null;
       this.choiceEcho = null;
       this.ended = data.ended;
@@ -920,6 +963,7 @@
       this.nodeVisits = [];
       this.choiceHistory = [];
       this.variables = cloneJsonValue(this.initialVariables, "initialVariables");
+      this.descriptions = {};
       this.ended = false;
     }
 
@@ -1055,6 +1099,9 @@
           throw new RangeError("variable '" + operation.variable + "' exceeds the numeric range.");
         }
         defineValue(this.variables, operation.variable, updated);
+      } else if (operation.type === "describe") {
+        defineValue(this.descriptions, this._character(operation.character).id,
+          substitute(operation.description, this));
       } else if (operation.type === "macro") {
         const macro = this.story.macros[operation.name];
         this._executeOperations(macro.do || [], {
@@ -1234,6 +1281,12 @@
         if (!ending && choices.length === 0) {
           throw storyError(story, "non-ending node '" + nodeId + "' must have at least one choice.");
         }
+        if (node.present !== undefined) {
+          if (!Array.isArray(node.present) || new Set(node.present).size !== node.present.length) {
+            throw storyError(story, "node '" + nodeId + "' present must list each character once.");
+          }
+          this._validateCharacters(node.present, "node '" + nodeId + "' present");
+        }
         if (node.onEnter !== undefined) {
           this._validateOperations(node.onEnter, {
             allowUnregistered: allowUnregistered,
@@ -1378,7 +1431,9 @@
       const unremembered = function (concepts, location, consequence) {
         for (const concept of concepts) {
           if (!remembered.has(concept.trim())) {
-            warn(location, "concept '" + concept.trim() + "' is never remembered, so " + consequence + ".");
+            const close = closestName(concept.trim(), remembered);
+            warn(location, "concept '" + concept.trim() + "' is never remembered, so " + consequence +
+              (close === null ? "." : " (did you mean '" + close + "'?)."));
           }
         }
       };
@@ -1514,6 +1569,8 @@
             }
           } else if (operation.type === "macro") {
             found.macroUses.add(operation.name);
+          } else if (operation.type === "describe") {
+            found.templates.push({ text: operation.description, location: where + " description" });
           }
         });
       };
@@ -1608,6 +1665,9 @@
         }
         if (character.hidden !== undefined && typeof character.hidden !== "boolean") {
           throw storyError(story, "character '" + id + "' hidden must be a boolean.");
+        }
+        if (character.description !== undefined) {
+          normalizeName(character.description, "character '" + id + "' description");
         }
       }
       for (const [name, trait] of Object.entries(story.traits)) {
@@ -1791,6 +1851,10 @@
           if (operation.amount !== undefined) {
             validatePositiveNumber(operation.amount, location + " amount");
           }
+        } else if (type === "describe") {
+          this._validateCharacter(operation.character, location + " describe");
+          normalizeName(operation.description, location + " description");
+          this._validateTemplate(operation.description, location + " description");
         } else if (type === "macro") {
           const name = normalizeName(operation.name, location + " macro name");
           if (!hasOwn(this.story.macros, name)) {
@@ -1954,7 +2018,8 @@
   }
 
   // Text parts are joined with single spaces; a part that starts or ends with
-  // whitespace (for example "\n\n" for a paragraph break) is joined as-is.
+  // whitespace (for example "\n\n" for a paragraph break), or that starts
+  // with closing punctuation, is joined as-is.
   // Each joined part becomes a segment that carries its own separator.
   function composeParts(parts, engine, where) {
     const segments = [];
@@ -1999,7 +2064,8 @@
       if (piece.length === 0) {
         continue;
       }
-      const joined = output.length === 0 || /\s$/.test(output) || /^\s/.test(piece)
+      // No space before a piece that carries on the sentence, as in "{…}." or "{…},".
+      const joined = output.length === 0 || /\s$/.test(output) || /^[\s.,;:!?)\u2019\u201d]/.test(piece)
         ? piece
         : " " + piece;
       output += joined;
@@ -2327,6 +2393,34 @@
       throw new TypeError(label + " must be a number in (0, 1].");
     }
     return value;
+  }
+
+  // The closest of `names` to `word`, when it is near enough to be a typo.
+  function closestName(word, names) {
+    let best = null;
+    let bestDistance = Infinity;
+    for (const name of names) {
+      // Edit distance, counting a swap of neighbouring letters as one edit.
+      let before = null;
+      let previous = Array.from({ length: name.length + 1 }, function (unused, index) { return index; });
+      for (let i = 1; i <= word.length; i += 1) {
+        const current = [i];
+        for (let j = 1; j <= name.length; j += 1) {
+          current[j] = Math.min(previous[j] + 1, current[j - 1] + 1,
+            previous[j - 1] + (word[i - 1] === name[j - 1] ? 0 : 1));
+          if (before !== null && j > 1 && word[i - 1] === name[j - 2] && word[i - 2] === name[j - 1]) {
+            current[j] = Math.min(current[j], before[j - 2] + 1);
+          }
+        }
+        before = previous;
+        previous = current;
+      }
+      if (previous[name.length] < bestDistance) {
+        best = name;
+        bestDistance = previous[name.length];
+      }
+    }
+    return best !== null && bestDistance <= Math.max(1, Math.floor(word.length / 3)) ? best : null;
   }
 
   function compareNames(a, b) {

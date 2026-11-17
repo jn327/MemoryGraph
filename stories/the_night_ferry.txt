@@ -1,0 +1,219 @@
+title: The Night Ferry
+synopsis: A short showcase. On the last crossing of the night a brooch goes missing, and everyone aboard decides who took it. Including you.
+half-life: 20
+
+== characters
+hale: Captain Hale
+  Runs the night ferry, and runs it strictly.
+jory: Jory
+  The deckhand who takes the fares at the gangway.
+ines: Mrs Duarte
+  An elderly passenger with a suitcase nearly as big as she is.
+lark: Lark
+  A girl of about ten, travelling alone. She notices everything.
+grey: the man in the grey coat (hidden)
+  Reads a newspaper by the luggage rack, and never turns the page.
+
+== traits
+honest: truth, admit +1.5, lie -1
+deceptive (a liar): lie, cheat
+kind: help, share, defend
+accusing (quick to accuse): accuse, search +0.5
+suspect (under suspicion): suspected, cleared -1.5
+thief (a thief) #9b2c4a: steal
+
+== macros
+noticedGrey: player with grey >= 1 # you were watching him
+jorySuspected: hale sees jory as suspect >= 0.5 # Hale suspects Jory
+greySuspected: hale sees grey as suspect >= 0.5 # Hale suspects him
+greyCaught: hale sees grey as thief >= 0.5 # Hale knows the truth
+haleTrustsYou: hale sees you as more honest than deceptive # Hale trusts you
+
+
+=== boarding
+present: jory, ines, lark, grey
+~ coins = 3
+
+The last ferry across the strait leaves at nine, and the wind is already pulling the tops off the waves. You have {coins} coins in your pocket and no ticket. {jory}, the deckhand, is taking fares at the gangway with a lantern and a tin box.
+{jory knows accuse, jory: He looks at you for a long moment before he holds out the tin. Deckhands have good memories for faces, and he doesn't like yours. # Jory remembers your face}
+{grey knows player: Somewhere behind you in the queue, a man laughs softly, as if at an old joke. # someone remembers you}
+
+Behind you an old woman, {ines}, is fighting a suitcase nearly as big as she is. A girl of about ten is travelling alone with a label pinned to her coat that says *LARK*, and she is watching everyone with great interest.
+
+* Pay your fare, then carry Mrs Duarte's case up the gangway
+  ~ coins -= 1
+  ~ remember help, ines (seen by ines, jory, lark)
+      "carried Mrs Duarte's case up the gangway"
+  -> deck
+* Slip aboard behind a cargo cart without paying
+  ~ remember cheat, jory (seen by lark, grey) "slipped aboard without paying your fare"
+  -> deck
+* Pay, and give Jory an extra coin for the weather
+  ~ coins -= 2
+  ~ remember share, jory (seen by jory) "gave the deckhand an extra coin for the weather"
+  -> deck
+
+
+=== deck
+present: hale, jory, ines, lark, grey
+
+The ferry clears the harbour wall and the whole boat leans into the dark. The passengers crowd into the saloon. {hale} stands by the wheelhouse door with her arms folded, counting heads.
+{jory knows share, jory: Jory catches your eye across the saloon and nods. He hasn't forgotten the coin. # Jory remembers the coin}
+Near the luggage rack a man in a grey coat is reading a newspaper. He never turns the page.
+
+* Keep an eye on the man in the grey coat
+  ~ remember search, grey (seen by grey) "watched the man in the grey coat all evening"
+  -> theft
+* Lark is shivering. Give her your coat
+  ~ remember share, lark (seen by lark, ines) "gave Lark your coat when the cold came in"
+  -> theft
+* Tell the captain you've never crossed in weather like this
+  ~ remember admit, hale (seen by hale)
+      "admitted to the captain that the crossing frightened you"
+  -> theft
+
+
+=== theft
+present: hale, jory, ines, lark, grey
+~ remember grey: steal, brooch (seen by grey)
+    "lifted the swallow brooch from Mrs Duarte's coat"
+
+Halfway across, Mrs Duarte cries out. The brooch her husband gave her, a gold swallow, is gone from her coat.
+
+{hale} shuts the saloon doors. 'Nobody leaves this room,' she says, which on a boat in a storm is a very short sentence. 'Who saw anything?'
+{lark sees you as kind >= 0.5: Lark is tugging at your sleeve. She has seen something, and you are the only grown-up on this boat she has decided to trust. # Lark trusts you}
+
+* Point at Jory. He was the one handling the luggage
+  ~ remember accuse, lie, jory (seen by hale, ines, jory, lark)
+      "told the captain Jory must have taken it"
+    and jory: suspected "was accused of taking the brooch"
+  -> search
+* {noticedGrey} Say the man in the grey coat was standing right behind her
+  ~ remember truth, accuse, grey (seen by hale, ines, grey)
+      "told the captain about the man in the grey coat"
+    and grey: suspected "was seen standing right behind Mrs Duarte"
+  -> search
+* {lark sees you as kind >= 0.5 # Lark trusts you} Crouch down and ask Lark what she saw
+  ~ remember help, lark (seen by hale, lark) "listened to Lark when nobody else would"
+  ~ remember lark: truth, accuse, grey (seen by hale, ines, grey)
+      "told the captain the man in the grey coat had been right behind Mrs Duarte"
+    and grey: suspected "was seen standing right behind Mrs Duarte"
+  -> search
+* Turn out your own pockets before anyone asks
+  ~ remember truth, admit (seen by everyone)
+      "turned out your own pockets before anyone asked"
+  -> search
+* Say nothing -> search
+
+
+=== search
+present: hale, jory, ines, lark, grey
+
+{hale} searches the saloon by lantern light, row by row, bag by bag.
+{jorySuspected: She starts with Jory. He stands very still while she goes through his oilskin and the tin fare box. She finds nothing, and locks him in the chain locker anyway. 'Until we dock,' she says. | Jory holds the lantern for her, which is the only reason anyone can see.}
+{jory knows share, jory and not jorySuspected: Each time he passes you, he lets the light rest for a moment on the grey man's seat. # Jory remembers the coin}
+{greySuspected: When she reaches the man in the grey coat he smiles and holds his coat open. There is nothing in it at all. He opened it a little too wide, and a little too quickly.}
+
+* {jorySuspected} Tell Hale that Jory never went near Mrs Duarte
+  ~ remember defend, truth, jory (seen by hale, jory)
+      "spoke up for Jory when he was locked in the chain locker"
+  ~ doubt hale about jory, suspected (belief 0.25)
+  ~ remember jory: cleared (seen by hale) "had someone vouch for him"
+  -> galley
+* {greySuspected} Ask her to search his seat, not just his coat
+  ~ remember search, accuse, grey (seen by hale, grey)
+      "made the captain search the grey man's seat"
+  ~ reveal to everyone about brooch
+  ~ describe grey: The man who lifted the swallow brooch from Mrs Duarte's coat.
+  -> galley
+* {jory knows share, jory and not jorySuspected and not greySuspected # Jory remembers the coin} Follow Jory's lantern to the grey man's seat
+  ~ remember search, grey (seen by hale, jory, grey)
+      "followed the deckhand's lantern to the grey man's seat"
+  ~ reveal to everyone about brooch
+  ~ describe grey: The man who lifted the swallow brooch from Mrs Duarte's coat.
+  -> galley
+* Let the captain do her job -> galley
+
+
+=== galley
+present: jory, ines, lark
+~ gossip lark to ines about trait deceptive (belief 0.8)
+~ gossip jory to hale about trait kind
+
+{
+- greyCaught:
+The brooch was in the lining of the grey man's seat, wrapped in a page of the newspaper he never turned. Hale has him sitting in the galley with his hands on the table where she can see them. Mrs Duarte holds the swallow in her lap as if it might fly off.
+- else:
+Later, in the galley, Mrs Duarte sits with a cup of tea she isn't drinking. Lark is beside her, swinging her feet.
+{ines knows cheat: 'Lark tells me you didn't pay for your passage,' Mrs Duarte says. She doesn't sound angry. She sounds like someone taking notes. | 'You're kind to sit with an old woman,' Mrs Duarte says. 'Everyone else has decided the brooch is gone.'}
+{ines sees you as kind >= 0.5: She pats your hand. She remembers who was kind to her tonight.}
+}
+
+* {ines knows cheat} Admit it, and put the fare in Jory's tin
+  ~ coins -= 1
+  ~ remember admit, truth, ines "owned up to dodging your fare and paid it"
+  -> dawn
+* {ines knows cheat} Tell her Lark must be mistaken
+  ~ remember lie, lark (seen by lark) "told Mrs Duarte that Lark was making things up"
+  ~ doubt ines about cheat (belief 0.2)
+  -> dawn
+* {not greyCaught} Promise her you'll find the brooch
+  ~ promised = true
+  ~ remember help, ines (seen by ines, lark)
+      "promised Mrs Duarte you would find her brooch"
+  -> dawn
+* Sit with them until the lights of the harbour show -> dawn
+
+
+=== dawn
+present: hale, jory, ines, lark, grey
+
+Dawn comes up the colour of dishwater. The ferry noses in against the quay and the gangway goes down with a bang. {hale} stands at the top of it with the passenger list. You step ashore with {coins} coins and a great deal less sleep.
+
+* Go ashore
+  -> the_swallow if greyCaught
+  -> the_chain_locker if jorySuspected
+  -> the_quay
+* {noticedGrey and not greyCaught} Follow the man in the grey coat down the gangway
+  ~ remember search, grey (seen by grey) "followed the man in the grey coat off the boat"
+  -> the_grey_coat
+
+
+=== the_swallow (ending)
+present: jory, ines, lark, grey
+
+The man in the grey coat goes ashore between two harbour police, still smiling, as if the whole night had been very interesting. Mrs Duarte pins the swallow back on her coat at the top of the gangway.
+{jory knows share, jory: Jory finds you on the quay and presses your extra coin back into your hand. 'Didn't need it,' he says. 'Good to know someone thought I might.' | Jory coils the mooring rope and doesn't look at anyone.}
+
+{recall ines among kind, honest, deceptive, accusing: 'I'll remember you,' Mrs Duarte says, 'as the one who {summary}.'}
+{recall lark among kind, honest, deceptive, accusing: Lark waves from her aunt's car. Years from now she will still be telling people about the passenger who {summary}.}
+
+
+=== the_chain_locker (ending)
+present: hale, jory, grey
+
+Jory is taken off the boat between two harbour police. He looks back once, not at Hale but at the passengers, as if he wants to remember their faces. The brooch is never found.
+{jory knows accuse, jory: His eyes find yours and stay there. He knows exactly who pointed at him. # Jory knows}
+{hale knows admit: Hale takes your name before you go. 'You were straight with me last night,' she says. 'If this goes to court, I'll want you to be straight with them.' | Hale doesn't ask for your name. She has already decided what kind of witness you'd make. # Hale remembers you were straight with her}
+
+{recall grey among kind, honest, deceptive, accusing: On the quay, the man in the grey coat tips his hat to you as he passes. He'll remember you as the one who {summary}. The swallow is in his pocket. | On the quay, the man in the grey coat walks away whistling. The swallow is in his pocket.}
+
+
+=== the_quay (ending)
+present: hale, ines
+
+Nobody is arrested. The brooch is not found. The passengers go ashore in ones and twos, glad of ground that stays still, and by the time the sun is properly up the ferry is just a boat again.
+{haleTrustsYou: Hale nods to you at the gangway: the nod of one person who did their job to another. | Hale watches you go down the gangway the way she watched the luggage rack all night.}
+{promised == true: You promised Mrs Duarte you'd find her swallow. You didn't.}
+
+{recall ines about trait kind: Mrs Duarte will tell her sister about the passenger who {summary}. | Mrs Duarte won't mention you to anyone.}
+{recall ines about trait kind rank 2: She'll mention, too, that you {summary}.}
+
+
+=== the_grey_coat (ending)
+present: grey
+
+You follow the grey coat through the harbour market, past the fish stalls and the money changers, until it turns into an alley that ends at a wall. He is waiting for you there. 'You watched me all night,' he says. 'Nobody watches. That's the whole trick.'
+{grey sees you as deceptive >= 0.5: 'You're like me,' he says, and puts the swallow in your hand. 'Sell it or give it back. Either way, you'll know what you are.' | He holds the swallow out on his palm. 'Give it back to her, then,' he says, 'since you're that sort.' He's gone before you can close your hand. # he saw you at the gangway}
+
+{recall grey about trait deceptive: Walking back to the quay, you realise he had been watching you as well. He knows you are the one who {summary}. | Walking back to the quay, you realise he had been watching you as well, and found nothing he could use.}

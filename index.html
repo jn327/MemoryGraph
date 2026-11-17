@@ -25,8 +25,8 @@
 
     <section class="library-panel" aria-label="Story library" id="library-panel">
       <div class="library-controls">
-        <input id="story-files" class="visually-hidden" type="file" accept=".json,application/json" multiple webkitdirectory tabindex="-1" />
-        <input id="story-json-files" class="visually-hidden" type="file" accept=".json,application/json" multiple tabindex="-1" />
+        <input id="story-files" class="visually-hidden" type="file" accept=".txt,text/plain" multiple webkitdirectory tabindex="-1" />
+        <input id="story-text-files" class="visually-hidden" type="file" accept=".txt,text/plain" multiple tabindex="-1" />
         <div class="story-picker">
           <button id="story-picker" class="story-picker-toggle" type="button" aria-labelledby="story-picker-label story-picker-title" aria-expanded="false" aria-controls="story-menu" disabled>
             <span class="visually-hidden" id="story-picker-label">Story:</span>
@@ -35,7 +35,8 @@
           <div class="story-menu" id="story-menu" hidden>
             <div class="story-menu-uploads" role="group" aria-label="Upload stories">
               <button id="folder-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload a folder</button>
-              <button id="json-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload JSON files</button>
+              <button id="files-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload story files (.txt)</button>
+              <button id="watch-file-button" class="upload-option" type="button" hidden><span aria-hidden="true">↻</span> Open a story to edit (reloads when you save)</button>
             </div>
             <div class="story-options" id="story-options" role="group" aria-label="Stories"></div>
           </div>
@@ -49,7 +50,7 @@
         <h2 class="story-title" id="story-title">The next choice is yours.</h2>
         <div class="story-text" id="story-text"><p>Choose a story above to step into a world that remembers.</p></div>
         <details class="reputation-panel" id="reputation-panel" hidden>
-          <summary>How you're seen</summary>
+          <summary>Who's who</summary>
           <div class="reputation-tabs" id="reputation-tabs" role="group" aria-label="Whose view"></div>
           <div class="reputation-body" id="reputation-body"></div>
         </details>
@@ -105,6 +106,15 @@
             </div>
             <div id="check-results"></div>
           </section>
+          <section class="scene-start" aria-label="Start from a scene">
+            <div class="story-check-header">
+              <h4>Start from a scene</h4>
+              <button class="button button-quiet" id="scene-start-button" type="button">Start here</button>
+            </div>
+            <label class="scene-select-label">Scene <select id="scene-select"></select></label>
+            <p class="check-line">Tick anything that should already have happened:</p>
+            <div class="scene-presets" id="scene-presets"></div>
+          </section>
           <details class="debug-raw">
             <summary>Raw graph data</summary>
             <pre id="debug-content" class="debug-content"></pre>
@@ -115,7 +125,9 @@
   </main>
   <script src="scripts/MemoryGraph.js"></script>
   <script src="scripts/NarrativeEngine.js"></script>
+  <script src="scripts/StoryText.js"></script>
   <script src="scripts/StoryCheck.js"></script>
+  <script src="stories/built/manifest.js"></script>
   <script src="scripts/storyPlayer.js"></script>
 </body>
 </html>

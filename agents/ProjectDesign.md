@@ -18,21 +18,24 @@ The system has two core library modules and a separate demo UI:
 
 1.  **MemoryGraph** stores events as collections of named concepts and
     builds weighted associations between concepts that appear together.
-2.  **NarrativeEngine** interprets a JSON story definition. It displays
+2.  **NarrativeEngine** interprets a story definition (plain data). It displays
     scene text and choices, evaluates declarative conditions, executes
     declarative operations, and moves between story nodes.
 
-Two smaller pieces sit outside the core library. **StoryCheck** plays a
-story many times at random and reports problems (section 17). The
-**StoryPlayer** is demo UI. It offers built-in
-stories and lets the user upload a folder or JSON files, renders the
+Three smaller pieces sit outside the core library. **StoryText** reads the
+story text format that authors write and builds the definition the engine
+plays (section 4.1). **StoryCheck** plays a story many times at random and
+reports problems (section 16.3). The **StoryPlayer** is demo UI. It offers
+built-in stories and lets the user upload a folder or `.txt` story files,
+or watch one file while editing it, renders the
 engine's view, and sends selected visible choices back to the engine. It
 is not a required library module or a supported UI framework.
 
-A story author should be able to create or modify a story by editing
-JSON only. They should not need to write JavaScript for ordinary story
-logic. The author-facing guide is [docs/writing-stories.md](../docs/writing-stories.md);
-this document is the full reference.
+A story author should be able to create or modify a story by editing a
+plain text file only. They should not need to write JavaScript or JSON.
+The author-facing guide, which is also the reference for the text syntax,
+is [docs/writing-stories.md](../docs/writing-stories.md). This document
+specifies the story data that the text produces, and the engine.
 
 The engine is not an LLM and does not understand natural language
 automatically. It operates on concepts and rules explicitly supplied by
@@ -46,7 +49,7 @@ the story author.
 -   Keep the public API small and predictable.
 -   Use strings as concept identifiers; do not require numeric concept
     IDs.
--   Keep story content, memory rules, conditions, and branching in JSON.
+-   Keep story content, memory rules, conditions, and branching in story data.
 -   Support branching stories that can later converge on shared nodes.
 -   Allow the same memory graph to persist across chapters or play
     sessions.
@@ -64,7 +67,7 @@ Do not attempt to implement:
 -   A visual story editor.
 -   A full replacement for Ink, Twine, Unity, or a general-purpose game
     engine.
--   Unrestricted JavaScript execution from story JSON.
+-   Unrestricted JavaScript execution from story data.
 -   Sophisticated temporal reasoning, causal inference, or human-like
     understanding.
 
@@ -79,13 +82,19 @@ APIs in the core library. There is no build, bundling, or local-server
 step at runtime: opening `index.html` directly with `file://` is the supported
 launch method. Use ordered classic `<script src="...">` tags for the
 library and demo scripts; do not use ES-module imports or `fetch()` to
-load local files. Each built-in story is a `stories/<name>.js` file whose
-only statement is `registerStory({...})` around its JSON definition.
-`storyPlayer.js` lists these names in `STORY_FILES`, appends a classic
-`<script>` tag for each, and validates every registered definition before
-populating the picker. Add a story's name to `STORY_FILES` when adding it.
-The Upload control lets the user select a folder or JSON files to replace
-the built-in story picker. Uploads are not retained across page reloads.
+load local files. Built-in stories are written as `stories/<name>.txt`.
+Because a `file://` page can't read text files itself,
+`node scripts/build-stories.js` wraps each one in
+`stories/built/<name>.js`, whose only statement is
+`registerStoryText("<name>.txt", [lines…])` with the file's lines
+unchanged, and writes `stories/built/manifest.js`, which sets
+`globalThis.memoryGraphStoryFiles` to the list of names. This build step
+is for the built-in library only; playing needs nothing but the browser.
+`storyPlayer.js` appends a classic `<script>` tag for each listed story,
+parses it with StoryText, and validates it before populating the picker.
+The Upload control lets the user select a folder or `.txt` files to
+replace the built-in story picker. Uploads are not retained across page
+reloads.
 
 Use the existing project structure:
 
@@ -94,23 +103,61 @@ Use the existing project structure:
   scripts/
     MemoryGraph.js
     NarrativeEngine.js
+    StoryText.js            # reads the story text format; used by the demo, build and tests
     StoryCheck.js           # random-playthrough checker; used by tests and the demo
+    build-stories.js        # Node only: wraps stories/*.txt into stories/built/
     storyPlayer.js          # demo UI only; not part of the core library
   styles/
     shared.css
   stories/
-    *.js                    # registerStory({...}) around a JSON definition
+    *.txt                   # built-in stories, in the text format
+    built/                  # generated by build-stories.js; never edited by hand
   docs/
-    writing-stories.md      # guide for story authors
-    story-template.json     # a minimal story to copy
+    writing-stories.md      # guide for story authors and syntax reference
+    story-template.txt      # a minimal story to copy
   tests/                    # dependency-free unit tests using Node's built-in runner
 ```
 
-Load `MemoryGraph.js`, `NarrativeEngine.js`, `StoryCheck.js`, and
-`storyPlayer.js` in that order from `index.html`; `storyPlayer.js` loads the story files itself. The core scripts expose `MemoryGraph` and
-`NarrativeEngine` through explicit `window` properties. `storyPlayer.js`
+Load `MemoryGraph.js`, `NarrativeEngine.js`, `StoryText.js`,
+`StoryCheck.js`, `stories/built/manifest.js`, and `storyPlayer.js` in that
+order from `index.html`; `storyPlayer.js` loads the story files itself.
+The scripts expose `MemoryGraph`, `NarrativeEngine`, and `StoryText`
+through explicit `window` properties. `storyPlayer.js`
 is the browser demo entry point; core scripts must not depend on the
 demo, DOM, or styles.
+
+### 4.1 Story text format
+
+`StoryText.parse(text, { fileName })` returns `{ story, lines, todos }`:
+
+-   `story` is the definition specified in the rest of this document.
+    `id` defaults to the file name, and `start` to the first scene.
+-   `lines` maps engine locations (`"node 'deck' choice 'pay' do operation 0"`)
+    to source line numbers. `StoryText.lineFor(lines, text)` finds the line
+    for a lint warning or error message by the longest location it
+    mentions, so the demo can report "line 42".
+-   `todos` lists `// TODO` comments as `{ line, text }`.
+
+It throws `StoryText.StoryTextError` (with `line` and `reason`) for
+syntax errors and for names that don't exist: scenes, characters, traits
+and macros, with a "did you mean" suggestion when one is close. It checks
+names and syntax only; the engine still validates the result.
+
+The parser's own conveniences, all of which produce ordinary story data:
+
+-   A choice's id is `(label)` if given, else the first five words of its
+    text as `snake_case`, made unique within the scene.
+-   `~ remember` adds `"player"` to the concepts unless it starts with
+    `subject:` (which also sets `subject`) or `world:` (neither).
+-   A remember without `(seen by …)` gets the scene's `present` list as
+    its witnesses (or none). An `and` line under a remember is another
+    remember with the same witnesses unless it lists its own.
+-   `{hale}` becomes `{name:hale}` for a character, else `{var:hale}`.
+-   Paragraph lines are joined with spaces; blank lines become `"\n\n"`
+    parts. A passage with no `{…}` parts becomes a plain string.
+-   In a recall part with `if`, the `|` fallback is used both as `else`
+    and as `otherwise`.
+-   `+= 1` and `-= 1` omit `amount`.
 
 ## 5. Core design principles
 
@@ -497,7 +544,7 @@ Recommended representation:
 ```
 
 Built-in operations are `remember`, `set`, `inc`, `dec`, and `macro`;
-`gossip`, `reveal`, and `doubt`, and the `witnesses`, `summary`, and
+`gossip`, `reveal`, `doubt`, and `describe`, and the `witnesses`, `summary`, and
 `subject` fields of `remember`, are described in section 12. Every operation is expressed
 with its own `type` property. The `goto` field is navigation data on a
 choice, not an operation; `forget` is deferred and is not supported in
@@ -1012,7 +1059,34 @@ explains, with the explanation in a tooltip on hover or keyboard focus.
 an uninterrupted read; that preference is stored per browser. Saved
 transcripts keep their tags.
 
-### 12.9 Choice echoes and the reputation panel
+### 12.9 Presence and descriptions
+
+`characters.<id>.description` (optional string) says who the character is.
+`nodes.<id>.present` (optional array of distinct character IDs) says who
+is in the scene. The engine itself only validates and reports them:
+
+-   `getView()` includes `present: [{ id, name, description }]` when the
+    node has a `present` list.
+-   `{ "type": "describe", "character": "grey", "description": "…" }`
+    replaces a character's description for the rest of the run (it may use
+    placeholders). `engine.characterDescription(id)` returns the current
+    description or `null`. Descriptions are run progress: saved in
+    `toJSON()` as `descriptions` (optional when loading) and cleared by
+    `reset()`, even when memory is kept.
+-   `engine.apply(operations)` validates and runs operations outside any
+    choice, before or during a run. Authoring tools use it to set up a
+    scene, such as the demo's **Start from a scene**.
+
+The demo shows "Here: …" above each passage with a `present` list. Each
+character's first mention in a passage (by full name, or by a capitalised
+last word no other character shares) can be hovered or focused to show
+their name, description, whether they're here, and how they see the
+player. For hidden characters it says the player can't tell.
+
+Composed text is joined with single spaces, except that no space is added
+before a part starting with closing punctuation (`. , ; : ! ? ) ’ ”`).
+
+### 12.10 Choice echoes and the reputation panel
 
 Players get feedback on a choice *after* making it, never as a preview.
 Previews would turn moral choices into stat optimisation, and would
@@ -1052,10 +1126,16 @@ engine.reputationOf();        // overall (world) view; character and name are nu
 `reputationOf()` includes negative scores, so a trait can be shown
 pushed away as well as toward, sorted by absolute size.
 
-**Panel.** The demo's collapsible **How you're seen** panel sits above
-the choices:
+**Panel.** The demo's collapsible **Who's who** panel sits above the
+choices:
 
--   One tab for **Overall** and one per known character.
+-   One tab for **Overall** and one per character met so far: anyone in
+    the `present` list of a visited node, plus every non-hidden character
+    who knows something. Characters present in the current node come
+    first and are marked "· here".
+-   A character's tab shows their current description first. For a hidden
+    character it then says the player can't tell what they think, and
+    shows no bars.
 -   For the selected view, diverging bars per trait (toward a trait to the
     right of centre, away from it to the left), drawn on one scale shared
     by every tab so people can be compared. Each bar has a word strength
@@ -1181,7 +1261,7 @@ or condition.
 
 Custom handlers receive a controlled context containing the engine,
 graph, variables, current node, and helper methods. They must not
-receive unrestricted access to browser globals through the story JSON.
+receive unrestricted access to browser globals through story data.
 
 Never use `eval`, `Function`, or execute arbitrary JavaScript strings
 from story data.
@@ -1204,6 +1284,9 @@ valid but almost certainly mistakes. It never throws for them:
 -   a placeholder that isn't `{name:…}` or `{var:…}`, or `{summary}`
     outside a recall format;
 -   a macro that is never used.
+
+A concept warning suggests the closest remembered concept when one is
+within a few edits ("did you mean 'lie'?").
 
 Concepts produced only by custom operations are reported too; treat
 those warnings as expected.
@@ -1233,9 +1316,21 @@ seeded random playthroughs (default 500) and returns:
 }
 ```
 
-The demo's **Graph State** panel shows the selected story's warnings and
-has a **Check story** button that runs 300 playthroughs. Uploads that
-have warnings say so in the status line.
+The demo's **Graph State** panel shows the selected story's warnings with
+their source lines, its TODO notes, and a **Check story** button that runs
+300 playthroughs. Uploads that have warnings say so in the status line.
+**Start from a scene** starts a fresh run at any node after applying the
+`set` operations and summarised `remember` operations the author ticks
+from the story's own operations.
+
+### 16.4 Watching a story file
+
+Where the File System Access API exists (Chrome and Edge, including over
+`file://`), **Open a story to edit** lets the author pick one `.txt` file.
+The demo checks its modification time every second. After a change it
+parses the file again; on success it starts the new version and replays
+the run's choices by ID until one is no longer offered, and on failure
+it reports the line and keeps the current run.
 
 ## 17. Automated test requirements
 
@@ -1301,8 +1396,14 @@ Write automated tests for:
 
 ### StoryPlayer
 
--   every stories/*.js file is listed in STORY_FILES, loads, and can be selected
--   uploading JSON stories replaces the current picker contents
+-   every stories/*.txt file is built, loads, and can be selected
+-   uploading `.txt` stories replaces the current picker contents, and a
+    file that doesn't parse is skipped with its line number
+-   a watched file reloads on save, replays the choices made, and keeps
+    the last working version when the new one doesn't parse
+-   passages show who is here, names explain who people are (hidden
+    characters' views stay secret), and `describe` updates the cast panel
+-   **Start from a scene** starts at the chosen node with ticked memories
 -   the transcript preserves the text and choices shown during a run
 -   saved transcripts restore correctly, including older saves without one
 -   graph-state diagnostics include each event's sequence number
@@ -1310,9 +1411,17 @@ Write automated tests for:
 -   endings list how each witness remembers the player
 -   memory-driven text and choices render tags with explanations
 -   picked choices show their echo (hidden witnesses unnamed), and the
-    reputation panel lists Overall plus each known, non-hidden character
+    cast panel lists Overall plus each character met
 -   uploads report authoring warnings, and **Check story** shows the
     results of a run
+
+### StoryText
+
+-   each piece of syntax produces the story data described in 4.1
+-   mistakes are reported with their line number and a suggestion
+-   `lineFor` maps engine locations back to source lines
+-   the engine reports `present`, applies and saves `describe`, joins
+    closing punctuation without a space, and `apply()` runs operations
 
 ### Built-in stories
 
@@ -1320,6 +1429,7 @@ Write automated tests for:
     finish without errors or dead ends and between them reach every node;
     each story offers at least three endings and has no authoring
     warnings. Branches no run used are reported as test diagnostics.
+-   `stories/built/` matches what `build-stories.js` would write.
 
 ### Browser (`file://`)
 
@@ -1333,7 +1443,7 @@ The implementation is complete when:
 
 1.  A developer can instantiate `MemoryGraph` and `NarrativeEngine` in a
     browser.
-2.  A JSON-only story can present text and choices.
+2.  A story written only as a text file can present text and choices.
 3.  Choices can record multi-concept memories.
 4.  The graph exposes direct associations.
 5.  Story conditions can query association scores, character knowledge
@@ -1347,7 +1457,7 @@ The implementation is complete when:
 10. The demo runs by opening `index.html` directly with `file://`, without
     a build or local-server step. Built-in stories are available immediately;
     users may optionally replace them for the current page session by
-    uploading a folder or JSON files.
+    uploading a folder or `.txt` story files.
 11. The automated test requirements above pass.
 
 ## 19. Suggested implementation order

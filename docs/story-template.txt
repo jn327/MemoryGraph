@@ -1,0 +1,57 @@
+// A small story to copy and change. Lines starting with // are notes to
+// yourself; the player never sees them. See docs/writing-stories.md.
+title: My Story
+synopsis: One line that makes someone want to play it.
+
+== characters
+ana: Ana
+  Your neighbour. Always in a hurry.
+ben: Ben
+  Ana's brother. Notices more than he says.
+
+== traits
+kind: help
+selfish: take, ignore +0.5
+
+== macros
+anaLikesYou: ana sees you as more kind than selfish # Ana remembers
+
+
+=== opening
+present: ana, ben
+
+{ana} has dropped her shopping all over the pavement. {ben} is watching from across the road.
+
+* Help her pick it up
+  ~ remember help, ana "helped Ana pick up her shopping"
+  -> corner
+* Pocket an orange that rolled your way
+  ~ remember take, ana (seen by ben) "pocketed one of Ana's oranges"
+  -> corner
+
+
+=== corner
+present: ana, ben
+~ gossip ben to ana
+
+At the corner, Ben catches up with Ana.
+{ben knows take: He nods back toward you and says something you can't hear.}
+
+* Wave to them
+  -> friends if anaLikesYou
+  -> strangers
+* Walk on
+  ~ remember ignore, ana (seen by ana) "walked past without a word"
+  -> strangers
+
+
+=== friends (ending)
+present: ana
+
+Ana waves back and calls you over.
+{recall ana among kind, selfish: 'You're the one who {summary},' she says.}
+
+
+=== strangers (ending)
+They turn the corner without you.
+{recall ana among kind, selfish: Ana will remember you as the one who {summary}.}

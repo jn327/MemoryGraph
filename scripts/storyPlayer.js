@@ -2,9 +2,10 @@
   "use strict";
 
   const fileInput = document.getElementById("story-files");
-  const jsonInput = document.getElementById("story-json-files");
+  const textInput = document.getElementById("story-text-files");
   const folderUploadButton = document.getElementById("folder-upload-button");
-  const jsonUploadButton = document.getElementById("json-upload-button");
+  const filesUploadButton = document.getElementById("files-upload-button");
+  const watchFileButton = document.getElementById("watch-file-button");
   const picker = document.getElementById("story-picker");
   const pickerTitle = document.getElementById("story-picker-title");
   const storyMenu = document.getElementById("story-menu");
@@ -43,15 +44,16 @@
   const debugContent = document.getElementById("debug-content");
   const checkButton = document.getElementById("check-button");
   const checkResults = document.getElementById("check-results");
+  const sceneSelect = document.getElementById("scene-select");
+  const scenePresets = document.getElementById("scene-presets");
+  const sceneStartButton = document.getElementById("scene-start-button");
   const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+  const WATCH_INTERVAL = 1000;
 
-  // Built-in stories live in stories/<name>.js, each calling registerStory({...}).
-  // Add a file's name here to include it in the picker.
-  const STORY_FILES = [
-    "anywhere", "the_better_version", "the_distance_between_us",
-    "the_house_with_two_kitchens", "the_mountain_accounts", "the_night_ferry",
-    "the_places_that_help", "the_quiet_ministry", "the_village_remembers"
-  ];
+  // Built-in stories are written in stories/<name>.txt. The build script
+  // (scripts/build-stories.js) wraps each one in stories/built/<name>.js,
+  // which calls registerStoryText(), and lists them in manifest.js.
+  const STORY_FILES = Array.isArray(window.memoryGraphStoryFiles) ? window.memoryGraphStoryFiles : [];
 
   let stories = [];
   let storiesUploaded = false;
@@ -59,6 +61,7 @@
   let selectedStory = null;
   let storageUnavailable = false;
   let transcript = [];
+  let watched = null;
 
   if (!("webkitdirectory" in fileInput)) {
     folderUploadButton.hidden = true;
@@ -68,11 +71,22 @@
     setPickerOpen(false);
     fileInput.click();
   });
-  jsonUploadButton.addEventListener("click", function () {
+  filesUploadButton.addEventListener("click", function () {
     setPickerOpen(false);
-    jsonInput.click();
+    textInput.click();
   });
-  [fileInput, jsonInput].forEach(function (input) {
+  if (watchFileButton) {
+    // Needs the File System Access API (Chrome and Edge, including file://).
+    watchFileButton.hidden = typeof window.showOpenFilePicker !== "function";
+    watchFileButton.addEventListener("click", function () {
+      setPickerOpen(false);
+      watchStoryFile();
+    });
+  }
+  if (sceneStartButton) {
+    sceneStartButton.addEventListener("click", startFromScene);
+  }
+  [fileInput, textInput].forEach(function (input) {
     input.addEventListener("change", function () {
       loadStoryFiles(Array.from(input.files || []));
       input.value = "";
@@ -135,32 +149,37 @@
 
   function loadBuiltInStories() {
     // A classic script's load event fires straight after it runs, so the
-    // definition it registered can be paired with its file name there.
+    // text it registered can be paired with its file there.
     let registered = null;
-    window.registerStory = function (definition) {
-      registered = definition;
+    window.registerStoryText = function (fileName, lines) {
+      registered = { fileName: fileName, text: Array.isArray(lines) ? lines.join("\n") : String(lines) };
     };
+    if (STORY_FILES.length === 0) {
+      stories = [];
+      renderStoryPicker();
+      setStatus("No built-in stories were found. Run node scripts/build-stories.js to build them.", true);
+      return;
+    }
 
     Promise.all(STORY_FILES.map(function (name) {
       return new Promise(function (resolve) {
-        const fileName = name + ".js";
         const script = document.createElement("script");
-        script.src = "stories/" + fileName;
+        script.src = "stories/built/" + name + ".js";
         script.onload = function () {
-          const definition = registered;
+          const source = registered;
           registered = null;
-          if (definition === null) {
-            resolve({ fileName: fileName, error: "registerStory was not called (check for syntax errors)" });
+          if (source === null) {
+            resolve({ fileName: name + ".txt", error: "the built file did not register a story (run node scripts/build-stories.js)" });
             return;
           }
           try {
-            resolve(Object.assign({ fileName: fileName }, validateStory(definition)));
+            resolve(prepareStory(source.text, source.fileName));
           } catch (error) {
-            resolve({ fileName: fileName, error: error.message });
+            resolve({ fileName: source.fileName, error: error.message });
           }
         };
         script.onerror = function () {
-          resolve({ fileName: fileName, error: "the file could not be loaded" });
+          resolve({ fileName: name + ".txt", error: "stories/built/" + name + ".js could not be loaded (run node scripts/build-stories.js)" });
         };
         document.head.appendChild(script);
       });
@@ -183,24 +202,40 @@
     });
   }
 
-  // Returns { definition, warnings }; throws when the story is invalid.
-  function validateStory(definition) {
-    if (!definition || typeof definition !== "object" || Array.isArray(definition)) {
-      throw new TypeError("story definition must be an object");
+  // Reads a story's text. Returns { fileName, definition, warnings, lines,
+  // todos }; throws, naming the line, when the story can't be played.
+  function prepareStory(text, fileName) {
+    let parsed;
+    try {
+      parsed = window.StoryText.parse(text, { fileName: fileName });
+    } catch (error) {
+      throw new Error(error.line === undefined ? error.message : "line " + error.line + ": " + error.reason);
     }
-    const graph = new window.MemoryGraph();
-    const probe = new window.NarrativeEngine(definition, { graph: graph });
-    probe.start();
-    const warnings = probe.lint();
-    if (warnings.length > 0 && typeof console !== "undefined" && console.warn) {
-      console.warn("Story '" + definition.id + "' has " + warnings.length + " authoring warning(s):\n" +
-        warnings.map(formatWarning).join("\n"));
+    const definition = parsed.story;
+    try {
+      const probe = new window.NarrativeEngine(definition, { graph: new window.MemoryGraph() });
+      probe.start();
+      const story = {
+        fileName: fileName,
+        definition: definition,
+        lines: parsed.lines,
+        todos: parsed.todos,
+        warnings: probe.lint()
+      };
+      if (story.warnings.length > 0 && typeof console !== "undefined" && console.warn) {
+        console.warn(fileName + " has " + story.warnings.length + " authoring warning(s):\n" +
+          story.warnings.map(function (warning) { return formatWarning(warning, story); }).join("\n"));
+      }
+      return story;
+    } catch (error) {
+      const line = window.StoryText.lineFor(parsed.lines, error.message);
+      throw new Error((line === null ? "" : "line " + line + ": ") + error.message);
     }
-    return { definition: definition, warnings: warnings };
   }
 
-  function formatWarning(warning) {
-    return warning.location + ": " + warning.message;
+  function formatWarning(warning, story) {
+    const line = story && story.lines ? window.StoryText.lineFor(story.lines, warning.location) : null;
+    return (line === null ? "" : "line " + line + ", ") + warning.location + ": " + warning.message;
   }
 
   function sortStories(list) {
@@ -211,15 +246,16 @@
   }
 
   function loadStoryFiles(files) {
-    const jsonFiles = files.filter(function (file) {
-      return /\.json$/i.test(file.name);
+    const textFiles = files.filter(function (file) {
+      return /\.txt$/i.test(file.name);
     });
-    if (jsonFiles.length === 0) {
-      setStatus("No JSON story files were selected.", true);
+    if (textFiles.length === 0) {
+      setStatus("No story files were selected. Stories are .txt files.", true);
       return;
     }
+    stopWatching();
 
-    Promise.all(jsonFiles.map(readStoryFile)).then(function (results) {
+    Promise.all(textFiles.map(readStoryFile)).then(function (results) {
       const loaded = [];
       const rejected = [];
       for (const result of results) {
@@ -261,8 +297,7 @@
       const reader = new FileReader();
       reader.onload = function () {
         try {
-          resolve(Object.assign({ fileName: file.name },
-            validateStory(JSON.parse(String(reader.result)))));
+          resolve(prepareStory(String(reader.result), file.name));
         } catch (error) {
           resolve({ file: file, error: error.message });
         }
@@ -272,6 +307,100 @@
       };
       reader.readAsText(file);
     });
+  }
+
+  // ---- Watching a story file -----------------------------------------
+  // In browsers with the File System Access API, a writer can pick their
+  // story file once. The page checks it every second; after each save it
+  // reloads the story and replays the choices made so far, so they stay at
+  // the same point. A file that doesn't parse leaves the current run alone.
+
+  function watchStoryFile() {
+    window.showOpenFilePicker({
+      types: [{ description: "Story text", accept: { "text/plain": [".txt"] } }]
+    }).then(function (handles) {
+      const handle = handles[0];
+      return handle.getFile().then(function (file) {
+        return file.text().then(function (text) {
+          stopWatching();
+          watched = { handle: handle, lastModified: file.lastModified, timer: null, busy: false };
+          storiesUploaded = true;
+          loadWatchedText(text, file.name, false);
+          watched.timer = setInterval(checkWatchedFile, WATCH_INTERVAL);
+        });
+      });
+    }).catch(function (error) {
+      if (error && error.name === "AbortError") return;
+      setStatus("Could not open the story file: " + (error && error.message ? error.message : error), true);
+    });
+  }
+
+  function stopWatching() {
+    if (watched !== null && watched.timer !== null) clearInterval(watched.timer);
+    watched = null;
+  }
+
+  function checkWatchedFile() {
+    if (watched === null || watched.busy) return;
+    const current = watched;
+    current.busy = true;
+    current.handle.getFile().then(function (file) {
+      if (file.lastModified === current.lastModified) return null;
+      current.lastModified = file.lastModified;
+      return file.text().then(function (text) {
+        if (watched === current) loadWatchedText(text, file.name, true);
+      });
+    }).catch(function (error) {
+      setStatus("Stopped watching the story file: " + (error && error.message ? error.message : error), true);
+      stopWatching();
+    }).then(function () {
+      current.busy = false;
+    });
+  }
+
+  function loadWatchedText(text, fileName, isReload) {
+    let story;
+    try {
+      story = prepareStory(text, fileName);
+    } catch (error) {
+      setStatus(fileName + " " + error.message + (isReload ? " The last working version is still playing." : ""), true);
+      return;
+    }
+    const history = isReload && engine ? engine.choiceHistory.slice() : [];
+    stories = [story];
+    renderStoryPicker();
+    pickerTitle.textContent = story.definition.title + " (watching for changes)";
+    selectStory(story);
+    const replayed = replayChoices(history);
+    const warnings = story.warnings.length === 0 ? "" : " " + story.warnings.length + " authoring warning" +
+      (story.warnings.length === 1 ? "" : "s") + ": open Graph State (i) to see them.";
+    setStatus((isReload
+      ? "Reloaded " + fileName + (history.length === 0 ? "." : replayed === history.length
+        ? " and replayed your " + history.length + " choice" + (history.length === 1 ? "" : "s") + "."
+        : " and replayed " + replayed + " of your " + history.length + " choices; the next one changed.")
+      : "Watching " + fileName + ". Save it in your editor and the story reloads here.") + warnings,
+    false);
+  }
+
+  // Makes the same choices again, by id, until one is no longer offered.
+  // Returns how many were replayed.
+  function replayChoices(history) {
+    let count = 0;
+    for (const entry of history) {
+      const view = engine.getView();
+      const choice = view.choices.find(function (option) { return option.id === entry.choiceId; });
+      if (view.nodeId !== entry.nodeId || choice === undefined) break;
+      try {
+        const next = engine.choose(choice.index);
+        transcript.push(choiceEntry(choice, next.echo), storyEntry(next));
+      } catch (error) {
+        setStatus(error.message, true);
+        break;
+      }
+      count += 1;
+    }
+    if (count > 0) renderView(engine.getView());
+    return count;
   }
 
   function renderStoryPicker() {
@@ -343,6 +472,9 @@
       entry.segments = view.segments;
     }
     if (view.arrival) entry.arrival = view.arrival;
+    if (Array.isArray(view.present) && view.present.length > 0) {
+      entry.present = view.present.map(function (character) { return character.id; });
+    }
     return entry;
   }
 
@@ -365,7 +497,13 @@
     if (isCause(entry.arrival)) restored.arrival = entry.arrival;
     if (isCause(entry.cause)) restored.cause = entry.cause;
     if (isCause(entry.echo)) restored.echo = entry.echo;
+    if (Array.isArray(entry.present) && entry.present.every(isCharacter)) restored.present = entry.present;
     return restored;
+  }
+
+  function isCharacter(id) {
+    return typeof id === "string" && !!selectedStory &&
+      Object.prototype.hasOwnProperty.call(selectedStory.definition.characters || {}, id);
   }
 
   function isCause(cause) {
@@ -376,19 +514,28 @@
       });
   }
 
-  function renderEntry(entry) {
+  function renderEntry(entry, isCurrent) {
     const paragraph = document.createElement("p");
     if (entry.type === "choice") paragraph.className = "story-picked-choice";
-    if (!entry.segments && !entry.arrival && !entry.cause && !entry.echo) {
-      paragraph.textContent = entry.text;
-      return paragraph;
+    // Each character's first mention in a passage can be hovered to see who they are.
+    const linked = new Set();
+    if (entry.type === "story" && entry.present && engine) {
+      const here = document.createElement("span");
+      here.className = "story-here";
+      here.appendChild(document.createTextNode("Here: "));
+      entry.present.forEach(function (id, index) {
+        if (index > 0) here.appendChild(document.createTextNode(", "));
+        linked.add(id);
+        here.appendChild(createCharacterName(id, engine.characterName(id), isCurrent));
+      });
+      paragraph.appendChild(here);
     }
     if (entry.arrival) {
       paragraph.appendChild(createTag(entry.arrival, true));
       paragraph.appendChild(document.createTextNode(" "));
     }
     (entry.segments || [{ text: entry.text }]).forEach(function (segment) {
-      paragraph.appendChild(document.createTextNode(segment.text));
+      appendRichText(paragraph, segment.text, entry.type === "story" ? linked : null, isCurrent);
       if (segment.cause) {
         paragraph.appendChild(document.createTextNode(" "));
         paragraph.appendChild(createTag(segment.cause, true));
@@ -405,21 +552,151 @@
     return paragraph;
   }
 
-  // ---- How you're seen ------------------------------------------------
-  // A live, per-character view of the player's reputation: diverging bars
-  // (toward a trait to the right, away from it to the left) and the act that
-  // defines you to them. Hidden characters are left out until the ending.
+  // Story text with *italics*, and (when `linked` is given) each character's
+  // first mention by name made hoverable.
+  function appendRichText(parent, text, linked, isCurrent) {
+    text.split(/(\*[^*\n]+\*)/).forEach(function (piece) {
+      if (/^\*[^*\n]+\*$/.test(piece)) {
+        const emphasis = document.createElement("em");
+        appendNames(emphasis, piece.slice(1, -1), linked, isCurrent);
+        parent.appendChild(emphasis);
+      } else if (piece.length > 0) {
+        appendNames(parent, piece, linked, isCurrent);
+      }
+    });
+  }
+
+  function appendNames(parent, text, linked, isCurrent) {
+    const matcher = linked ? nameMatcher() : null;
+    if (matcher === null) {
+      parent.appendChild(document.createTextNode(text));
+      return;
+    }
+    let last = 0;
+    matcher.pattern.lastIndex = 0;
+    let match;
+    while ((match = matcher.pattern.exec(text)) !== null) {
+      const id = matcher.ids[match[2]];
+      if (linked.has(id)) continue;
+      linked.add(id);
+      const start = match.index + match[1].length;
+      if (start > last) parent.appendChild(document.createTextNode(text.slice(last, start)));
+      parent.appendChild(createCharacterName(id, match[2], isCurrent));
+      last = start + match[2].length;
+    }
+    if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+  }
+
+  // Matches characters' names in text: the full name, and also a
+  // capitalised last word that no one else shares ("Hale" for "Captain Hale").
+  let matcherCache = { story: null, matcher: null };
+  function nameMatcher() {
+    if (!selectedStory) return null;
+    if (matcherCache.story === selectedStory) return matcherCache.matcher;
+    const ids = {};
+    const lastWords = {};
+    const characters = selectedStory.definition.characters || {};
+    Object.keys(characters).forEach(function (id) {
+      const name = characters[id].name === undefined ? id : characters[id].name;
+      ids[name] = id;
+      const words = name.split(/\s+/);
+      const last = words[words.length - 1];
+      if (words.length > 1 && /^[A-Z][\w'-]{2,}$/.test(last)) {
+        lastWords[last] = lastWords[last] === undefined ? id : null;
+      }
+    });
+    Object.keys(lastWords).forEach(function (word) {
+      if (lastWords[word] !== null && ids[word] === undefined) ids[word] = lastWords[word];
+    });
+    const names = Object.keys(ids).sort(function (a, b) { return b.length - a.length; });
+    const matcher = names.length === 0 ? null : {
+      ids: ids,
+      pattern: new RegExp("(^|[^\\w'’])(" + names.map(escapeRegExp).join("|") + ")(?![\\w’])", "g")
+    };
+    matcherCache = { story: selectedStory, matcher: matcher };
+    return matcher;
+  }
+
+  function escapeRegExp(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  // A character's name with a tooltip: who they are, whether they're here,
+  // and how they see you now (kept secret for hidden characters).
+  function createCharacterName(id, text, isCurrent) {
+    const name = document.createElement("span");
+    name.className = "character-name";
+    name.setAttribute("tabindex", "0");
+    name.appendChild(document.createTextNode(text));
+    const tip = document.createElement("span");
+    tip.className = "memory-tip character-tip";
+    tip.setAttribute("role", "tooltip");
+    characterLines(id, isCurrent).forEach(function (line, index) {
+      const part = document.createElement("span");
+      part.className = index === 0 ? "memory-tip-heading" : "character-tip-line";
+      part.textContent = line;
+      tip.appendChild(part);
+    });
+    name.appendChild(tip);
+    return name;
+  }
+
+  function characterLines(id, isCurrent) {
+    const lines = [engine.characterName(id)];
+    const description = engine.characterDescription(id);
+    if (description) lines.push(description);
+    if (isCurrent && currentPresent().indexOf(id) !== -1) lines.push("Here now.");
+    lines.push(opinionOf(id));
+    return lines;
+  }
+
+  function opinionOf(id) {
+    if (selectedStory.definition.characters[id].hidden === true) {
+      return "You can't tell what they make of you.";
+    }
+    const traits = engine.reputationOf(id).traits.filter(function (trait) { return trait.score > 0; });
+    return traits.length === 0
+      ? "Hasn't made up their mind about you."
+      : "Sees you as " + traits.slice(0, 2).map(function (trait) { return trait.label; }).join(" and ") + ".";
+  }
+
+  function currentPresent() {
+    if (!engine || engine.currentNodeId === null) return [];
+    return selectedStory.definition.nodes[engine.currentNodeId].present || [];
+  }
+
+  // ---- Who's who ------------------------------------------------------
+  // The cast so far: everyone who has been in a scene with you or knows
+  // something about you, with whoever is here now listed first. Each tab
+  // shows who they are and a live view of your reputation with them:
+  // diverging bars (toward a trait to the right, away from it to the left)
+  // and the act that defines you to them. Hidden characters appear once
+  // they've been in a scene, but what they think of you stays secret.
 
   let reputationView = null;
 
+  function castCharacters() {
+    const story = selectedStory.definition;
+    const met = new Set(engine.knownCharacters());
+    engine.nodeVisits.forEach(function (nodeId) {
+      (story.nodes[nodeId].present || []).forEach(function (id) { met.add(id); });
+    });
+    const here = currentPresent();
+    const order = Object.keys(story.characters);
+    return Array.from(met).sort(function (a, b) {
+      return (here.indexOf(b) !== -1) - (here.indexOf(a) !== -1) || order.indexOf(a) - order.indexOf(b);
+    });
+  }
+
   function renderReputationPanel() {
     if (!reputationPanel || !reputationTabs || !reputationBody) return;
-    const characters = engine ? engine.knownCharacters() : [];
+    const characters = engine ? castCharacters() : [];
     const overall = engine ? engine.reputationOf() : null;
     reputationPanel.hidden = !overall || (overall.traits.length === 0 && characters.length === 0);
     if (reputationPanel.hidden) return;
     if (reputationView !== null && characters.indexOf(reputationView) === -1) reputationView = null;
 
+    const here = currentPresent();
     const views = [null].concat(characters).map(function (id) {
       return id === null ? overall : engine.reputationOf(id);
     });
@@ -433,7 +710,8 @@
       const tab = document.createElement("button");
       tab.type = "button";
       tab.className = "reputation-tab";
-      tab.textContent = view.name === null ? "Overall" : view.name;
+      const isHere = view.character !== null && here.indexOf(view.character) !== -1;
+      tab.textContent = view.name === null ? "Overall" : view.name + (isHere ? " · here" : "");
       tab.setAttribute("aria-pressed", String(view.character === reputationView));
       tab.addEventListener("click", function () {
         reputationView = view.character;
@@ -444,6 +722,14 @@
 
     const view = views.find(function (v) { return v.character === reputationView; }) || overall;
     reputationBody.replaceChildren();
+    if (view.character !== null) {
+      const description = engine.characterDescription(view.character);
+      if (description) reputationBody.appendChild(reputationNote(description, "reputation-description"));
+      if (selectedStory.definition.characters[view.character].hidden === true) {
+        reputationBody.appendChild(reputationNote(opinionOf(view.character)));
+        return;
+      }
+    }
     if (view.traits.length === 0) {
       reputationBody.appendChild(reputationNote(view.name === null
         ? "Nothing you've done has defined you yet."
@@ -487,9 +773,9 @@
     return row;
   }
 
-  function reputationNote(text) {
+  function reputationNote(text, className) {
     const note = document.createElement("p");
-    note.className = "reputation-note";
+    note.className = className || "reputation-note";
     note.textContent = text;
     return note;
   }
@@ -551,8 +837,8 @@
     if (storyKicker) storyKicker.textContent = view.ended ? "ENDING" : "STORY IN PROGRESS";
     storyTitle.textContent = selectedStory.definition.title;
     storyText.replaceChildren();
-    transcript.forEach(function (entry) {
-      storyText.appendChild(renderEntry(entry));
+    transcript.forEach(function (entry, index) {
+      storyText.appendChild(renderEntry(entry, index === transcript.length - 1));
     });
     if (nodeCounter) nodeCounter.textContent = view.nodeId.replace(/[_-]+/g, " ");
     choiceList.replaceChildren();
@@ -904,7 +1190,98 @@
 
     debugContent.textContent = JSON.stringify(debugData, null, 2);
     renderCheckResults(null);
+    renderSceneStart();
     debugPanel.hidden = false;
+  }
+
+  // ---- Start from a scene ----------------------------------------------
+  // For writers testing a late scene: pick it, tick the memories and
+  // variables that should already be in place, and the run starts there.
+
+  function presetOperations(story) {
+    const presets = [];
+    const seen = new Set();
+    const add = function (nodeId, operation) {
+      if (operation.type !== "set" && !(operation.type === "remember" && operation.summary !== undefined)) return;
+      const key = JSON.stringify(operation);
+      if (seen.has(key)) return;
+      seen.add(key);
+      presets.push({ nodeId: nodeId, operation: operation });
+    };
+    Object.keys(story.nodes).forEach(function (nodeId) {
+      const node = story.nodes[nodeId];
+      (node.onEnter || []).forEach(function (operation) { add(nodeId, operation); });
+      (node.choices || []).forEach(function (choice) {
+        (choice.do || []).forEach(function (operation) { add(nodeId, operation); });
+      });
+    });
+    return presets;
+  }
+
+  function presetLabel(preset) {
+    const operation = preset.operation;
+    if (operation.type === "set") {
+      return operation.variable + " = " + JSON.stringify(operation.value);
+    }
+    const who = operation.subject === undefined
+      ? (operation.concepts.indexOf("player") === -1 ? "" : "you ")
+      : engine.subjectName(operation.subject) + " ";
+    const witnesses = operation.witnesses === undefined ? "no one"
+      : operation.witnesses === "all" ? "everyone"
+        : operation.witnesses.map(function (id) { return engine.characterName(id); }).join(", ");
+    return who + operation.summary.replace(/\{name:([^{}]+)\}/g, function (match, id) {
+      return engine.characterName(id.trim());
+    }) + " (seen by " + witnesses + ")";
+  }
+
+  function renderSceneStart() {
+    if (!sceneSelect || !scenePresets || !sceneStartButton) return;
+    sceneSelect.replaceChildren();
+    scenePresets.replaceChildren();
+    sceneStartButton.disabled = !selectedStory || !engine;
+    if (!selectedStory || !engine) return;
+    const story = selectedStory.definition;
+    Object.keys(story.nodes).forEach(function (nodeId) {
+      const option = document.createElement("option");
+      option.value = nodeId;
+      option.textContent = nodeId.replace(/_/g, " ") + (story.nodes[nodeId].ending ? " (ending)" : "");
+      sceneSelect.appendChild(option);
+    });
+    if (engine.currentNodeId !== null) sceneSelect.value = engine.currentNodeId;
+    presetOperations(story).forEach(function (preset, index) {
+      const label = document.createElement("label");
+      label.className = "scene-preset";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.value = String(index);
+      const scene = document.createElement("span");
+      scene.className = "scene-preset-scene";
+      scene.textContent = preset.nodeId.replace(/_/g, " ");
+      label.append(box, scene, document.createTextNode(" " + presetLabel(preset)));
+      scenePresets.appendChild(label);
+    });
+  }
+
+  function startFromScene() {
+    if (!selectedStory) return;
+    const presets = presetOperations(selectedStory.definition);
+    const chosen = Array.from(scenePresets.querySelectorAll("input:checked")).map(function (box) {
+      return presets[Number(box.value)].operation;
+    });
+    try {
+      const fresh = new window.NarrativeEngine(selectedStory.definition);
+      fresh.apply(chosen);
+      const view = fresh.start(sceneSelect.value);
+      engine = fresh;
+      reputationView = null;
+      transcript = [storyEntry(view)];
+      renderView(view);
+      debugPanel.hidden = true;
+      setStatus("Started at " + sceneSelect.value.replace(/_/g, " ") + " with " + chosen.length +
+        " thing" + (chosen.length === 1 ? "" : "s") + " already in place.");
+    } catch (error) {
+      setStatus("Could not start there: " + error.message + " Tick what the scene needs, such as the variables it shows.", true);
+    }
   }
 
   // ---- Story check ----------------------------------------------------
@@ -936,7 +1313,13 @@
     appendCheckList(warnings.length === 0
       ? "No authoring warnings."
       : warnings.length + " authoring warning" + (warnings.length === 1 ? "" : "s") + ":",
-    warnings.map(formatWarning), warnings.length > 0);
+    warnings.map(function (warning) { return formatWarning(warning, selectedStory); }), warnings.length > 0);
+    const todos = selectedStory.todos || [];
+    if (todos.length > 0) {
+      appendCheckList(todos.length + " TODO note" + (todos.length === 1 ? "" : "s") + ":", todos.map(function (todo) {
+        return "line " + todo.line + ": " + (todo.text || "(no note)");
+      }), false);
+    }
     if (!result) {
       appendCheckLine("Check story plays " + CHECK_RUNS + " random runs and lists anything they never reached.");
       return;

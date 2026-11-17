@@ -1,223 +1,364 @@
 # Writing a story
 
-This guide covers everything you need to write a Memory Graph story. You
-write stories in JSON, and no JavaScript is needed. The full reference is
-the [project specification](../agents/ProjectDesign.md).
+A Memory Graph story is a plain text file. You can write it in any text
+editor, and you don't need to know any code. This guide covers everything
+you can put in one.
 
-**Quickest start:** open `index.html`, choose **Upload JSON files** from the
-story menu, and pick [`story-template.json`](story-template.json). Play it,
-then copy it and start changing things.
+**Quickest start:** open `index.html` and choose **Upload story files** from
+the story menu, then pick [`story-template.txt`](story-template.txt). Play
+it, then copy the file and start changing it.
 
-## 1. Scenes and choices
+**Best way to work (Chrome or Edge):** choose **Open a story to edit** from
+the story menu and pick your file. Every time you save it in your editor,
+the page reloads the story and makes your choices again, so you stay at the
+same point. If you save a mistake, the page tells you the line number and
+keeps playing the last version that worked.
 
-A story is a set of **nodes** (scenes). Each node has `text` and either
-`choices` or `"ending": true`.
+[*The Night Ferry*](../stories/the_night_ferry.txt) is a short built-in
+story that uses every feature.
 
-```json
-"nodes": {
-  "harbour": {
-    "text": "The last ferry leaves at nine.",
-    "choices": [
-      { "id": "board", "text": "Get on board", "goto": "deck" },
-      { "id": "stay",  "text": "Stay ashore",  "goto": "home" }
-    ]
-  },
-  "home": { "text": "You watch it go.", "ending": true }
-}
+## 1. The shape of a story file
+
+```
+title: The Night Ferry
+synopsis: One line that makes someone want to play it.
+
+== characters
+…
+
+== traits
+…
+
+== macros
+…
+
+=== boarding
+The first scene's text.
+
+* A choice -> deck
+* Another choice -> deck
+
+=== deck
+…
 ```
 
-The story begins at `start`. Branches can rejoin by pointing at the same
-node. Every story needs at least one reachable ending.
+- The settings at the top: `title:` (required), `synopsis:`, and
+  optionally `start:` (the first scene, if it isn't the first one in the
+  file), `id:` (defaults to the file name) and `half-life:` (see
+  section 4).
+- `== characters`, `== traits` and `== macros` are sections. Each one is
+  optional.
+- `=== name` starts a scene. Scene names use letters, digits and
+  underscores, such as `=== the_quay`. Mark an ending with
+  `=== the_quay (ending)`.
+- Lines starting with `//` are notes to yourself. Start one with
+  `// TODO:` and it is listed in Graph State, so you won't forget it.
 
-## 2. Remembering what happened
+## 2. Scenes and choices
 
-The story is driven by **memories**. A choice's `do` list can remember an
-event:
+```
+=== harbour
+The last ferry leaves at nine.
 
-```json
-{ "type": "remember",
-  "concepts": ["player", "lie", "hale"],
-  "witnesses": ["hale"],
-  "summary": "lied to the captain about your ticket" }
+The wind is already up.
+
+* Get on board -> deck
+* Stay ashore -> home
+
+=== home (ending)
+You watch it go.
 ```
 
-- **`concepts`** are plain words that describe the event. Include
-  `"player"` when the event is something *you* did. Leave it out for
-  things that just happen in the world. Spell concepts the same way every
-  time.
-- **`witnesses`** are the characters who saw it, or `"all"`. Nobody else
+- Lines next to each other join into one paragraph. A blank line starts a
+  new one.
+- `*italics*` works in any text.
+- Every scene that isn't an ending needs at least one choice. A choice
+  starts with `*` and ends with `-> scene` to say where it goes.
+- Branches can rejoin by going to the same scene. Every story needs at
+  least one ending the player can reach.
+
+When a choice does something, put that on the indented lines under it,
+and put the `->` on its own line at the end:
+
+```
+* Pay your fare
+  ~ coins -= 1
+  -> deck
+```
+
+## 3. Remembering what happened
+
+The story is driven by **memories**. `~ remember` records one:
+
+```
+* Lie to the captain about your ticket
+  ~ remember lie, hale (seen by hale) "lied to the captain about your ticket"
+  -> deck
+```
+
+- The words after `remember` are **concepts**: plain words that describe
+  what happened, separated by commas. Spell them the same way every time.
+- A remember is about **you**, the player, unless it says otherwise.
+- `(seen by hale, ines)` lists the characters who saw it. Use
+  `(seen by everyone)` or `(seen by no one)` if you need to. Nobody else
   knows unless they're told later.
-- **`summary`** is how the event is described when someone remembers it.
-  Write it so it completes "you …": "lied to the captain". Don't start it
-  with "you", and don't end it with a full stop.
-- **`subject`** says whose act the summary describes, if it isn't the
-  player's: `"subject": "jory"` with the summary "was seen near the luggage".
+- The text in quotes is the **summary**: how the event is described when
+  someone remembers it. Write it so it completes "you …": "lied to the
+  captain". Don't start it with "you", and don't end it with a full stop.
+- If the line gets long, put the summary on the next line, indented
+  further.
 
-**One subject per event.** Everyone in an event is linked to every concept
-in it. So if you record `["player", "accuse", "jory", "suspected"]`, *you*
-count as "suspected" too. Record the act and its consequence separately:
+**Who's in the scene.** A `present:` line under the scene heading says who
+is there:
 
-```json
-{ "type": "remember", "concepts": ["player", "accuse", "jory"], "witnesses": ["hale"],
-  "summary": "told the captain Jory took it" },
-{ "type": "remember", "concepts": ["jory", "suspected"], "subject": "jory", "witnesses": ["hale"],
-  "summary": "was accused of taking the brooch" }
+```
+=== theft
+present: hale, jory, ines, lark
 ```
 
-## 3. Characters and traits
+Players see this at the top of the scene ("Here: Captain Hale, Jory, …").
+Any remember in the scene without `(seen by …)` is seen by everyone
+present, so you only write `(seen by …)` for a private moment.
 
-```json
-"characters": {
-  "hale": { "name": "Captain Hale" },
-  "grey": { "name": "the man in the grey coat", "hidden": true }
-},
-"traits": {
-  "honest":    { "label": "honest",  "concepts": { "truth": 1, "admit": 1.5, "lie": -1 } },
-  "deceptive": { "label": "a liar",  "concepts": { "lie": 1, "cheat": 1 } }
-}
+**Things other people do.** Start with their name and a colon. The summary
+then completes "Jory …":
+
+```
+~ remember jory: suspected (seen by hale) "was accused of taking the brooch"
 ```
 
-A **trait** turns specific acts into a general judgement. A character's
-score for a trait adds up, over every event they know about you, the
-weights of that event's concepts. A negative weight counts *against* the
-trait, which makes redemption possible. Two opposing traits (honest and
+For something that just happens, with nobody's act behind it, start with
+`world:`, as in `~ remember world: storm, harbour`.
+
+**An act and its consequence.** Everyone in an event is linked to every
+concept in it, so if you record `accuse, jory, suspected`, *you* count as
+"suspected" too. Record the act and what it does to someone else
+separately, with an `and` line underneath. The `and` line is seen by the
+same people:
+
+```
+* Point at Jory
+  ~ remember accuse, lie, jory "told the captain Jory must have taken it"
+    and jory: suspected "was accused of taking the brooch"
+  -> search
+```
+
+A remember can also have `(strength 2)` to make it count double.
+
+## 4. Characters and traits
+
+```
+== characters
+hale: Captain Hale
+  Runs the night ferry, and runs it strictly.
+grey: the man in the grey coat (hidden)
+  Reads a newspaper by the luggage rack, and never turns the page.
+
+== traits
+honest: truth, admit +1.5, lie -1
+deceptive (a liar): lie, cheat
+thief (a thief) #9b2c4a: steal
+```
+
+**Characters** are written `id: Name`. Use the id everywhere else in the
+story, and the name is what players see. The indented line under it is a
+short description. Players see it when they hover over the character's
+name, and in the **Who's who** panel, so they never lose track of who
+someone is. To change the description as the story goes on (once the
+player finds something out, say), use:
+
+```
+~ describe grey: The man who lifted the swallow brooch.
+```
+
+A **hidden** character's opinion of the player is never shown: they don't
+appear in the "who saw" notes and they have no reputation bars. Use one for
+a secret watcher. They still appear in scenes they're present in, with
+their description.
+
+A **trait** turns specific acts into a general judgement. Write the
+concepts that count toward it, with an optional weight (it's 1 if you
+leave it out). A negative weight counts *against* the trait, which makes
+redemption possible. The label in brackets is how players see it ("Mira:
+a liar"), and `#rrggbb` picks its colour. Two opposing traits (honest and
 deceptive, kind and selfish) give the clearest results.
 
-A **hidden** character never appears in the "who saw" notes or the "How
-you're seen" panel. Use one for a secret watcher who only shows up at the
-end.
+`half-life: 12` at the top makes old events fade: an event counts half as
+much after 12 more have happened.
 
-Reputations aren't only about the player. Add `"subject": "jory"` to a
-`trait` or `dominantTrait` condition, or a recall, to ask what someone
-thinks of Jory.
+## 5. Who knows what
 
-## 4. Who knows what
-
-| Operation | What it does |
+| Action | What it does |
 |---|---|
-| `{ "type": "gossip", "from": "lark", "to": ["ines"], "about": { "trait": "deceptive" } }` | Lark tells Ines what she knows. Hearsay counts at half belief by default (`"belief": 0.8` to change it). |
-| `{ "type": "reveal", "to": "all", "about": { "concepts": ["brooch"] } }` | Everyone learns matching events at full belief: evidence, a confession, a public record. |
-| `{ "type": "doubt", "to": ["hale"], "about": { "concepts": ["jory", "suspected"] } }` | Hale is talked out of it. Belief drops to 0 (forgotten), or to `"belief": 0.25` if they only half believe you. |
+| `~ gossip lark to ines about trait deceptive` | Lark tells Ines what she knows. Hearsay counts at half belief, or add `(belief 0.8)`. |
+| `~ reveal to everyone about brooch` | Everyone learns the matching events at full belief: evidence, a confession, a public record. |
+| `~ doubt hale about jory, suspected` | Hale is talked out of it and forgets it, or add `(belief 0.25)` if they only half believe you. |
 
-`about` picks which events: `{ "trait": "kind" }` matches any event with
-one of that trait's concepts, and `{ "concepts": [...] }` matches events
-that contain all of them. Leaving `about` out of `gossip` or `reveal` passes
-on everything.
+After `to`, list characters separated by commas, or write `everyone`.
+`about trait kind` matches any event with one of that trait's concepts.
+`about brooch, gold` matches events that contain all of those concepts.
+Leave `about` off `gossip` or `reveal` to pass on everything.
 
-Add `"memory": { "halfLife": 12 }` to make old events fade: an event counts
-half as much after 12 more have happened.
+## 6. Reacting to memory
 
-## 5. Reacting to memory
-
-Use these conditions in a choice's `showIf`, in text, or in routes:
+Conditions are written in words. You can use them in choices, in text and
+in routes:
 
 | Condition | True when |
 |---|---|
-| `{ "type": "knows", "perspective": "hale", "about": { "concepts": ["lie"] } }` | Hale knows of a matching event. |
-| `{ "type": "trait", "trait": "honest", "perspective": "hale", "min": 1 }` | Hale's score is at least `min` (or at most `max`). |
-| `{ "type": "dominantTrait", "perspective": "hale", "among": ["honest", "deceptive"], "is": "honest" }` | That trait leads the others for Hale. |
-| `{ "type": "association", "a": "player", "b": "grey", "min": 1 }` | The two concepts have appeared together at least `min` times. |
-| `{ "type": "variable", "name": "coins", "operator": "gte", "value": 2 }` | Compares a variable (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`). |
-| `{ "type": "visited", "node": "deck" }` | That node has been entered this run. |
-| `not`, `all`, `any` | Combine conditions. |
+| `hale knows lie` | Hale knows of an event with that concept (list several with commas). |
+| `hale knows trait thief` | Hale knows of an event with any of that trait's concepts. |
+| `hale sees you as honest >= 1` | Hale's honest score for you is at least 1 (or `<= 0` for at most). |
+| `hale sees jory as suspect >= 0.5` | The same, about Jory instead of you. |
+| `hale sees you as more honest than deceptive` | That trait leads the others for Hale (list more with commas). |
+| `player with grey >= 1` | The two concepts have appeared together at least once. |
+| `coins >= 2` | Compares a variable: `==`, `!=`, `>`, `>=`, `<`, `<=`. Text goes in double quotes. |
+| `visited deck` | That scene has been visited this run. |
+| `not …`, `… and …`, `… or …`, `( … )` | Combine conditions. |
 
-Leave out `perspective` to use the world's view, which knows everything.
+Use `world` instead of a character to ask what's true overall, for example
+`world sees you as kind >= 2`.
 
-A **macro** names a condition so you can reuse it, and its `tag` is shown to
-players whenever it shapes the story:
+**Choices** that only appear sometimes put the condition in braces:
 
-```json
-"macros": {
-  "haleTrustsYou": { "tag": "Hale trusts you",
-    "condition": { "type": "dominantTrait", "perspective": "hale", "among": ["honest", "deceptive"], "is": "honest" } }
-}
+```
+* {noticedGrey} Say the man in the grey coat was standing right behind her
 ```
 
-Use it with `{ "type": "macroCondition", "name": "haleTrustsYou" }`.
+**Routes** send the player somewhere depending on memory. They are tried in
+order, and the last one has no condition:
+
+```
+* Go ashore
+  -> the_swallow if greyCaught
+  -> the_chain_locker if jorySuspected
+  -> the_quay
+```
+
+**Macros** give a condition a name so you can reuse it. The part after
+`#` is the tag players see whenever the macro shapes the story:
+
+```
+== macros
+haleTrustsYou: hale sees you as more honest than deceptive # Hale trusts you
+```
+
+Then just write `haleTrustsYou` wherever a condition goes. A macro can also
+be a list of actions you reuse with `~ do name`:
+
+```
+== macros
+rememberHelp:
+  ~ remember help
+```
 
 **Earlier runs.** **Begin again · keep memory** keeps every character's
 knowledge, so a character can recognise the player on a replay. In the
-opening scene, test for something they can only know from last time, such
-as `{ "type": "knows", "perspective": "jory", "about": { "concepts": ["accuse", "jory"] } }`.
-Put these reactions in text parts, not routes. **Check story** starts every
-run with empty memory, so it will list them as never shown, and a node only
-reachable on a replay would fail the built-in story tests.
+opening scene, check for something they can only know from last time,
+such as `{jory knows accuse, jory: …}`. Put these reactions in text, not
+routes. **Check story** starts every run with empty memory, so it will list
+them as never shown, and a scene only reachable on a replay would fail the
+built-in story tests.
 
-## 6. Text that adapts
+## 7. Text that adapts
 
-**Variants** pick the first matching text, and must end with a fallback:
+**Conditional text** goes in braces inside a passage. It appears only when
+its condition is true. After `|` is what to show instead:
 
-```json
-"text": [
-  { "if": { "type": "macroCondition", "name": "haleTrustsYou" }, "value": "Hale nods you aboard." },
-  { "value": "Hale checks your ticket twice." }
-]
+```
+The ferry docks at dawn.
+{jory knows share: Jory gives you back your coin. | Jory doesn't look up.}
 ```
 
-**Parts** build a passage from pieces, so endings don't multiply into
-dozens of variants. Pieces are joined with spaces, and `"\n\n"` starts a
-new paragraph:
+Conditional text is joined to the text around it with a space, except
+before punctuation, so `Hale looks up{trusted: , smiling}.` works.
 
-```json
-{ "value": [
-  "The ferry docks at dawn.",
-  { "if": { "type": "knows", "perspective": "jory", "about": { "concepts": ["share"] } },
-    "text": "Jory gives you back your coin.", "else": "Jory doesn't look up." },
-  "\n\n",
-  { "recall": { "perspective": "ines", "among": ["kind", "honest", "deceptive"] },
-    "format": "Mrs Duarte remembers you as the one who {summary}.",
-    "otherwise": "Mrs Duarte has already forgotten you." }
-] }
+**Recall** puts a character's memory of you into the text. `{summary}` is
+replaced by the summary of the memory that fits best:
+
+```
+{recall ines among kind, honest, deceptive: Mrs Duarte remembers you as the one who {summary}. | Mrs Duarte has already forgotten you.}
 ```
 
-A **recall** finds the memory that best fits, and puts its summary in
-place of `{summary}`. With `among`, it picks the act behind whichever of
-those traits defines you to that character. Use `about` for a specific
-topic, and `rank: 2` for the second-best memory.
+- `among kind, honest, deceptive` picks the act behind whichever of those
+  traits defines you to that character.
+- `about trait kind`, or `about brooch`, picks a memory on one topic.
+- Add `rank 2` for the second-best memory, `of jory` to recall what Jory
+  did instead of you, and `if condition` to recall only sometimes.
+- After `|` is what to show if nothing fits.
 
-**Placeholders** work in any text, choice, or summary: `{name:hale}` gives a
-character's name, and `{var:coins}` gives a variable's current value.
+**Alternatives** give a scene completely different text depending on memory.
+The block must be the scene's whole text, and must end with `- else:`:
+
+```
+=== galley
+{
+- greyCaught:
+The brooch was in the lining of the grey man's seat.
+- else:
+Later, in the galley, Mrs Duarte sits with a cup of tea she isn't drinking.
+{ines knows cheat: 'Lark tells me you didn't pay,' she says.}
+}
+```
+
+**Placeholders.** `{hale}` gives a character's name, and `{coins}` gives a
+variable's current value. They work in any text, choice or summary.
 
 **Tags.** When memory shapes the text, the player sees a small tag such as
 *(Hale trusts you)*, and can hover over it to see which choices caused it.
-Set `"tag"` on a text part, variant, choice, or route to word it yourself.
+To word a tag yourself, add `# your tag` at the end of the braces, the
+route line or the macro line:
+
+```
+{jory knows accuse, jory: He looks at you for a long moment. # Jory remembers your face}
+* {noticedGrey # you were watching him} Follow the man in the grey coat -> the_grey_coat
+-> the_swallow if greyCaught # Hale knows the truth
+```
+
 Short, in-world tags work best.
 
-## 7. Variables
+**Special characters.** Inside text, put a backslash before `{`, `}`, `|`
+or `#` to show it as it is: `\{`.
 
-`set`, `inc`, and `dec` change variables. Use them for plain facts the
-story needs to track, such as coins or whether a promise was made:
+## 8. Variables
 
-```json
-{ "type": "set", "variable": "promised", "value": true },
-{ "type": "dec", "variable": "coins", "amount": 2 }
-```
+`~ coins = 3`, `~ coins += 1`, `~ coins -= 2` and `~ promised = true` change
+variables. Text values go in double quotes: `~ mood = "calm"`. Use
+variables for plain facts the story needs to track. Use memories for
+anything a character should *know* about.
 
-Use memories for anything a character should *know* about, and variables
-for everything else.
+A `~` line directly under a scene's heading (not under a choice) runs as
+soon as the player arrives in the scene.
 
-## 8. Checking your story
+## 9. Checking your story
 
-- **When a story loads**, the player lists anything that looks like a
-  mistake: a concept you check for but never remember (usually a typo), a
-  trait that can never score, a character who never learns anything, a
-  summary in the wrong form, a variable that's never set, or a macro that's
-  never used. Open **Graph State** (the `i` button) to see the list.
+- **Mistakes in the file**, such as a scene name that doesn't exist or a
+  missing `->`, stop the story loading. The page tells you the line number,
+  and usually suggests what you meant: *line 42: there is no character
+  called 'jroy' (did you mean 'jory'?)*.
+- **Likely mistakes** are listed in **Graph State** (the `i` button) with
+  their line numbers. These include a concept you check for but never
+  remember (usually a typo, so it suggests the closest one), a trait that
+  can never score, a character who never learns anything, a summary in
+  the wrong form, a variable that's never set, and a macro that's never
+  used.
 - **Check story** in the same panel plays your story 300 times at random.
   It reports any crashes and dead ends, how often each ending came up, and
-  any node or text that never appeared. Text that never appears is usually
-  a condition that can't come true on that path.
-- For a built-in story, `node --test` does the same check with 1,500 runs,
-  and fails on errors, unreached nodes, or warnings.
+  any scene or text that never appeared.
+- **Start from a scene**, also in Graph State, jumps straight to any scene.
+  Tick the memories and variables that should already be in place, such as
+  "you lied to the captain" or "coins = 3", so you can test a late scene
+  without playing the whole story to reach it.
 
-## 9. Adding a built-in story
+## 10. Adding a built-in story
 
-Save the story as `stories/<name>.js`, wrapped like this:
+Save the story as `stories/<name>.txt`, then run:
 
-```js
-registerStory({ "id": "my_story", ... });
+```sh
+node scripts/build-stories.js
 ```
 
-Then add `<name>` to `STORY_FILES` at the top of `scripts/storyPlayer.js`.
-For an example that uses every feature, see
-[`stories/the_night_ferry.js`](../stories/the_night_ferry.js).
+The page can't read `.txt` files from your disk by itself, so this wraps
+each story in a small file in `stories/built/` that it can load, and adds
+the story to the picker. Run it again whenever you change a built-in
+story. The tests fail if you forget.

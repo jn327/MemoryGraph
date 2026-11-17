@@ -51,7 +51,7 @@ test("built-in stories load when index.html is opened over file://", {
 }, function () {
   const dom = dumpDom(browser, url.pathToFileURL(path.join(root, "index.html")).href);
   const storyCount = fs.readdirSync(path.join(root, "stories")).filter(function (name) {
-    return name.endsWith(".js");
+    return name.endsWith(".txt");
   }).length;
 
   const text = function (id) {

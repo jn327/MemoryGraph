@@ -10,9 +10,11 @@ Node.js, or package installation is needed to play.
 
 Use the story picker to choose a built-in story. The **Upload** menu can
 replace the picker for the current page session with stories from a folder
-or selected JSON files. Invalid files are skipped and reported. Reload the
-page to restore the built-in library. Browsers without folder selection can
-use **Choose JSON files**.
+or selected `.txt` story files. Invalid files are skipped and reported
+with the line that went wrong. Reload the page to restore the built-in
+library. In Chrome and Edge, **Open a story to edit** watches one story
+file and reloads it every time you save it, replaying your choices so you
+stay at the same point.
 
 Choices add memories to the current story's graph. Each
 character remembers only what they witnessed or were told, and gossip spreads
@@ -24,9 +26,12 @@ coloured tag such as *(fear)* or *(Mira: a liar)*; hover over it, or focus
 it with the keyboard, to see which of your choices caused it. **Memory
 tags: on/off** in the header hides the tags. After each choice, a small
 note on it shows which way it pushed you and who saw it (for example
-*↑ merciful · Mira saw*). The collapsible **How you're seen** panel above
-the choices shows each character's current view of you as bars, plus the
-act they remember most. At an
+*↑ merciful · Mira saw*). Each scene starts with who is there
+(*Here: Captain Hale, Jory*), and hovering over a character's name shows
+who they are and how they see you. The collapsible **Who's who** panel
+above the choices lists everyone you've met, with whoever is here first:
+their description, their current view of you as bars, and the act they
+remember most. At an
 ending, **Begin again · keep memory** starts a new run with that graph intact;
 **Clear memory & restart** starts over with an empty graph. The **Graph State**
 button (`i`) shows the current story and its graph data.
@@ -34,31 +39,47 @@ button (`i`) shows the current story and its graph data.
 ## Write a story
 
 Start with the **[story-writing guide](docs/writing-stories.md)**. To try
-it straight away, upload [`docs/story-template.json`](docs/story-template.json)
+it straight away, upload [`docs/story-template.txt`](docs/story-template.txt)
 from the story menu, then copy it and change it.
-[*The Night Ferry*](stories/the_night_ferry.js) is a short built-in story
+[*The Night Ferry*](stories/the_night_ferry.txt) is a short built-in story
 that uses every feature.
 
-Stories are JSON: scenes with choices, plus memories that choices record
-(`remember`), characters who witness them, and traits that turn specific
-acts into judgements such as "a liar" or "kind". Characters can gossip,
-be shown evidence, or be talked out of what they believe. Text can be
-assembled from conditional parts, recalled memories, and `{name:…}` /
-`{var:…}` placeholders.
+Stories are plain text files, in a format inspired by ink:
+
+```
+=== theft
+present: hale, jory, ines
+
+Halfway across, Mrs Duarte cries out. Her brooch is gone.
+{jory knows cheat: Jory glances at you. # Jory remembers}
+
+* Point at Jory
+  ~ remember accuse, lie, jory "told the captain Jory must have taken it"
+    and jory: suspected "was accused of taking the brooch"
+  -> search
+* {noticedGrey} Name the man in the grey coat -> search
+```
+
+Scenes have text and choices, and choices record memories that the people
+present witness. Traits turn specific acts into judgements such as "a liar"
+or "kind". Characters can gossip, be shown evidence, or be talked out of
+what they believe, and text can change with what they remember.
 
 While you write, open **Graph State** (the `i` button). It lists likely
-mistakes, such as a concept you test for but never remember. **Check
-story** plays the story 300 times at random and reports crashes, dead
-ends, how often each ending came up, and any text no run ever showed.
+mistakes with their line numbers, such as a concept you test for but never
+remember, and your `// TODO` notes. **Check story** plays the story 300
+times at random and reports crashes, dead ends, how often each ending came
+up, and any text no run ever showed. **Start from a scene** jumps to any
+scene with the memories you choose already in place.
 
-To add a built-in story, save it as `stories/<name>.js` wrapped in
-`registerStory({...})`, and add `<name>` to `STORY_FILES` at the top of
-`scripts/storyPlayer.js`. The tests fail if a story file is missing from
-that list. Uploaded stories are plain `.json` files containing just the
-object.
+To add a built-in story, save it as `stories/<name>.txt` and run
+`node scripts/build-stories.js`. This wraps each story in
+`stories/built/<name>.js`, which the page can load from `file://`, and
+lists it in the picker. The tests fail if the built files are out of date.
 
-The [project design specification](agents/ProjectDesign.md) is the full
-reference for the story schema, engine API, and validation rules.
+The [project design specification](agents/ProjectDesign.md) describes the
+story data the text format produces, the engine API, and the validation
+rules.
 
 ## Test
 
@@ -98,9 +119,14 @@ serve the folder locally if you want to preview it inside VS Code.
   conditions, perspectives, and authoring warnings.
 - `scripts/StoryCheck.js` — random playthroughs that report problems; used
   by the tests and the **Check story** button.
-- `scripts/storyPlayer.js` — browser demo, built-in story loading, and
-  uploaded-story handling.
-- `stories/*.js` — built-in stories, each a `registerStory({...})` call.
+- `scripts/StoryText.js` — reads the story text format and builds the story
+  data the engine plays, with line-numbered errors.
+- `scripts/build-stories.js` — wraps `stories/*.txt` into `stories/built/`
+  so the page can load them from `file://`.
+- `scripts/storyPlayer.js` — browser demo, built-in story loading, uploads,
+  and watching a story file while you edit it.
+- `stories/*.txt` — built-in stories. `stories/built/` is generated from
+  them; don't edit it by hand.
 - `docs/` — the story-writing guide and a starter template.
 - `styles/shared.css` and `index.html` — demo presentation and markup.
 - `tests/` — Node.js built-in test-runner tests, including a headless-browser

@@ -1,0 +1,289 @@
+title: The Mountain's Accounts
+synopsis: A mountain town has paid its taxes for eighty years but appears on no map. As an archivist, you can bring its history into the light, or become one more person who came to count it.
+
+== characters
+rosa: Mama Rosa
+arce: Deputy Arce
+tupaq: Elder Tupaq
+kusi: Kusi
+sela: Sela Ortiz
+hydro: HydroAndina's file (hidden)
+
+== traits
+respectful (someone who asked first): ask_permission +1.5, return, listen
+extractive (one more census-taker): take, copy +0.7, publish_names +1.5, delete -1.5
+lawful (a creature of procedure): procedure, obey
+defiant: defy, smuggle +1.5
+honest: truth, lie -1.5
+
+== macros
+townTrusts: tupaq sees you as more respectful than extractive # the town trusts you
+rosaHurt: rosa knows take, khipu # Mama Rosa saw
+arceKnowsLie: arce knows lie, arce # Arce knows you lied
+hasCopies: player with copy >= 1 # your copies
+
+
+=== records
+present: arce
+~ remember world: archive, qhapaq_pampa, ledger, missing_town (seen by no one)
+
+The Confederation Archive says the conquest ended four centuries ago. Your grandmother says it never quite ended; it just learned to do paperwork. You are a junior archivist in the Office of Fiscal Continuity, correcting old tax ledgers for digitisation, and on a Tuesday in the cold season you find a town that has paid its dues for eighty years and appears on no map.
+{rosa knows player, khipu: Your grandmother rang last night, which she never does. 'If you find a town,' she said, 'ask first. You know which town.' Then she hung up. You have no idea what she meant, or you didn't until now. # Mama Rosa remembers}
+
+Qhapaq Pampa. Payments every quarter since 1944. No census entry. No road. No coordinates. Someone has been very careful to keep receiving the money without ever writing down where it came from.
+
+* Log the anomaly and trace it through the proper request system
+  ~ remember procedure, law, ledger "logged the missing town through the proper channels"
+  -> ledger
+* Quietly photocopy the file and take it home tonight
+  ~ remember take, copy, defy, ledger (seen by no one)
+      "smuggled copies of the file out of the archive"
+  -> ledger
+
+
+=== ledger
+present: arce
+
+The payments change form over the decades: maize, then copper, then, after 1961, a line that just says 'energy offset'. The year the Wiñay dam was built. After that the file is stamped CLASSIFIED in violet ink, and the stamp is signed by someone whose name has been cut out with a razor.
+Deputy Director Benedikt Arce appears at your desk in the late afternoon, which he has never done. He is a soft-spoken man with a fountain pen and thirty years in the building. 'Some files are closed for good reasons,' he says. 'Most of the reasons are other people's.'
+{arce knows procedure, ledger: He taps the edge of your desk. 'I saw your request. It was very correctly filed. I am asking you, as a courtesy, to let it be lost.'}
+
+* Tell him the truth: there's a town out there owed something
+  ~ remember truth, arce "told your superior plainly that the town was owed something"
+  -> khipu
+* Promise him you'll drop it
+  ~ remember lie, arce "promised your superior you'd drop it, and didn't"
+  -> khipu
+* File a formal demand for declassification, and copy him on it
+  ~ remember procedure, defy, law, arce
+      "filed a formal demand to open the file, with his name on it"
+  -> khipu
+
+
+=== khipu
+present: rosa
+
+Your grandmother, Mama Rosa, lives above a hardware shop with three hundred houseplants and a radio that only gets one station. When you say the name Qhapaq Pampa she goes to the back room and returns with a bundle wrapped in a cloth that smells of cedar.
+
+She unrolls khipu across the table: knotted cords in brown and red and a dark green that's nearly black. She reads them with her fingers. A settlement by a river. A promise of shared water. A family line that walked out of an imperial census rather than be counted. 'Ours,' she says. 'We carried these out so we would not be written down by people who wanted to own us. Do not carry them into another census.'
+
+* Ask her permission to take the cords to Qhapaq Pampa
+  ~ remember ask_permission, listen, khipu, rosa
+      "asked your grandmother's permission before touching the cords"
+  -> rosa_answer
+* Photograph the cords while she makes tea
+  ~ remember take, copy, khipu
+      "photographed the family khipu while your grandmother's back was turned"
+  -> journey
+* Leave them where they are, and carry only the story
+  ~ remember listen, return, khipu, rosa
+      "left the cords with your grandmother and carried only the story"
+  -> journey
+
+
+=== rosa_answer
+~ carrying_khipu = true
+
+Mama Rosa looks at you for a long moment, and then at the cords. 'You asked,' she says, as if this is the important part. She rewraps them in the cedar cloth with hands that have done it a thousand times. 'Show them. Don't give them. If the people there say they are theirs, then they are theirs, and you come home without them.'
+
+* Promise, and pack for the mountains -> journey
+
+
+=== journey
+present: sela
+
+The bus to the high valleys leaves at four in the morning and climbs for eleven hours. The woman in the seat beside you is in her forties, in a HydroAndina fleece, with an engineer's tablet and a thermos she offers you without asking. 'Sela,' she says. 'I do the turbine inspections at Wiñay. Nobody goes up this road for fun. What's your reason?'
+
+* Tell her the truth: you're looking for a town that isn't on any map
+  ~ remember truth, sela, qhapaq_pampa
+      "told a company engineer exactly where you were going and why"
+  -> arrival
+* Tell her you're a tourist, photographing churches
+  ~ remember lie, sela "claimed to be a tourist on the mountain bus"
+  -> arrival
+* Ask her about the dam instead, and listen
+  ~ remember listen, sela, dam "asked about the dam and let the engineer talk"
+  -> arrival
+
+
+=== arrival
+present: tupaq, kusi
+
+Qhapaq Pampa sits in the shadow of the Wiñay dam like a dog under a table. Forty houses, a school, a clinic with a generator that runs four hours a day. Above them, the dam's power lines hum toward the cities. A girl of about twelve meets you at the bus stop as if she's been told to. 'I'm Kusi,' she says. 'I'm learning the cords. The elder says to bring you.'
+Elder Tupaq is very old and very upright, in a room with a clay floor and a calendar from 1998. He asks you to sit. 'People come up from the archive every forty years,' he says. 'They count us and go away. What did you bring, and what will you take?'
+
+* {carrying_khipu == true} Lay Mama Rosa's cords on the table, and say they are only to be shown
+  ~ remember return, ask_permission, khipu, tupaq
+      "laid your grandmother's cords on the elder's table and asked nothing for them"
+  -> matching_cords
+* {hasCopies} Show him the photocopies from the archive
+  ~ remember take, copy, tupaq
+      "arrived with the archive's copies of the town already in your bag"
+  -> town_books
+* Bring nothing out. Ask whether you may see the town's own records
+  ~ remember ask_permission, listen, tupaq
+      "asked whether you could see the town's records, and waited for the answer"
+  -> town_books
+
+
+=== matching_cords
+present: tupaq, kusi
+~ remember world: khipu, tupaq, rosa, kin, shared_history
+
+Tupaq doesn't touch the cords. He sends Kusi to the back of the house and she returns with a bundle of her own: brown and red and green so dark it's nearly black. Kusi lays them alongside your grandmother's. The knots match for forty cords and then diverge, as though two families had been telling the same story until one of them had to run.
+
+'Your grandmother's grandmother,' Tupaq says, 'or someone who loved her.' He is quiet for a while. 'Thank you for not giving them to me.'
+
+* Ask him to show you the rest -> town_books
+
+
+=== town_books
+present: tupaq, kusi
+
+{townTrusts: Tupaq takes you to the schoolhouse, where the town's records live in tin trunks under the children's desks. | Tupaq lets you see the records, but Kusi stands beside every trunk you open, the way you'd watch a stranger near a baby.}
+Three centuries of cords and ledgers. And a contract from 1961, signed by the Confederation, HydroAndina and the elders of Qhapaq Pampa: in exchange for flooding the lower valley, thirty percent of the dam's revenue would go to the town, in perpetuity. They paid their taxes every quarter in electricity they never received. HydroAndina never paid them once. The Confederation classified the town so that nobody would ever add it up.
+
+* Photograph everything, quickly, before anyone changes their mind
+  ~ remember take, copy, town_books
+      "photographed every page in the trunks before anyone could say no"
+  -> sela_visit
+* Ask what the town wants shared and what it wants kept
+  ~ remember ask_permission, listen, town_books
+      "asked which pages the town wanted shared and which it wanted kept"
+  -> sela_visit
+* Help Kusi re-tie a cord that's come apart
+  ~ remember listen, return, kusi
+      "sat on the schoolhouse floor and helped a child re-tie a broken cord"
+  -> sela_visit
+
+
+=== sela_visit
+present: tupaq, kusi, sela, hydro
+~ gossip sela to arce (belief 0.8)
+~ gossip sela to hydro (belief 1)
+~ reveal to hydro about ledger
+
+{
+- sela knows truth, qhapaq_pampa:
+Two days later Sela Ortiz walks into the square in her HydroAndina fleece. 'You told me where you were going,' she says to you, not unkindly. 'I told my boss. I'm sorry. He told me to come and make an offer.' She has a folder: a 'community development fund', a new generator, a school roof. In exchange, the town signs a release, and the archive file is lost. Her father, she says, poured concrete for the dam. 'I grew up on its money. I didn't know whose it was.'
+- else:
+Two days later Sela Ortiz walks into the square in her HydroAndina fleece. The company has found out about the archive file. It doesn't matter how; companies always do. She has a folder: a 'community development fund', a new generator, a school roof. In exchange, the town signs a release, and the archive file is lost. Her father, she says, poured concrete for the dam. 'I grew up on its money. I didn't know whose it was.'
+}
+
+* Refuse the offer loudly, in front of everyone in the square
+  ~ remember defy, truth, sela
+      "refused the company's offer in the square before the town could answer it"
+  -> arce_call
+* Take Sela aside and negotiate a better number for them
+  ~ remember take, sela, negotiate (seen by sela, hydro)
+      "negotiated on the town's behalf without asking it"
+  -> arce_call
+* Bring Sela to Elder Tupaq, and step back
+  ~ remember ask_permission, listen, sela (seen by sela, tupaq, hydro)
+      "brought the company to the elder and stepped back"
+  -> arce_call
+
+
+=== arce_call
+present: arce, tupaq
+
+That night the clinic's phone rings and it's for you. Arce. His voice down the line is tired.
+{arceKnowsLie: 'You told me you'd drop it,' he says. 'I believed you. I'm old enough to know better, and I believed you.'}
+'HydroAndina has called the Minister. The Qhapaq Pampa file is being deaccessioned on Friday. That means burned, in case they didn't teach you the word. I can't stop it. I'm telling you because I'm sixty-one and I have never once told anyone anything.' A pause. 'If you come back by Thursday and say you were on holiday, you keep your job.'
+
+* Go back, and fight it through the proper channels
+  ~ remember procedure, obey, arce
+      "went back down the mountain to fight it from inside the archive"
+  -> kusi_night
+* Tell him you're staying, and he can tell the Minister so
+  ~ remember defy, truth, arce (seen by arce) "told the Archive you weren't coming back"
+  -> kusi_night
+* Ask Arce to get the original file out before Friday
+  ~ remember smuggle, defy, arce (seen by arce)
+      "asked an old man to risk his pension smuggling the file out"
+  ~ doubt hydro about ledger
+  -> kusi_night
+
+
+=== kusi_night
+present: kusi
+
+Kusi finds you on the schoolhouse step under more stars than you have ever seen. She has a question she has obviously practised. 'If it goes in the newspapers,' she says, 'will you put our names in? My grandfather's name is in the 1961 contract. The census people took his brother away in 1970 for not being on the list. My mother says names are how they find you.'
+{kusi sees you as extractive >= 1.5: She sits at the far end of the step. She has seen you with your camera.}
+
+* {kusi sees you as extractive >= 1.5 # she saw your camera} Take out your camera and delete every photograph while she watches
+  ~ remember delete, return, kusi
+      "deleted every photograph on your camera while a child watched"
+  -> assembly
+* Promise her no name goes anywhere without the family's consent
+  ~ remember ask_permission, promise, kusi
+      "promised no name would leave the valley without consent"
+  -> assembly
+* Tell her that names are what make the story real to people in the city
+  ~ remember publish_names, truth, kusi "said that names were what made the story real"
+  -> assembly
+* Tell her it's for the elders and the families to decide, not you
+  ~ remember listen, return, kusi "said it wasn't your decision to make"
+  -> assembly
+
+
+=== assembly
+present: hydro
+~ gossip kusi to tupaq (belief 1)
+
+{
+- townTrusts:
+The town assembly meets in the schoolhouse with the children's drawings still on the walls. Every family sends someone. Elder Tupaq asks you to sit in the circle, not outside it. 'This one asked,' he tells them, and some of the older women nod as if that settles a great deal. They will decide what to do. They want to know what you think.
+- else:
+The town assembly meets in the schoolhouse with the children's drawings still on the walls. Every family sends someone. You are asked to wait by the door. Through it you hear your name several times, and the word for census, which you know from your grandmother. Eventually Tupaq comes out. 'They will decide,' he says. 'But you have a part to play in it, whatever they think of you. Tell me what you will do.'
+}
+
+* Publish the 1961 contract and let the country argue in daylight
+  ~ remember truth, defy, publish "published the contract"
+  -> public_hearing
+* Help the town negotiate with HydroAndina for what it can get now
+  ~ remember negotiate, listen (seen by no one) "helped the town bargain with the company"
+  -> settlement
+* Stay, and help the town build an archive of its own
+  ~ remember return, listen, stay (seen by no one)
+      "stayed to help the town keep its own record"
+  -> living_archive
+* Go home. Keep your job. Fight it, slowly, from your desk
+  ~ remember procedure, obey (seen by no one) "went back to your desk"
+  -> the_closed_file
+
+
+=== public_hearing (ending)
+The 1961 contract runs on the front page of two national papers. HydroAndina contests every clause. The Confederation's water council is forced to open a hearing it cannot hold in private. Qhapaq Pampa wins no apology and no electricity, not yet. It wins the right to make its case where everyone can hear it.
+{kusi knows promise, kusi: The elders choose which names are printed. Kusi's grandfather's name is one of them; her family chose it. The rest are left as blanks, and the blanks are the most-quoted part of the coverage. | The names go out with the documents. You did not choose which; a sub-editor did, at midnight. Two families in Qhapaq Pampa receive visits from men in good shoes in the weeks after. Nobody is taken. Everybody remembers the visits.}
+
+{rosaHurt: The photographs of Mama Rosa's khipu appear in one article, uncredited. You don't know how. She doesn't speak to you until the spring, and when she does, she only says: 'You see? This is how it happens. Even with us.' | Mama Rosa cuts the article out and pins it above her radio, next to a photograph of her mother.}
+{recall tupaq among respectful, extractive, honest, defiant: At the hearing, Elder Tupaq is asked about the archivist. 'You mean the one who {summary}?' he says, and declines to say more.}
+{recall hydro among extractive, defiant, lawful, honest, respectful: On the second day HydroAndina's lawyers enter a dossier on you into the record. You never knew the company was keeping one. Its summary describes an archivist who {summary}.}
+
+
+=== settlement (ending)
+~ gossip sela to tupaq about negotiate (belief 1)
+
+HydroAndina agrees to pay twelve percent of revenue into a town trust while the larger claim proceeds. Some families call it an insult. Others point to the clinic refrigerator that now runs all night, and the school lights, and a child who no longer has to be carried down the mountain for insulin. You helped secure an immediate, imperfect remedy instead of a reckoning. The dispute remains, now written in a contract the town helped shape.
+{tupaq knows take, negotiate: At the signing, Sela thanks you across the table for 'the earlier conversation', and Tupaq turns to look at you. He never quite forgives you for negotiating before you were asked. 'You got us a good number,' he says. 'You got it the way they get things.' # Sela mentioned it}
+
+{arce knows smuggle, arce: Arce gets the original file out on Thursday night in a box of retirement cards. He's dismissed in December. He sends you a postcard of the archive's front steps: 'Worth it. Probably.' | The original file is burned on Friday, as scheduled. The settlement makes no reference to 1961.}
+{recall sela among respectful, extractive, honest, defiant, lawful: Sela Ortiz resigns from HydroAndina a year later. In her exit interview she mentions the archivist who {summary}.}
+
+
+=== living_archive (ending)
+You stay. The children record the elders' accounts beside the engineers' maps; Kusi teaches you more about the cords in a month than the Archive taught you in six years. The town is still contested and still owed. But it is no longer absent. It keeps its own record now, in tin trunks under the school desks, in a place where nobody else can decide to burn it.
+{townTrusts: In your second year, they give you a cord of your own to tie. It records that you came, and asked, and stayed. | In your second year, Tupaq tells you that the town has decided you may stay. It is not the same as being trusted. You understand the difference better than anyone.}
+
+{rosaHurt: You write to Mama Rosa and tell her you deleted the photographs. It's true. It takes her a year to write back. | Mama Rosa visits in the dry season, on the four o'clock bus, and sits with Tupaq in the clay-floored room comparing cords until it's dark. 'Kin,' she says, when you ask what they talked about. 'Kin.'}
+{recall kusi among respectful, extractive, honest, defiant: Kusi, who is the record-keeper now, ties one more knot for you on the day you finally leave. It records that you {summary}.}
+
+
+=== the_closed_file (ending)
+You go back on Thursday and say you were on holiday. On Friday the file is burned in the archive's basement incinerator, as scheduled, and you sign the destruction log because that is your job. You spend the next nine years filing correct, polite requests, every one of them denied for a new reason. You are very good at procedure. It is a slow and lonely kind of courage, and sometimes you are not sure it is courage at all.
+{hasCopies: The photocopies you smuggled out in your first week are in a shoebox under your bed. Every year you take them out and look at them, and every year you put them back. | There is no copy of anything. You made sure of that, in the beginning, because it was the rule.}
+
+{recall arce among lawful, defiant, honest: When Arce retires, he leaves you his fountain pen and a note: he remembers that you {summary}.}
+{recall tupaq among respectful, extractive, honest: In Qhapaq Pampa, Kusi ties a knot for the archivist who {summary}, and then went away like all the others.}
+{recall hydro among extractive, defiant, lawful, honest, respectful: HydroAndina closes its file on you the same week. You never knew it had one. The last line describes an archivist who {summary}.}
