@@ -5,9 +5,9 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-require("../scripts/MemoryGraph.js");
-const NarrativeEngine = require("../scripts/NarrativeEngine.js");
-const StoryCheck = require("../scripts/StoryCheck.js");
+require("../scripts/core/MemoryGraph.js");
+const NarrativeEngine = require("../scripts/core/NarrativeEngine.js");
+const StoryCheck = require("../scripts/authoring/StoryCheck.js");
 
 // A deckhand is suspected of a theft; the player can accuse him or vouch for
 // him, and Hale (the captain) can be talked out of believing the accusation.

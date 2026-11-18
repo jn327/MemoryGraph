@@ -1,0 +1,447 @@
+title: The Distance Between Us
+synopsis: A commuter's pocket mind-scanner caught a bus driver imagining a crash. You are his lawyer, and someone has just offered you a scanner of your own.
+
+== characters
+ellis: Ellis
+june: June
+jury: The jury
+calloway: Calloway
+ravi: Ravi Sallis
+clearview: Clearview's file on you (hidden)
+
+== traits
+principled: consent, privacy, truth
+ruthless: scan +1.5, expose, humiliate
+manipulative: coach +1.5, lie +1.5, trick
+kind: listen, comfort, protect +0.7
+dangerous: danger, deceit +1.5, doubt -1
+careful: careful
+
+== macros
+juryTrustsEllis: jury sees ellis as more careful than dangerous # the jury believes Ellis
+misconduct: calloway knows scan, player # your scan
+ellisTrustsYou: ellis sees you as manipulative <= 1 and not ellis knows expose, june # Ellis trusts you
+
+
+=== the_brief
+Lenses cost forty dollars now. You point one at a stranger on the train and it shows you, for a few seconds, what is passing through their mind. Some courts admit the recordings. This one does.
+
+The file lands on your desk on a Monday with a note from the head of chambers: *Nobody wants this. Do you?* Inside are a bus driver, a four-second recording, and a charge of planning a vehicular attack. Every newsroom in the city already has the clip.
+
+* Take it because nobody else will
+  ~ motive = "duty"
+  ~ remember protect, ellis "took the case because nobody else would"
+  -> the_scan
+* Take it because a case this big makes a career
+  ~ motive = "career"
+  ~ remember ambition, career "took the case because it would make your name"
+  -> the_scan
+* Take it because it's your turn on the legal aid rota, and that's the job
+  ~ motive = "rota"
+  ~ remember rota, job "took the case because it was your turn"
+  -> the_scan
+
+
+=== the_scan
+present: ellis
+~ remember world: ellis, scan, market, lens (seen by no one)
+
+Your client, Ellis Varga, has driven the 41 bus for nineteen years. A commuter named Ravi Sallis scanned him at a red light by the market and caught an image: the bus mounting the pavement, the stalls going under the wheels. Ellis is charged with planning a vehicular attack.
+
+'It comes every time I pass the market,' Ellis tells you in the holding room. His hands are folded so tightly the knuckles are white. 'Since I was nine. I saw a lorry go into a crowd. Every time, the picture comes, and then I think: slow down. Check the mirror. Every time.' He looks at the table. 'My daughter doesn't know. Nobody knows. Now strangers know me better than June does.'
+{ellis knows player, ellis: Then he looks up and studies your face. 'Have we done this before?' he says. 'I feel like I've already told you all of this, and I can't remember how it went.' # Ellis remembers you}
+
+* Tell him June should hear it from him before she hears it in court
+  ~ remember listen, truth, ellis, june
+      "told your client his daughter deserved to hear it from him"
+  -> june
+* Tell him to say nothing to anyone, June included
+  ~ remember protect, privacy, ellis
+      "told your client to keep it from everyone, even his daughter"
+  -> june
+
+
+=== june
+present: june
+
+June Varga is fifteen and waiting for you on the courthouse steps with her school bag on both shoulders. Kids at school have started pointing Lenses at her in the corridor to see if she's 'like her dad'. She has stopped thinking in lessons. 'Is it true?' she says. 'Does he think about killing people? You've talked to him. You know.'
+
+* Tell her what he told you
+  ~ remember expose, truth, june, ellis
+      "told a fifteen-year-old her father's secret before he could"
+  -> discovery
+* Tell her it's his story, and he should be the one to tell it
+  ~ remember privacy, consent, june
+      "told a frightened girl it was her father's story to tell"
+  -> discovery
+* Tell her the scan is fake, doctored by the company
+  ~ remember lie, comfort, june "told a frightened girl the scan was faked"
+  -> discovery
+
+
+=== discovery
+present: clearview
+
+Your investigator brings you three things. First: Ravi Sallis isn't a concerned citizen. He's a contractor for Clearview Risk, which pays four hundred dollars for every flagged 'threat thought' it can sell to insurers. He has flagged sixty-one people this year. She has his Clearview statement: four hundred dollars for the Ellis Varga flag, credited at 8:19 a.m. The scan was taken at the market lights at 8:14. Second: Clearview sold the court a trimmed recording; the original is longer.
+
+Third, she puts on your desk, without comment, a Lens of your own. 'Everyone on the other side has one,' she says. 'Calloway's office scans witnesses in the lifts. I'm just saying.'
+
+* Scan Ravi Sallis in the corridor before the hearing
+  ~ remember scan, ravi, secret "scanned the witness yourself, without his consent"
+  -> scan_ravi
+* Scan juror four, the one who won't look at Ellis
+  ~ remember scan, trick, juror "scanned a juror to find out what she was thinking"
+  -> scan_juror
+* Put the Lens in a drawer and lock it
+  ~ remember consent, privacy, lens "locked away the scanner you were offered"
+  -> hearing
+
+
+=== scan_ravi
+~ ravi_scanned = true
+
+You point it at him from behind a pillar and it takes three seconds. Ravi Sallis is thinking about a bank letter: FINAL NOTICE in red. Then his daughter's face in a hospital bed. Then four hundred dollars, written out like a prayer. You know exactly how to break him on the stand. You also know you just did to him what he did to Ellis.
+
+* Pocket the Lens and go in -> hearing
+
+
+=== scan_juror
+~ juror_scanned = true
+
+Juror four is a woman in a green cardigan. Three seconds: a boy on a bicycle. A bus. A hospital corridor with the lights too bright. Her son. She lied in jury selection, or she was never asked. If the court knew, she'd be removed. But the only way the court could know is if you told them how you know.
+
+* Pocket the Lens and go in -> hearing
+
+
+=== hearing
+present: ellis, june, jury, calloway, clearview
+~ remember world: ellis, danger, market (seen by jury, june) (strength 3)
+
+The prosecutor, Hal Calloway, is a pleasant man with a rugby player's neck and he does not waste the jury's time. He plays the scan on a screen the size of a wall: the 41 bus, from the driver's seat, rising onto the pavement, the market stalls going under. It lasts four seconds. Two jurors gasp. Juror four closes her eyes.
+
+Ellis watches the screen, not the jury. He's seen it a thousand times. He's never seen it from outside.
+
+* Object: the scan is trimmed. Demand the full recording
+  ~ remember truth, consent, full_record (seen by jury, calloway)
+      "demanded the court see the whole recording"
+  -> full_record
+* Ask for a recess, and get Ellis out of the room
+  ~ remember protect, comfort, ellis (seen by jury, ellis)
+      "got your client out of the room before he had to watch it again"
+  -> cross
+* Ask the court's permission to scan yourself, here, in front of the jury
+  ~ remember truth, consent, vulnerable
+      "let the jury scan your own mind to show them what an unchosen thought looks like"
+  ~ remember world: ellis, doubt (seen by jury) (strength 1.5)
+  -> own_scan
+
+
+=== own_scan
+The judge allows it, mostly out of curiosity. Calloway shrugs: rope, hanging. You hold the Lens to your own temple and the screen fills with what is in your head. Ellis's face. A wall. Your own car on the motorway, drifting, deliberately, toward the barrier. You have never told anyone that one either.
+
+The courtroom is very quiet. 'I've never done it,' you say. 'I never will. I don't know why it comes. Nobody does. That is the point.'
+
+* Turn off the screen and call the witness -> cross
+
+
+=== full_record
+present: june, jury, calloway
+~ remember world: ellis, careful, mirror (strength 2)
+~ doubt jury, june about ellis, danger, market (belief 0.4)
+
+The judge grants the order over Calloway's objection, and the next morning the full recording plays. The bus, the pavement, the stalls going under: four seconds. Then eight more that the jury has never seen. Ellis's hands tighten on the wheel. His eyes go to the mirror. In his head, in his own voice, steady as a prayer: Slow down. Check the mirror. Slow down. The bus in the recording brakes. A girl with a pushchair crosses safely in front of it.
+
+Clearview cut those eight seconds before they sold the clip.
+
+* Call Ravi Sallis to the stand -> cross
+
+
+=== cross
+present: ellis, june, jury, calloway, ravi, clearview
+
+{first visit: Ravi Sallis is thin and very polite, and he calls the judge 'sir' twice in the first minute. He says he saw a frightening image and did his civic duty. The judge has already told both counsel, twice, that she expects them to be brief.}
+{first visit and jury knows protect, ellis: When Ellis comes back in, two of the jurors watch him all the way to his seat. They saw you take him out before the screen went dark, and now they look at him as a man who needed taking out. # the jury saw the recess}
+{first visit and ravi_scanned == true: The Lens in your pocket weighs about as much as a stone. You know what he's afraid of. You could open him up like a tin.}
+{asked == "when": 'That afternoon,' Ravi says. 'I sat in a café for hours, sir. It isn't a small thing, to report a man. I wanted to be sure.'}
+{asked == "count": 'Sixty-one,' Ravi says, so quietly that the judge asks him to repeat it. He does. Somebody in the gallery laughs, once, without any humour in it.}
+{asked == "shame": Ravi opens his mouth and closes it again. 'Everybody has,' he says at last. 'Sir.' Juror four looks at him properly for the first time.}
+{asked == "cafe": 'The one by the market,' Ravi says, puzzled. 'With the green awning.' Calloway smiles into his notes. The jury has learned that the café has a green awning.}
+{visited cross >= 3: The judge leans forward. 'Last question, counsel. Make it count.'}
+
+* (once) {visited cross < 3} Ask him when he reported what he saw
+  ~ asked = "when"
+  ~ remember ask, ravi, timing (seen by jury, ravi, calloway)
+      "asked the witness when he had reported the scan"
+  -> cross
+* (once) {visited cross < 3} Ask him how many other people he has flagged
+  ~ asked = "count"
+  ~ remember truth, ravi, flags (seen by jury, ravi, calloway)
+      "made the witness say how many people he had flagged"
+  ~ remember world: ellis, doubt (seen by jury) (strength 0.5)
+  -> cross
+* (once) {visited cross < 3} Ask him whether he's ever had a thought he was ashamed of
+  ~ asked = "shame"
+  ~ remember listen, ravi (seen by jury, ravi)
+      "asked the witness about his own shameful thoughts, and waited"
+  ~ remember world: ellis, doubt (seen by jury) (strength 0.5)
+  -> cross
+* (once) {visited cross < 3 and asked == "when"} Ask him which café
+  ~ asked = "cafe"
+  -> cross
+* {ravi_scanned == true} Confront him with what you saw in his head: the debt, the bounty, his daughter
+  ~ remember scan, expose, humiliate, ravi
+      "used a man's own stolen thoughts against him on the stand"
+  -> calloway_objects
+* {player with timing >= 1} Ask him what time Clearview paid him that morning
+  ~ remember truth, evidence, bounty, timing (seen by jury, ravi, calloway)
+      "showed the jury the witness was paid before he says he'd decided anything"
+  ~ remember world: ellis, doubt (seen by jury) (strength 2)
+  -> paid_early
+* Ask him, on the record, how much Clearview pays per flag
+  ~ remember truth, ravi, bounty (seen by jury, ravi, calloway)
+      "made the witness say his price out loud"
+  ~ remember world: ellis, doubt (seen by jury)
+  -> hallway
+* No further questions -> hallway
+
+
+=== paid_early
+present: jury, calloway, ravi
+
+Ravi looks at Calloway, who is looking at his own hands. You give the clerk the Clearview statement. Four hundred dollars, credited at 8:19 a.m. The lights by the market were at 8:14. 'Five minutes,' you say. 'You hadn't reached the café. You hadn't decided anything. You'd already been paid.' Ravi doesn't answer. Juror four writes something down and underlines it.
+
+* Let him step down -> hallway
+
+=== calloway_objects
+present: ellis, june, jury, calloway
+
+Ravi goes white. Then Calloway is on his feet. 'Your Honour, how does counsel know what the witness's daughter looks like?' Nobody in the room breathes. You could lie. You could say your investigator found medical records. Ellis is staring at you as if he's never seen you before.
+
+* Admit it: you scanned him in the corridor
+  ~ remember admit, truth, scan "admitted in open court that you scanned the witness"
+  -> verdict
+* Say your investigator found the medical records
+  ~ remember lie, trick, scan (seen by jury, calloway, ellis)
+      "lied to a judge about how you knew what you knew"
+  -> verdict
+
+
+=== hallway
+present: ravi
+
+At the lunch break Ravi Sallis finds you by the vending machines. His hands are shaking.
+{ravi knows listen, ravi: 'You asked me if I'd ever had a thought I was ashamed of,' he says. 'Nobody's ever asked me that. I've been thinking about it all morning.' # Ravi remembers the stand}
+{not ravi knows listen, ravi and ravi knows bounty: 'You made me say my price in front of everyone,' he says. 'Fine. Now they all know. So I've got nothing left to lose by saying the rest.' # Ravi remembers the stand}
+{not ravi knows listen, ravi and not ravi knows bounty: 'You didn't even look at me up there,' he says. 'You looked at the jury the whole time, like I was furniture.' He laughs, badly. 'Maybe that's fair.'}
+'I want to take it back. All of it. I've flagged sixty-one people. Clearview says if I recant they'll sue me for breach. I have a daughter. She has a heart thing.' He looks at you like a man looking for a door.
+
+* Give him the number of a lawyer who'll take Clearview on for free
+  ~ remember protect, comfort, ravi "found him a lawyer when he was afraid"
+  -> preparation
+* Tell him to recant on the stand, or you'll make sure his sixty-one find out who he is
+  ~ remember humiliate, expose, ravi "threatened him with his own sixty-one victims"
+  -> preparation
+* Keep him talking while your phone records in your pocket
+  ~ remember trick, ravi (seen by no one) "secretly recorded a frightened man"
+  -> preparation
+
+
+=== preparation
+present: ellis, june, jury
+~ gossip june to ellis about june (belief 1)
+
+{
+- not first visit:
+{prep == "calloway": You do Calloway's voice, flat and pleasant. 'How often does the image come, Mr Varga?' Ellis opens his mouth, closes it. 'Every day,' he says at last, to the table. Then, to you: 'That's the wrong answer, isn't it.' It isn't wrong. It's just the one that will be hardest to hear.}
+{prep == "coat": He has never said the man's name out loud. He says it now: Arturo. Arturo had a red coat and a bag of oranges and was crossing to the bus stop. Ellis was nine, holding his mother's hand on the opposite kerb. 'I don't see the crash,' he says. 'I see the moment just before. When it could still go either way.'}
+{prep == "logs": You lay the Clearview printouts in a row. Six scans in eight weeks, six strangers, the same red coat every time. Ellis reads them slowly. 'They all saw it,' he says. 'Six people on my bus saw the worst thing in my head, and not one of them said anything to me.'}
+
+{visited preparation >= 3: A guard knocks on the glass and holds up five fingers. Ellis rubs his eyes. 'Tell me what to do tomorrow,' he says. | The coffee has gone cold. Ellis waits to see what you'll ask him next.}
+- else:
+The night before Ellis testifies, you sit with him in a meeting room that smells of instant coffee. He wants to take the stand. He wants to say it himself. The risk is that Calloway will ask how often the image comes, and the true answer is every single day.
+{ellis knows expose, june: Before you can begin, he says: 'June told me you told her.' He doesn't say anything else for a while. When he does, it's: 'Let's just get on with it.'}
+{ellis knows lie, june: 'June thinks it's fake,' he says. 'She says you told her. I don't know how to tell her it isn't.'}
+}
+
+* (once) {visited preparation < 3} Rehearse the cross-examination: play Calloway
+  ~ prep = "calloway"
+  ~ remember rehearse, ellis (seen by ellis) "rehearsed Calloway's questions with your client the night before"
+  -> preparation
+* (once) {visited preparation < 3} Ask him about the man in the red coat
+  ~ prep = "coat"
+  ~ remember listen, ellis (seen by ellis) "asked your client about the man in the red coat, and listened"
+  -> preparation
+* (once) {visited preparation < 3} Show him every scan Clearview has of him
+  ~ prep = "logs"
+  ~ remember truth, privacy, ellis (seen by ellis) "showed your client every scan anyone had taken of him"
+  -> preparation
+
+* Coach him: say it comes rarely, only on bad days
+  ~ remember coach, lie, ellis (seen by ellis)
+      "coached your client to lie about how often the picture comes"
+  ~ remember world: ellis, deceit (seen by jury, june) (strength 2)
+  ~ testimony = "coached"
+  -> testimony
+* Tell him to tell the truth, all of it, and you'll stand beside it
+  ~ remember truth, consent, ellis (seen by ellis)
+      "told your client to tell the whole truth and promised to stand by it"
+  ~ remember world: ellis, careful, grief (seen by jury, june) (strength 2.5)
+  ~ testimony = "truth"
+  -> testimony
+* Overrule him. He stays off the stand
+  ~ remember protect, ellis (seen by ellis)
+      "kept your client off the stand when he wanted to speak"
+  ~ remember world: ellis, danger, silence (seen by jury) (strength 0.5)
+  ~ testimony = "silent"
+  -> testimony
+
+
+=== testimony
+{
+- testimony == "coached":
+Ellis says it comes rarely. Only on bad days. Calloway nods sympathetically, then plays a Clearview log: six scans of Ellis in eight weeks, from six different commuters, each with the same image. 'Rarely, Mr Varga?' Ellis looks at you. Every juror sees him look at you.
+- testimony == "silent":
+Ellis does not testify. He sits beside you through the rest of the prosecution case with his hands folded, and the jury watches him the way you'd watch a dog that's never bitten anyone yet.
+- else:
+Ellis tells them all of it. The lorry in the market when he was nine. A man under the wheels in a red coat. The picture that comes every day since, at the same corner. 'And then I check the mirror,' he says. 'Nineteen years. Every time. I'm the most careful driver on that route because I can't stop seeing what happens if I'm not.' Juror four is crying, very quietly.
+}
+
+* Rest the defence -> gallery
+
+
+=== gallery
+present: ellis, june
+
+In the corridor June is waiting for her father. She has been in the gallery every day.
+{june knows lie, june: She walks straight past him to you. 'You said it was fake,' she says. 'You said they made it up.' She has heard enough in that courtroom now to know it wasn't, and she is fifteen, and she does not know who to be angriest with. | She goes to him. She doesn't say anything. She puts her forehead on his chest the way she did when she was small, and Ellis puts one hand on the back of her head, and the court officer looks away.}
+
+* Leave them alone and write your closing
+  ~ remember privacy, consent, corridor "left them alone in the corridor"
+  -> closing
+* Apologise to June for whatever you got wrong
+  ~ remember admit, comfort, june "apologised to a fifteen-year-old outside the courtroom"
+  -> closing
+
+
+=== closing
+present: ellis, jury, calloway, ravi, clearview
+
+Closing arguments. The jury has seen four seconds of a bus mounting a pavement, and everything you've managed to put beside it. Calloway's closing is short and terrible: 'You saw what was in his head. Ask yourselves whether you'd put your children on that bus.'
+{calloway knows bounty: He doesn't mention Ravi Sallis once. Four hundred dollars a flag is not a number he wants back in their heads. # Calloway heard the price}
+{jury knows vulnerable: Juror four isn't watching Calloway. She is watching you, the way she has since you held the Lens to your own temple. # the jury saw your scan}
+
+* Ask them to judge what Ellis did, nineteen years of it, not what he saw
+  ~ remember truth, consent, closing (seen by jury, ellis)
+      "asked the jury to judge him by what he did"
+  ~ remember world: ellis, doubt (seen by jury)
+  -> verdict
+* Put Clearview on trial: a company that sells fear by the second
+  ~ remember expose, clearview, closing (seen by jury, calloway, clearview)
+      "turned the closing into a war on Clearview"
+  ~ remember world: ellis, doubt (seen by jury) (strength 0.5)
+  -> verdict
+* {juror_scanned == true} Address juror four directly: 'You know what it is to see something you can't stop seeing'
+  ~ remember scan, expose, trick, juror (seen by jury, calloway, ellis, clearview)
+      "used a juror's stolen grief in your closing"
+  -> verdict
+* {trick with ravi >= 1 # your recording} Play the jury what Ravi said at the vending machines: 'I want to take it back'
+  ~ remember trick, expose, ravi, closing (seen by jury, calloway, ravi, ellis)
+      "played the jury a frightened man's words that you'd recorded in secret"
+  ~ remember world: ellis, doubt (seen by jury) (strength 1.5)
+  -> verdict
+
+
+=== verdict
+{
+- misconduct:
+The judge clears the jury. In chambers, Calloway is almost gentle about it: unauthorised scanning of a witness or juror by counsel is a crime, and everything after it is poisoned. Mistrial. Ellis will be tried again, with a new lawyer, before a new jury who will see the four seconds fresh. You are referred to the bar. Ellis watches them take your name down. He doesn't say anything at all.
+- juryTrustsEllis:
+The jury is out for five hours. When they come back the foreperson, a retired electrician, reads 'not guilty' without looking at the paper. Ellis doesn't move. You have to touch his arm to tell him he's allowed to stand up.
+- else:
+The jury is out for two days. When they come back, none of them look at Ellis. Guilty of conspiracy to commit a vehicular attack. Ellis nods as if this is something he has been expecting since he was nine. In the gallery June makes a sound you will hear for the rest of your career.
+}
+
+* Walk out with him
+  -> mistrial if misconduct
+  -> outside if juryTrustsEllis
+  -> convicted
+
+
+=== outside
+present: ellis, june, clearview
+
+Outside, the reporters have Lenses in their hands like microphones. 'Ellis! What were you thinking when you heard the verdict?' A dozen little lights point at his head. He looks at you before deciding whether to answer.
+{motive == "career": Half the Lenses on the steps are pointed at you. This is the moment you took the case for, and it is smaller and louder than you imagined.}
+
+* Step between Ellis and the scanners. He owes them no thought
+  ~ remember protect, privacy, ellis (seen by ellis, june)
+      "stood between your client and the cameras"
+  -> the_route
+* Help him explain the difference between a thought and a plan
+  ~ remember truth, consent, ellis (seen by ellis, june)
+      "helped your client explain himself in his own words"
+  -> a_new_rule
+* Take the microphones yourself and announce a campaign against Clearview
+  ~ remember expose, clearview
+      "turned your client's acquittal into your own press conference"
+  -> a_new_rule
+
+
+=== convicted
+present: ellis, june
+
+At sentencing, Ellis is given six years. He's allowed ten minutes with June in a room with a table bolted to the floor. Afterwards he asks to see you. 'Will you keep going?' he says. 'With the appeal. Not for me. For the next one.'
+
+* Promise him you'll take it all the way up
+  ~ remember promise, protect, ellis "promised to take his appeal all the way up"
+  -> the_appeal
+* Tell him honestly what the odds are
+  ~ remember truth, ellis (seen by ellis) "told him the truth about the odds"
+  -> the_appeal
+
+
+=== mistrial
+{
+- ravi_scanned == true:
+On the courthouse steps Ravi Sallis is waiting, not for Ellis, for you. 'You did the same thing to me that I did to him,' he says. 'I wanted you to know I know.' Then he goes down the steps, past the reporters, and points his own Lens at nobody at all.
+- else:
+On the courthouse steps a woman in a green cardigan is waiting, not for Ellis, for you. Juror four. 'They told us why,' she says. 'You went into my head and took my son out of it and used him.' She doesn't raise her voice. 'I was going to vote for your client.' Then she goes down the steps, past the reporters, and doesn't look back.
+}
+
+* Go home -> the_bar
+
+
+=== a_new_rule (ending)
+Eighteen months later the Mental Privacy Act passes: no scanning without consent, and no scan admitted in court without its full context. Enforcement is patchy and the market cameras stay up. But the next driver who sees something terrible at a red light will have a law to point to, and somewhere in the record of the debate, the name Ellis Varga is spelled correctly.
+{motive == "career": Yours is in there too. Three firms call that week. You take the offer that pays least, which surprises everyone, including you.}
+{ravi knows protect, ravi: Ravi Sallis testifies in favour. He reads out the sixty-one names he flagged and apologises to each one by name. Two of them are in the gallery. | Ravi Sallis moves to another city. Clearview's lawyers make sure the sixty-one never learn his name.}
+
+{ellisTrustsYou: Ellis sends you a photograph each Christmas of the 41 bus at the market corner. On the back, every year, the same three words: Checked the mirror. | Ellis never calls you again. You learn later that he told a reporter you were 'good at your job,' and that he said it the way you'd describe a surgeon who left a scar.}
+{recall june among principled, ruthless, manipulative, kind: June, who becomes a lawyer, tells her students about the first one she ever watched, who {summary}.}
+{recall clearview among principled, ruthless, manipulative, kind: The week before the Act takes effect, Clearview sells its last profiles to an insurer. Your Lens had been reporting home the whole time. Your profile, you find out years later, describes a lawyer who {summary}.}
+
+
+=== the_route (ending)
+Ellis drives again in the spring. He still sees the bus mount the pavement at the market, and he still checks his mirror. The scan has changed nothing about what passes through his head. Your defence changed what the court could claim to know about him. The law is unsettled, and the next person scanned will have to start from nothing, but his route is his again.
+{motive == "duty": Nobody wanted the case. You find, at the end, that you wanted it very much.}
+
+{ellisTrustsYou: The first week, June rides the whole route with him, front seat. At the market corner he says, out loud, 'Slow down. Check the mirror,' and she says it with him. | June doesn't ride the 41. Ellis tells you she will, one day. He doesn't sound sure, and he doesn't sound like he blames her.}
+{recall ellis among principled, ruthless, manipulative, kind: When people ask Ellis about the trial, he tells them about the day you {summary}, and then he changes the subject.}
+
+
+=== the_appeal (ending)
+The appeal takes three years. You lose at the first level and win at the second, on the ground that a fragment of a thought is not evidence of an intention. Ellis comes out of prison at fifty-one with a bus pass he is no longer allowed to use as a driver. The ruling bears his name. Law students will read it for decades without knowing what his hands looked like on the table.
+{motive == "rota": It was supposed to be a rota case. It took three years and most of what you'd planned to do with them.}
+
+{ellisTrustsYou: He shakes your hand at the gate, then hugs you, awkwardly, like a man who has forgotten how. June is there. She's taller. She says thank you as if it costs her something, and it does. | He shakes your hand at the gate. June waits in the car and doesn't get out.}
+{recall jury among principled, ruthless, manipulative, kind: Years later, one of the jurors writes to you. She still thinks about the trial, she says, and mostly about the lawyer who {summary}.}
+
+
+=== the_bar (ending)
+You are suspended for two years. Ellis is retried with a new lawyer, a careful woman who keeps her Lens locked in a drawer, and the second jury sees the full recording. He is acquitted. You read about it in the newspaper, in a café, and you sit very still for a long time.
+{motive == "career": You took the case to make your name. You did.}
+{ellis knows lie, scan: He would have forgiven the scan, he tells the reporter. It was the lie to the judge he couldn't watch. | He tells the reporter that you made a terrible mistake for him, and that he doesn't know whether that makes it better or worse.}
+
+{recall ravi among principled, ruthless, manipulative, kind: Ravi Sallis, it turns out, tells everyone who will listen about the lawyer who {summary}.}
+{recall clearview about trait ruthless: The bar's evidence against you comes from Clearview. Your Lens logged every use and sent it home, and the report is very thorough. Page one notes that you {summary}.}
+{visited own_scan: Your Lens is still in the drawer where you should have left it. Some nights you take it out and point it at the mirror, and you see a wall, and your own car drifting toward it, and you think: slow down. Check the mirror. | Your Lens is still in the drawer where you should have left it. Some nights you take it out and point it at the mirror. You never turn it on. You are afraid of what it would show you.}

@@ -16,17 +16,39 @@
           <h1 class="app-title">Memory Graph</h1>
           <p class="app-tagline">Branching stories where every choice leaves a trace. Characters remember what you do.</p>
         </div>
-        <div class="header-actions">
-          <button class="button-tags" id="tags-button" type="button" aria-pressed="true" title="Show which memories shaped the story">Memory tags: on</button>
-          <button class="button-info" id="info-button" type="button" title="Graph State" aria-label="Graph State">i</button>
+        <div class="app-menu-wrap">
+          <button class="menu-button" id="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="app-menu">
+            <span class="menu-dots" aria-hidden="true">⋯</span>
+          </button>
+          <div class="app-menu" id="app-menu" hidden>
+            <button class="menu-item menu-switch" id="tags-button" type="button" role="switch" aria-checked="true">
+              <span class="menu-item-text">
+                <span class="menu-item-label">Memory tags</span>
+                <span class="menu-item-hint">Show which memories shaped the story</span>
+              </span>
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            </button>
+            <button class="menu-item" id="about-button" type="button">
+              <span class="menu-item-text">
+                <span class="menu-item-label">How memory works</span>
+                <span class="menu-item-hint">What the tags, dots and endings mean</span>
+              </span>
+            </button>
+            <button class="menu-item" id="info-button" type="button">
+              <span class="menu-item-text">
+                <span class="menu-item-label">Writer tools…</span>
+                <span class="menu-item-hint">The story map, story check, start from a scene, the memory graph</span>
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </header>
 
     <section class="library-panel" aria-label="Story library" id="library-panel">
       <div class="library-controls">
-        <input id="story-files" class="visually-hidden" type="file" accept=".json,application/json" multiple webkitdirectory tabindex="-1" />
-        <input id="story-json-files" class="visually-hidden" type="file" accept=".json,application/json" multiple tabindex="-1" />
+        <input id="story-files" class="visually-hidden" type="file" accept=".txt,text/plain" multiple webkitdirectory tabindex="-1" />
+        <input id="story-text-files" class="visually-hidden" type="file" accept=".txt,text/plain" multiple tabindex="-1" />
         <div class="story-picker">
           <button id="story-picker" class="story-picker-toggle" type="button" aria-labelledby="story-picker-label story-picker-title" aria-expanded="false" aria-controls="story-menu" disabled>
             <span class="visually-hidden" id="story-picker-label">Story:</span>
@@ -35,7 +57,8 @@
           <div class="story-menu" id="story-menu" hidden>
             <div class="story-menu-uploads" role="group" aria-label="Upload stories">
               <button id="folder-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload a folder</button>
-              <button id="json-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload JSON files</button>
+              <button id="files-upload-button" class="upload-option" type="button"><span aria-hidden="true">＋</span> Upload story files (.txt)</button>
+              <button id="watch-file-button" class="upload-option" type="button" hidden><span aria-hidden="true">↻</span> Open a story to edit (reloads when you save)</button>
             </div>
             <div class="story-options" id="story-options" role="group" aria-label="Stories"></div>
           </div>
@@ -46,43 +69,103 @@
 
     <section class="play-layout" aria-label="Story player">
       <article class="story-panel" aria-live="polite">
-        <h2 class="story-title" id="story-title">The next choice is yours.</h2>
+        <div class="story-heading">
+          <h2 class="story-title" id="story-title">The next choice is yours.</h2>
+          <button class="cast-button" id="cast-button" type="button" aria-expanded="false" aria-controls="cast-drawer" hidden>Who's who<span class="cast-dot" id="cast-dot" hidden><span class="visually-hidden">, something has changed</span></span></button>
+        </div>
         <div class="story-text" id="story-text"><p>Choose a story above to step into a world that remembers.</p></div>
-        <details class="reputation-panel" id="reputation-panel" hidden>
-          <summary>How you're seen</summary>
-          <div class="reputation-tabs" id="reputation-tabs" role="group" aria-label="Whose view"></div>
-          <div class="reputation-body" id="reputation-body"></div>
-        </details>
         <div class="choice-list" id="choice-list"></div>
         <section class="ending-summary" id="ending-summary" aria-labelledby="ending-summary-title" hidden>
-          <h3 id="ending-summary-title">What your choices left behind</h3>
-          <p class="ending-summary-intro">The strongest ideas connected to you in this story:</p>
-          <div class="ending-traces" id="ending-traces" aria-label="Strongest memory connections"></div>
-          <p class="ending-summary-empty" id="ending-summary-empty" hidden>No choice-related memories were recorded.</p>
-          <div class="ending-reputation" id="ending-reputation" hidden>
-            <p class="ending-summary-intro">How the people you met remember you:</p>
-            <ul id="ending-reputation-list"></ul>
-          </div>
+          <h3 id="ending-summary-title">How you'll be remembered</h3>
+          <div class="ending-overall" id="ending-overall"></div>
+          <ul class="ending-people" id="ending-reputation-list" aria-label="How each person remembers you" hidden></ul>
           <details class="ending-path" id="ending-path">
             <summary id="ending-path-label"></summary>
             <ol id="ending-choices"></ol>
           </details>
         </section>
         <div class="ending-actions" id="ending-actions" hidden>
-          <button class="button button-primary" id="restart-button" type="button">Begin again · keep memory</button>
-          <button class="button button-quiet" id="clear-button" type="button">Clear memory &amp; restart</button>
+          <div class="ending-buttons">
+            <button class="button button-primary" id="restart-button" type="button">Begin again · keep memory</button>
+            <button class="button button-quiet" id="clear-button" type="button">Clear memory &amp; restart</button>
+          </div>
+          <p class="ending-actions-note">Keep memory starts the story again, and everyone remembers what you did this time. Clear memory starts it fresh.</p>
         </div>
       </article>
     </section>
 
-    <div class="debug-panel" id="debug-panel" hidden>
-      <div>
+    <aside class="cast-drawer" id="cast-drawer" aria-labelledby="cast-drawer-title" hidden>
+      <div class="cast-drawer-header">
+        <h2 id="cast-drawer-title">Who's who</h2>
+        <button class="cast-close" id="cast-close" type="button" aria-label="Close Who's who">&times;</button>
+      </div>
+      <!-- Phones: the drawer docks as a bar at the bottom that expands. -->
+      <button class="cast-bar" id="cast-bar" type="button" aria-expanded="false" aria-controls="cast-drawer-body">
+        <span class="cast-bar-title">Who's who<span class="cast-dot" id="cast-bar-dot" hidden><span class="visually-hidden">, something has changed</span></span></span>
+        <span class="cast-bar-here" id="cast-bar-here"></span>
+        <span class="cast-bar-chevron" aria-hidden="true"></span>
+      </button>
+      <div class="cast-drawer-body" id="cast-drawer-body">
+        <div class="reputation-tabs" id="reputation-tabs" role="group" aria-label="Whose view"></div>
+        <div class="reputation-body" id="reputation-body"></div>
+      </div>
+    </aside>
+
+    <dialog class="about-dialog" id="about-dialog" aria-labelledby="about-title">
+      <div class="about-header">
+        <h2 id="about-title">How memory works</h2>
+        <button class="cast-close" id="about-close" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="about-body">
+        <p>Everything you do is remembered, but only by the people who saw it or were told about it later. People talk, so word gets around.</p>
+        <p>What people remember about you changes what they say, what they do, and which choices you get.</p>
+        <p>Text that memory changed is followed by a coloured tag, such as <span class="about-tag">(Mira: a liar)</span>. Hover over it or tap it to see which of your choices caused it. After each choice, a note such as <span class="about-tag">(↑ kind · Mira saw)</span> shows which way it pushed you and who saw. You can turn tags off in this menu.</p>
+        <p><strong>Who's who</strong> lists everyone you've met and how they see you now. A dot means someone's view of you has changed since you last looked. Some people keep what they think to themselves.</p>
+        <p>At an ending you'll see how you'll be remembered. <strong>Begin again · keep memory</strong> plays the story again, with everyone remembering your last run. <strong>Clear memory</strong> starts fresh.</p>
+      </div>
+    </dialog>
+
+    <div class="debug-panel" id="debug-panel" role="dialog" aria-modal="true" aria-labelledby="debug-title" hidden>
+      <div class="debug-frame">
         <div class="debug-header">
-          <h3>Graph State</h3>
-          <button class="debug-close" id="debug-close" type="button">&times;</button>
+          <h3 id="debug-title">Writer tools</h3>
+          <button class="debug-close" id="debug-close" type="button" aria-label="Close Writer tools">&times;</button>
         </div>
-        <div class="debug-body">
+        <div class="writer-tabs" role="tablist" aria-label="Writer tools">
+          <button class="writer-tab" id="writer-tab-overview" type="button" role="tab" aria-controls="writer-pane-overview" data-tab="overview">Overview</button>
+          <button class="writer-tab" id="writer-tab-map" type="button" role="tab" aria-controls="writer-pane-map" data-tab="map">Story map</button>
+          <button class="writer-tab" id="writer-tab-cast" type="button" role="tab" aria-controls="writer-pane-map" data-tab="cast">Who's in each scene</button>
+          <button class="writer-tab" id="writer-tab-graph" type="button" role="tab" aria-controls="writer-pane-graph" data-tab="graph">Memory graph</button>
+        </div>
+        <div class="debug-body writer-pane" id="writer-pane-overview" role="tabpanel" aria-labelledby="writer-tab-overview">
+          <section class="story-glance" aria-label="Story at a glance">
+            <div class="story-check-header">
+              <h4>Story at a glance</h4>
+              <button class="button button-quiet" id="map-button" type="button">Open story map</button>
+            </div>
+            <div id="glance-results"></div>
+          </section>
+          <section class="story-check" aria-label="Story check">
+            <div class="story-check-header">
+              <h4>Story check</h4>
+              <button class="button button-quiet" id="check-button" type="button">Check story</button>
+            </div>
+            <div id="check-results"></div>
+          </section>
+          <section class="scene-start" aria-label="Start from a scene">
+            <div class="story-check-header">
+              <h4>Start from a scene</h4>
+              <button class="button button-quiet" id="scene-start-button" type="button">Start here</button>
+            </div>
+            <label class="scene-select-label">Scene <select id="scene-select"></select></label>
+            <p class="check-line">Tick anything that should already have happened:</p>
+            <div class="scene-presets" id="scene-presets"></div>
+          </section>
+        </div>
+        <div class="writer-pane writer-map-pane" id="writer-pane-map" role="tabpanel" hidden></div>
+        <div class="debug-body writer-pane" id="writer-pane-graph" role="tabpanel" aria-labelledby="writer-tab-graph" hidden>
           <section class="graph-section" aria-label="Memory graph visualization">
+            <p class="check-line">What the run you're playing has remembered so far: each concept, and how strongly memories link them.</p>
             <div class="graph-toolbar">
               <p class="graph-summary" id="graph-summary"></p>
               <div class="graph-legend" aria-label="Graph legend">
@@ -98,13 +181,6 @@
               <p id="graph-empty" class="graph-empty" hidden>No memories have been recorded yet. Start a story to build the graph.</p>
             </div>
           </section>
-          <section class="story-check" aria-label="Story check">
-            <div class="story-check-header">
-              <h4>Story check</h4>
-              <button class="button button-quiet" id="check-button" type="button">Check story</button>
-            </div>
-            <div id="check-results"></div>
-          </section>
           <details class="debug-raw">
             <summary>Raw graph data</summary>
             <pre id="debug-content" class="debug-content"></pre>
@@ -113,9 +189,13 @@
       </div>
     </div>
   </main>
-  <script src="scripts/MemoryGraph.js"></script>
-  <script src="scripts/NarrativeEngine.js"></script>
-  <script src="scripts/StoryCheck.js"></script>
-  <script src="scripts/storyPlayer.js"></script>
+  <script src="scripts/core/MemoryGraph.js"></script>
+  <script src="scripts/core/NarrativeEngine.js"></script>
+  <script src="scripts/authoring/StoryText.js"></script>
+  <script src="scripts/authoring/StoryCheck.js"></script>
+  <script src="scripts/authoring/StoryMap.js"></script>
+  <script src="scripts/writer/storyMapView.js"></script>
+  <script src="stories/built/manifest.js"></script>
+  <script src="scripts/player/storyPlayer.js"></script>
 </body>
 </html>
