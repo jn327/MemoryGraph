@@ -2,7 +2,7 @@
   "use strict";
 
   const CONDITION_OPERATORS = ["eq", "neq", "gt", "gte", "lt", "lte"];
-  const BUILTIN_OPERATIONS = [
+  const OPERATIONS = [
     "remember",
     "set",
     "inc",
@@ -13,11 +13,12 @@
     "doubt",
     "describe"
   ];
-  const BUILTIN_CONDITIONS = [
+  const CONDITIONS = [
     "always",
     "association",
     "variable",
     "visited",
+    "firstVisit",
     "not",
     "all",
     "any",
@@ -36,7 +37,7 @@
   class NarrativeEngine {
     constructor(storyDefinition, options) {
       const settings = options === undefined ? {} : options;
-      if (!isRecord(settings)) {
+      if (!isPlainRecord(settings)) {
         throw new TypeError("NarrativeEngine options must be an object.");
       }
       if (!root || typeof root.MemoryGraph !== "function") {
@@ -44,38 +45,7 @@
       }
 
       this.story = cloneJsonValue(storyDefinition, "story definition");
-      this.graph = settings.graph === undefined
-        ? new root.MemoryGraph()
-        : settings.graph;
-      if (!this.graph || typeof this.graph.remember !== "function" ||
-          typeof this.graph.associationScore !== "function" ||
-          typeof this.graph.clear !== "function" ||
-          !Array.isArray(this.graph.events)) {
-        throw new TypeError("graph must be a compatible MemoryGraph instance.");
-      }
-
-      this.operationHandlers = new Map();
-      this.conditionHandlers = new Map();
-      this.operations = createRegistry(
-        "operation",
-        this.operationHandlers,
-        BUILTIN_OPERATIONS
-      );
-      this.conditions = createRegistry(
-        "condition",
-        this.conditionHandlers,
-        BUILTIN_CONDITIONS
-      );
-      registerInitialHandlers(
-        settings.operationHandlers,
-        this.operations,
-        "operation"
-      );
-      registerInitialHandlers(
-        settings.conditionHandlers,
-        this.conditions,
-        "condition"
-      );
+      this.graph = new root.MemoryGraph();
 
       if (settings.onBranch !== undefined && typeof settings.onBranch !== "function") {
         throw new TypeError("onBranch must be a function.");
@@ -83,25 +53,19 @@
       // Called with a branch ID (see branches()) whenever text, a choice, or
       // a route is used. For coverage tools; it must not change engine state.
       this.onBranch = settings.onBranch === undefined ? null : settings.onBranch;
-      this.initialVariables = settings.initialVariables === undefined
-        ? {}
-        : isPlainRecord(settings.initialVariables)
-          ? cloneJsonValue(settings.initialVariables, "initialVariables")
-          : invalidInitialVariables();
-      this._validateStory(true);
+      this._validateStory();
       this.knowledge = {};
       this._recording = null;
       this._clearProgress();
     }
 
     start(nodeId) {
-      this._validateStory(false);
       if (this.currentNodeId !== null) {
         throw new Error("Story '" + this.story.id + "' has already started; reset it first.");
       }
       const target = nodeId === undefined
         ? this.story.start
-        : normalizeName(nodeId, "start node ID");
+        : requireName(nodeId, "start node ID");
       if (!hasOwn(this.story.nodes, target)) {
         throw storyError(this.story, "unknown start node '" + target + "'.");
       }
@@ -118,7 +82,8 @@
         const choices = [];
         if (!node.ending) {
           for (const choice of node.choices) {
-            if (choice.showIf === undefined || this._evaluateCondition(choice.showIf)) {
+            if ((choice.once !== true || !this._chosen(this.currentNodeId, choice.id)) &&
+                (choice.showIf === undefined || this._evaluateCondition(choice.showIf))) {
               this._branch(branchId(this.currentNodeId, "choice '" + choice.id + "' offered"));
               const entry = {
                 index: choices.length,
@@ -196,7 +161,8 @@
       const choice = node.choices.find(function (item) {
         return item.id === visibleChoice.id;
       });
-      this._recording = [];
+      const records = [];
+      this._recording = records;
       try {
         this._executeOperations(choice.do || [], {
           nodeId: nodeId,
@@ -204,10 +170,9 @@
           path: "choice operation"
         });
       } finally {
-        this._choiceRecords = this._recording;
         this._recording = null;
       }
-      const echo = this._echo(this._choiceRecords);
+      const echo = this._echo(records);
 
       this.choiceHistory.push({ nodeId: nodeId, choiceId: choice.id });
       let destination;
@@ -230,20 +195,9 @@
       return this._enterNode(destination, arrival, echo);
     }
 
-    goTo(nodeId) {
-      if (this.currentNodeId === null) {
-        throw new Error("Story '" + this.story.id + "' has not started.");
-      }
-      const target = normalizeName(nodeId, "destination node ID");
-      if (!hasOwn(this.story.nodes, target)) {
-        throw storyError(this.story, "cannot navigate to unknown node '" + target + "'.");
-      }
-      return this._enterNode(target);
-    }
-
     reset(options) {
       const settings = options === undefined ? {} : options;
-      if (!isRecord(settings)) {
+      if (!isPlainRecord(settings)) {
         throw new TypeError("reset() options must be an object.");
       }
       const keepMemory = settings.keepMemory === undefined
@@ -279,9 +233,7 @@
     // authoring tools that set up a scene, such as starting partway through
     // with some memories already in place.
     apply(operations) {
-      this._validateStory(false);
       this._validateOperations(operations, {
-        allowUnregistered: false,
         macroStack: [],
         location: "applied operations"
       });
@@ -307,15 +259,15 @@
     linkWeight(a, b, perspective) {
       return this._linkWeight(
         this._perspectiveKey(perspective),
-        normalizeName(a, "concept"),
-        normalizeName(b, "concept")
+        requireName(a, "concept"),
+        requireName(b, "concept")
       );
     }
 
     // Σ weight(concept) × linkWeight(subject, concept), from one perspective.
     traitScore(trait, perspective, subject) {
       const definition = this._trait(trait);
-      const who = subject === undefined ? DEFAULT_SUBJECT : normalizeName(subject, "subject");
+      const who = subject === undefined ? DEFAULT_SUBJECT : requireName(subject, "subject");
       const key = this._perspectiveKey(perspective);
       let total = 0;
       for (const concept of Object.keys(definition.concepts).sort()) {
@@ -339,7 +291,7 @@
       const key = this._perspectiveKey(settings.perspective);
       const subject = settings.subject === undefined
         ? DEFAULT_SUBJECT
-        : normalizeName(settings.subject, "recall subject");
+        : requireName(settings.subject, "recall subject");
       const rank = settings.rank === undefined ? 1 : settings.rank;
       let about = settings.about;
       if (settings.among !== undefined) {
@@ -349,26 +301,11 @@
         }
         about = { trait: trait };
       }
-      const candidates = [];
-      for (const event of this.graph.events) {
-        if (!hasSummary(event) || this._eventSubject(event) !== subject) {
-          continue;
-        }
-        const relevance = this._recallWeight(event, about);
-        const belief = this._belief(key, event.id);
-        // Things done to or with the remembering character weigh more.
-        const personal = key !== WORLD_PERSPECTIVE && event.concepts.indexOf(key) !== -1
-          ? PERSONAL_RECALL_BONUS
-          : 1;
-        const score = event.strength * belief * relevance * personal *
-          this._recency(event.sequence, this.graph.sequence);
-        if (score > 0) {
-          candidates.push({ event: event, score: score, belief: belief });
-        }
-      }
-      candidates.sort(function (a, b) {
-        return b.score - a.score || b.event.sequence - a.event.sequence;
-      });
+      const candidates = this._rankEvents(key,
+        (event) => this._eventSubject(event) === subject,
+        (event) => this._recallWeight(event, about) *
+          // Things done to or with the remembering character weigh more.
+          (key !== WORLD_PERSPECTIVE && event.concepts.indexOf(key) !== -1 ? PERSONAL_RECALL_BONUS : 1));
       const pick = candidates[rank - 1];
       return pick === undefined ? null : {
         eventId: pick.event.id,
@@ -376,37 +313,6 @@
         score: pick.score,
         belief: pick.belief
       };
-    }
-
-    // Plain-data summary of how each character remembers the subject.
-    describeReputation(subject) {
-      const result = [];
-      for (const id of Object.keys(this.story.characters)) {
-        const known = this.knowledge[id];
-        const eventCount = known === undefined ? 0 : Object.keys(known).length;
-        if (eventCount === 0) {
-          continue;
-        }
-        const scores = this.traitScores(id, subject);
-        const traits = Object.keys(scores)
-          .filter(function (trait) { return scores[trait] > 0; })
-          .sort(function (a, b) { return scores[b] - scores[a] || compareNames(a, b); })
-          .map((trait) => ({ trait: trait, label: this.traitLabel(trait), score: scores[trait] }));
-        const memory = this.recall({
-          perspective: id,
-          subject: subject,
-          among: Object.keys(this.story.traits)
-        });
-        result.push({
-          character: id,
-          name: this.characterName(id),
-          hidden: this.story.characters[id].hidden === true,
-          knownEvents: eventCount,
-          traits: traits,
-          memory: memory === null ? null : memory.summary
-        });
-      }
-      return result;
     }
 
     // One perspective's full view of the subject, for live displays: every
@@ -423,7 +329,7 @@
         .map((trait) => ({
           trait: trait,
           label: this.traitLabel(trait),
-          color: this.story.traits[trait].color === undefined ? null : this.story.traits[trait].color,
+          color: this._traitColor(trait),
           score: scores[trait]
         }));
       const memory = this.recall({
@@ -455,114 +361,13 @@
       return definition.label === undefined ? trait.replace(/_/g, " ") : definition.label;
     }
 
-    toJSON() {
-      return {
-        version: 2,
-        currentNodeId: this.currentNodeId,
-        nodeVisits: this.nodeVisits.slice(),
-        choiceHistory: this.choiceHistory.map(function (entry) {
-          return { nodeId: entry.nodeId, choiceId: entry.choiceId };
-        }),
-        variables: cloneJsonValue(this.variables, "variables"),
-        knowledge: cloneJsonValue(this.knowledge, "knowledge"),
-        descriptions: cloneJsonValue(this.descriptions, "descriptions"),
-        ended: this.ended
-      };
-    }
-
-    loadState(data) {
-      if (!isRecord(data) || (data.version !== 1 && data.version !== 2)) {
-        throw new TypeError("NarrativeEngine state must be a version 1 or 2 object.");
-      }
-      const knowledge = data.version === 1 ? {} : this._validateKnowledge(data.knowledge);
-      if (data.currentNodeId !== null &&
-          (typeof data.currentNodeId !== "string" ||
-           !hasOwn(this.story.nodes, data.currentNodeId))) {
-        throw new Error("Saved current node does not exist in story '" + this.story.id + "'.");
-      }
-      if (!Array.isArray(data.nodeVisits) || !Array.isArray(data.choiceHistory)) {
-        throw new TypeError("Saved state must include nodeVisits and choiceHistory arrays.");
-      }
-      const nodeVisits = data.nodeVisits.map((nodeId) => {
-        if (typeof nodeId !== "string" || !hasOwn(this.story.nodes, nodeId)) {
-          throw new Error("Saved visit history contains an unknown node.");
-        }
-        return nodeId;
-      });
-      const choiceHistory = data.choiceHistory.map((entry) => {
-        if (!isRecord(entry) || typeof entry.nodeId !== "string" ||
-            typeof entry.choiceId !== "string" ||
-            !hasOwn(this.story.nodes, entry.nodeId)) {
-          throw new Error("Saved choice history contains an invalid entry.");
-        }
-        const node = this.story.nodes[entry.nodeId];
-        if (!node.choices.some(function (choice) {
-          return choice.id === entry.choiceId;
-        })) {
-          throw new Error("Saved choice history references an unknown choice.");
-        }
-        return { nodeId: entry.nodeId, choiceId: entry.choiceId };
-      });
-      if ((data.currentNodeId === null &&
-           (nodeVisits.length > 0 || data.ended !== false)) ||
-          (data.currentNodeId !== null &&
-           (nodeVisits.length === 0 ||
-            nodeVisits[nodeVisits.length - 1] !== data.currentNodeId))) {
-        throw new Error("Saved current node and visit history are inconsistent.");
-      }
-      if (typeof data.ended !== "boolean" ||
-          (data.currentNodeId !== null &&
-           data.ended !== (this.story.nodes[data.currentNodeId].ending === true))) {
-        throw new Error("Saved ended state does not match the current story node.");
-      }
-      if (!isPlainRecord(data.variables)) {
-        throw new TypeError("Saved variables must be a plain object.");
-      }
-      const variables = cloneJsonValue(data.variables, "saved variables");
-      const descriptions = data.descriptions === undefined ? {} : data.descriptions;
-      if (!isPlainRecord(descriptions) || Object.entries(descriptions).some((entry) =>
-        !hasOwn(this.story.characters, entry[0]) || typeof entry[1] !== "string")) {
-        throw new TypeError("Saved descriptions must map known characters to strings.");
-      }
-
-      this.currentNodeId = data.currentNodeId;
-      this.nodeVisits = nodeVisits;
-      this.choiceHistory = choiceHistory;
-      this.variables = variables;
-      this.knowledge = knowledge;
-      this.descriptions = cloneJsonValue(descriptions, "saved descriptions");
-      this.arrivalCause = null;
-      this.choiceEcho = null;
-      this.ended = data.ended;
-      return this.currentNodeId === null ? null : this.getView();
-    }
-
-    _validateKnowledge(value) {
-      if (!isPlainRecord(value)) {
-        throw new TypeError("Saved knowledge must be a plain object.");
-      }
-      const knowledge = {};
-      for (const [character, events] of Object.entries(value)) {
-        if (!hasOwn(this.story.characters, character)) {
-          throw new Error("Saved knowledge references unknown character '" + character + "'.");
-        }
-        if (!isPlainRecord(events)) {
-          throw new TypeError("Saved knowledge for '" + character + "' must be a plain object.");
-        }
-        const entries = {};
-        for (const [eventId, belief] of Object.entries(events)) {
-          if (!/^event-[1-9]\d*$/.test(eventId)) {
-            throw new TypeError("Saved knowledge event IDs must use the event-N format.");
-          }
-          defineValue(entries, eventId, validateBelief(belief, "saved belief"));
-        }
-        defineValue(knowledge, character, entries);
-      }
-      return knowledge;
+    _traitColor(trait) {
+      const color = this.story.traits[trait].color;
+      return color === undefined ? null : color;
     }
 
     _character(id) {
-      const name = normalizeName(id, "character");
+      const name = requireName(id, "character");
       if (!hasOwn(this.story.characters, name)) {
         throw storyError(this.story, "unknown character '" + name + "'.");
       }
@@ -570,7 +375,7 @@
     }
 
     _trait(trait) {
-      const name = normalizeName(trait, "trait");
+      const name = requireName(trait, "trait");
       if (!hasOwn(this.story.traits, name)) {
         throw storyError(this.story, "unknown trait '" + name + "'.");
       }
@@ -599,6 +404,29 @@
     _eventWeight(key, event) {
       return event.strength * this._belief(key, event.id) *
         this._recency(event.sequence, this.graph.sequence);
+    }
+
+    // Remembered events with a summary that `keep` accepts, scored by their
+    // weight from the perspective × `relevance`, strongest (then newest)
+    // first. Events scoring zero are left out.
+    _rankEvents(key, keep, relevance) {
+      const ranked = [];
+      for (const event of this.graph.events) {
+        if (!hasSummary(event)) {
+          continue;
+        }
+        const belief = this._belief(key, event.id);
+        if (!keep(event, belief)) {
+          continue;
+        }
+        const score = this._eventWeight(key, event) * relevance(event);
+        if (score > 0) {
+          ranked.push({ event: event, score: score, belief: belief });
+        }
+      }
+      return ranked.sort(function (a, b) {
+        return b.score - a.score || b.event.sequence - a.event.sequence;
+      });
     }
 
     _linkWeight(key, a, b) {
@@ -695,10 +523,7 @@
         tag: label,
         kind: primary === undefined ? "author" : primary.kind,
         trait: primary !== undefined && primary.trait !== undefined ? primary.trait : null,
-        color: primary !== undefined && primary.trait !== undefined &&
-          this.story.traits[primary.trait].color !== undefined
-          ? this.story.traits[primary.trait].color
-          : null,
+        color: primary !== undefined && primary.trait !== undefined ? this._traitColor(primary.trait) : null,
         explanation: facts.map((fact) => this._explainFact(fact))
       };
     }
@@ -715,13 +540,8 @@
       }
       const deltas = {};
       for (const record of own) {
-        for (const [trait, definition] of Object.entries(this.story.traits)) {
-          let weight = 0;
-          for (const concept of record.event.concepts) {
-            if (hasOwn(definition.concepts, concept)) {
-              weight += definition.concepts[concept];
-            }
-          }
+        for (const trait of Object.keys(this.story.traits)) {
+          const weight = this._recallWeight(record.event, { trait: trait });
           if (weight !== 0) {
             deltas[trait] = (deltas[trait] || 0) + weight * record.event.strength;
           }
@@ -765,9 +585,7 @@
         tag: tag,
         kind: "echo",
         trait: primary === undefined ? null : primary,
-        color: primary !== undefined && this.story.traits[primary].color !== undefined
-          ? this.story.traits[primary].color
-          : null,
+        color: primary === undefined ? null : this._traitColor(primary),
         explanation: explanation
       };
     }
@@ -775,7 +593,7 @@
     _recallCause(spec, memory) {
       const key = this._perspectiveKey(spec.perspective);
       const who = key === WORLD_PERSPECTIVE ? null : this.characterName(key);
-      const subject = spec.subject === undefined ? DEFAULT_SUBJECT : normalizeName(spec.subject, "subject");
+      const subject = spec.subject === undefined ? DEFAULT_SUBJECT : requireName(spec.subject, "subject");
       return {
         tag: who === null ? "remembered" : who + " remembers",
         kind: "recall",
@@ -895,24 +713,10 @@
     // when a character only heard about one secondhand.
     _evidence(perspective, subject, relevance, minBelief) {
       const key = this._perspectiveKey(perspective);
-      const ranked = [];
-      for (const event of this.graph.events) {
-        if (!hasSummary(event) || (subject !== null && event.concepts.indexOf(subject) === -1)) {
-          continue;
-        }
-        const belief = this._belief(key, event.id);
-        if (minBelief !== undefined && belief < minBelief) {
-          continue;
-        }
-        const score = event.strength * belief * relevance(event) *
-          this._recency(event.sequence, this.graph.sequence);
-        if (score > 0) {
-          ranked.push({ event: event, score: score, belief: belief });
-        }
-      }
-      ranked.sort(function (a, b) {
-        return b.score - a.score || b.event.sequence - a.event.sequence;
-      });
+      const ranked = this._rankEvents(key, function (event, belief) {
+        return (subject === null || event.concepts.indexOf(subject) !== -1) &&
+          (minBelief === undefined || belief >= minBelief);
+      }, relevance);
       return ranked.slice(0, MAX_EXPLANATION_ITEMS).map((entry) => ({
         subject: this._eventSubject(entry.event),
         summary: entry.event.metadata.summary,
@@ -923,7 +727,7 @@
     // Whose act an event's summary describes: remember's `subject`, else the
     // player when the event involves them, else null.
     _eventSubject(event) {
-      if (isRecord(event.metadata) && typeof event.metadata.subject === "string") {
+      if (isPlainRecord(event.metadata) && typeof event.metadata.subject === "string") {
         return event.metadata.subject;
       }
       return event.concepts.indexOf(DEFAULT_SUBJECT) !== -1 ? DEFAULT_SUBJECT : null;
@@ -962,7 +766,7 @@
       this.currentNodeId = null;
       this.nodeVisits = [];
       this.choiceHistory = [];
-      this.variables = cloneJsonValue(this.initialVariables, "initialVariables");
+      this.variables = {};
       this.descriptions = {};
       this.ended = false;
     }
@@ -987,15 +791,7 @@
       for (let index = 0; index < operations.length; index += 1) {
         const operation = operations[index];
         try {
-          if (BUILTIN_OPERATIONS.indexOf(operation.type) !== -1) {
-            this._executeBuiltin(operation, source);
-          } else {
-            const handler = this.operationHandlers.get(operation.type);
-            if (!handler) {
-              throw new Error("No handler is registered for operation '" + operation.type + "'.");
-            }
-            handler(operation, this._context());
-          }
+          this._executeOperation(operation, source);
         } catch (error) {
           const choiceDetails = source.choiceId === null
             ? ""
@@ -1009,31 +805,25 @@
       }
     }
 
-    _executeBuiltin(operation, source) {
+    _executeOperation(operation, source) {
       if (operation.type === "remember") {
-        let metadata = operation.metadata;
+        const metadata = {};
         if (operation.summary !== undefined) {
-          metadata = Object.assign({}, metadata || {}, { summary: substitute(operation.summary, this) });
+          metadata.summary = substitute(operation.summary, this);
         }
         if (operation.subject !== undefined) {
-          metadata = Object.assign({}, metadata || {}, { subject: normalizeName(operation.subject, "subject") });
+          metadata.subject = operation.subject;
         }
         const event = this.graph.remember({
           concepts: operation.concepts,
           strength: operation.strength,
-          metadata: metadata
+          metadata: Object.keys(metadata).length === 0 ? undefined : metadata
         });
-        const witnesses = [];
-        if (operation.witnesses !== undefined) {
-          if (!event || typeof event.id !== "string") {
-            throw new TypeError("witnesses require a graph whose remember() returns the event.");
-          }
-          for (const character of this._characters(operation.witnesses)) {
-            this._learn(character, event.id, 1);
-            witnesses.push(character);
-          }
+        const witnesses = operation.witnesses === undefined ? [] : this._characters(operation.witnesses);
+        for (const character of witnesses) {
+          this._learn(character, event.id, 1);
         }
-        if (this._recording !== null && event && Array.isArray(event.concepts)) {
+        if (this._recording !== null) {
           this._recording.push({ event: event, witnesses: witnesses });
         }
       } else if (operation.type === "gossip") {
@@ -1113,18 +903,6 @@
     }
 
     _evaluateCondition(condition) {
-      if (BUILTIN_CONDITIONS.indexOf(condition.type) === -1) {
-        const handler = this.conditionHandlers.get(condition.type);
-        if (!handler) {
-          throw new Error("No handler is registered for condition '" + condition.type + "'.");
-        }
-        const result = handler(condition, this._context());
-        if (typeof result !== "boolean") {
-          throw new TypeError("Custom condition '" + condition.type + "' must return a boolean.");
-        }
-        return result;
-      }
-
       switch (condition.type) {
         case "always":
           return true;
@@ -1145,7 +923,11 @@
         case "variable":
           return this._compareVariable(condition);
         case "visited":
-          return this.nodeVisits.indexOf(condition.node) !== -1;
+          return condition.operator === undefined
+            ? this.nodeVisits.indexOf(condition.node) !== -1
+            : compare(this._visitCount(condition.node), condition.operator, condition.value);
+        case "firstVisit":
+          return this.currentNodeId !== null && this._visitCount(this.currentNodeId) === 1;
         case "not":
           return !this._evaluateCondition(condition.condition);
         case "all":
@@ -1163,57 +945,40 @@
       }
     }
 
+    // How many times a scene has been entered this run, counting the current
+    // visit, so inside a scene "visited shop >= 2" means "back again".
+    _visitCount(nodeId) {
+      return this.nodeVisits.reduce(function (count, id) { return id === nodeId ? count + 1 : count; }, 0);
+    }
+
+    // True when the player has already picked this choice in this run. A
+    // choice marked once is hidden after that.
+    _chosen(nodeId, choiceId) {
+      return this.choiceHistory.some(function (entry) {
+        return entry.nodeId === nodeId && entry.choiceId === choiceId;
+      });
+    }
+
+    // An unset variable makes every comparison false, and only numbers are
+    // ordered: "count >= 1" is false when count holds "1".
     _compareVariable(condition) {
       if (!hasOwn(this.variables, condition.name)) {
         return false;
       }
       const actual = this.variables[condition.name];
-      switch (condition.operator) {
-        case "eq":
-          return actual === condition.value;
-        case "neq":
-          return actual !== condition.value;
-        case "gt":
-          return typeof actual === "number" && Number.isFinite(actual) &&
-            actual > condition.value;
-        case "gte":
-          return typeof actual === "number" && Number.isFinite(actual) &&
-            actual >= condition.value;
-        case "lt":
-          return typeof actual === "number" && Number.isFinite(actual) &&
-            actual < condition.value;
-        case "lte":
-          return typeof actual === "number" && Number.isFinite(actual) &&
-            actual <= condition.value;
-        default:
-          return false;
-      }
+      const ordered = condition.operator !== "eq" && condition.operator !== "neq";
+      return (!ordered || typeof actual === "number" && Number.isFinite(actual)) &&
+        compare(actual, condition.operator, condition.value);
     }
 
-    _context() {
-      return {
-        engine: this,
-        graph: this.graph,
-        variables: this.variables,
-        currentNode: this.currentNodeId,
-        setVariable: (name, value) => {
-          defineValue(
-            this.variables,
-            normalizeName(name, "variable name"),
-            cloneJsonValue(value, "variable value")
-          );
-        }
-      };
-    }
-
-    _validateStory(allowUnregistered) {
+    _validateStory() {
       const story = this.story;
       if (!isPlainRecord(story)) {
         throw new TypeError("Story definition must be a plain object.");
       }
-      normalizeName(story.id, "story id");
-      normalizeName(story.title, "story title");
-      normalizeName(story.start, "story start");
+      requireName(story.id, "story id");
+      requireText(story.title, "story title");
+      requireName(story.start, "story start");
       if (!isPlainRecord(story.nodes) || Object.keys(story.nodes).length === 0) {
         throw storyError(story, "nodes must be a non-empty object.");
       }
@@ -1229,20 +994,18 @@
       this._validateMemoryModel();
 
       for (const [macroName, macro] of Object.entries(story.macros)) {
-        normalizeName(macroName, "macro name");
+        requireName(macroName, "macro name");
         if (!isPlainRecord(macro)) {
           throw storyError(story, "macro '" + macroName + "' must be an object.");
         }
         if (macro.do !== undefined) {
           this._validateOperations(macro.do, {
-            allowUnregistered: allowUnregistered,
             macroStack: [macroName],
             location: "macro '" + macroName + "'"
           });
         }
         if (macro.condition !== undefined) {
           this._validateCondition(macro.condition, {
-            allowUnregistered: allowUnregistered,
             macroStack: [macroName],
             location: "macro '" + macroName + "'"
           });
@@ -1255,12 +1018,11 @@
 
       let explicitEndings = 0;
       for (const [nodeId, node] of Object.entries(story.nodes)) {
-        normalizeName(nodeId, "node ID");
+        requireName(nodeId, "node ID");
         if (!isPlainRecord(node)) {
           throw storyError(story, "node '" + nodeId + "' must be an object.");
         }
         validateText(node.text, this, {
-          allowUnregistered: allowUnregistered,
           macroStack: [],
           location: "node '" + nodeId + "' text"
         });
@@ -1289,7 +1051,6 @@
         }
         if (node.onEnter !== undefined) {
           this._validateOperations(node.onEnter, {
-            allowUnregistered: allowUnregistered,
             macroStack: [],
             location: "node '" + nodeId + "' onEnter"
           });
@@ -1301,24 +1062,25 @@
           if (!isPlainRecord(choice)) {
             throw storyError(story, "node '" + nodeId + "' choice " + index + " must be an object.");
           }
-          const choiceId = normalizeName(choice.id, "choice ID");
+          const choiceId = requireName(choice.id, "choice ID");
           if (choiceIds.has(choiceId)) {
             throw storyError(story, "node '" + nodeId + "' has duplicate choice ID '" + choiceId + "'.");
           }
           choiceIds.add(choiceId);
-          normalizeName(choice.text, "choice text");
+          requireText(choice.text, "choice text");
           this._validateTemplate(choice.text, "node '" + nodeId + "' choice '" + choiceId + "' text");
           validateTag(choice.tag, story, "node '" + nodeId + "' choice '" + choiceId + "'");
+          if (choice.once !== undefined && typeof choice.once !== "boolean") {
+            throw storyError(story, "node '" + nodeId + "' choice '" + choiceId + "' once must be a boolean.");
+          }
           if (choice.showIf !== undefined) {
             this._validateCondition(choice.showIf, {
-              allowUnregistered: allowUnregistered,
               macroStack: [],
               location: "node '" + nodeId + "' choice '" + choiceId + "' showIf"
             });
           }
           if (choice.do !== undefined) {
             this._validateOperations(choice.do, {
-              allowUnregistered: allowUnregistered,
               macroStack: [],
               location: "node '" + nodeId + "' choice '" + choiceId + "' do"
             });
@@ -1328,7 +1090,6 @@
               throw storyError(story, "node '" + nodeId + "' choice '" + choiceId + "' requires goto.");
             }
             validateRoute(choice.goto, story, this, {
-              allowUnregistered: allowUnregistered,
               macroStack: [],
               location: "node '" + nodeId + "' choice '" + choiceId + "' goto"
             });
@@ -1425,14 +1186,14 @@
       const remembered = new Set();
       for (const { operation } of found.remembers) {
         for (const concept of operation.concepts) {
-          remembered.add(concept.trim());
+          remembered.add(concept);
         }
       }
       const unremembered = function (concepts, location, consequence) {
         for (const concept of concepts) {
-          if (!remembered.has(concept.trim())) {
-            const close = closestName(concept.trim(), remembered);
-            warn(location, "concept '" + concept.trim() + "' is never remembered, so " + consequence +
+          if (!remembered.has(concept)) {
+            const close = closestName(concept, remembered);
+            warn(location, "concept '" + concept + "' is never remembered, so " + consequence +
               (close === null ? "." : " (did you mean '" + close + "'?)."));
           }
         }
@@ -1440,7 +1201,7 @@
 
       for (const [name, trait] of Object.entries(story.traits)) {
         const concepts = Object.keys(trait.concepts);
-        const missing = concepts.filter(function (concept) { return !remembered.has(concept.trim()); });
+        const missing = concepts.filter(function (concept) { return !remembered.has(concept); });
         if (missing.length === concepts.length) {
           warn("trait '" + name + "'", "none of its concepts is ever remembered, so it can never score.");
         } else {
@@ -1450,10 +1211,10 @@
 
       const traitConcepts = new Set();
       for (const trait of Object.values(story.traits)) {
-        Object.keys(trait.concepts).forEach(function (concept) { traitConcepts.add(concept.trim()); });
+        Object.keys(trait.concepts).forEach(function (concept) { traitConcepts.add(concept); });
       }
       for (const { operation, location } of found.remembers) {
-        const concepts = operation.concepts.map(function (concept) { return concept.trim(); });
+        const concepts = operation.concepts;
         const hasSubject = operation.subject !== undefined || concepts.indexOf(DEFAULT_SUBJECT) !== -1;
         if (operation.summary === undefined) {
           if (hasSubject && concepts.some(function (concept) { return traitConcepts.has(concept); })) {
@@ -1461,7 +1222,7 @@
           }
           continue;
         }
-        const summary = operation.summary.trim();
+        const summary = operation.summary;
         if (!hasSubject) {
           warn(location, "summary has no subject: add \"subject\" (or include \"player\") so the story knows whose act it describes.");
         }
@@ -1475,7 +1236,7 @@
 
       const learners = new Set();
       const learn = function (who) {
-        (who === "all" ? Object.keys(story.characters) : who).forEach(function (id) { learners.add(id.trim()); });
+        (who === "all" ? Object.keys(story.characters) : who).forEach(function (id) { learners.add(id); });
       };
       for (const { operation } of found.remembers) {
         if (operation.witnesses !== undefined) {
@@ -1491,7 +1252,7 @@
           unremembered(operation.about.concepts, location, "this never matches anything");
         }
         if (operation.type === "set" || operation.type === "inc" || operation.type === "dec") {
-          found.variablesSet.add(operation.variable.trim());
+          found.variablesSet.add(operation.variable);
         }
       }
       for (const id of Object.keys(story.characters)) {
@@ -1509,7 +1270,7 @@
             condition.subject !== undefined) {
           unremembered([condition.subject], location, "this subject never gains a reputation");
         } else if (condition.type === "variable") {
-          found.variablesRead.push({ name: condition.name.trim(), location: location });
+          found.variablesRead.push({ name: condition.name, location: location });
         }
       }
       for (const { spec, location } of found.recalls) {
@@ -1520,8 +1281,8 @@
 
       for (const { text, location, isFormat } of found.templates) {
         for (const match of text.matchAll(/\{([A-Za-z]+)(?::([^{}]*))?\}/g)) {
-          if (match[1] === "var" && match[2] !== undefined && match[2].trim().length > 0) {
-            found.variablesRead.push({ name: match[2].trim(), location: location });
+          if (match[1] === "var" && match[2] !== undefined && match[2].length > 0) {
+            found.variablesRead.push({ name: match[2], location: location });
           } else if (match[1] === "summary" && match[2] === undefined) {
             if (!isFormat) {
               warn(location, "{summary} only works in a recall part's format.");
@@ -1532,13 +1293,24 @@
         }
       }
       for (const { name, location } of found.variablesRead) {
-        if (!found.variablesSet.has(name) && !hasOwn(this.initialVariables, name)) {
+        if (!found.variablesSet.has(name)) {
           warn(location, "variable '" + name + "' is never set, inc'd, or dec'd.");
         }
       }
       for (const name of Object.keys(story.macros)) {
         if (!found.macroUses.has(name)) {
           warn("macro '" + name + "'", "is never used.");
+        }
+      }
+      for (const [nodeId, node] of Object.entries(story.nodes)) {
+        const choices = node.choices || [];
+        const loops = choices.some(function (choice) {
+          return choice.goto !== undefined && routeDestinations(choice.goto).indexOf(nodeId) !== -1;
+        });
+        if (!node.ending && loops &&
+            choices.every(function (choice) { return choice.once === true; })) {
+          warn("node '" + nodeId + "'", "loops back to itself but every choice is (once), so the player " +
+            "is stuck once they have all been taken. Add a way out that isn't (once).");
         }
       }
       return warnings;
@@ -1653,7 +1425,7 @@
         }
       }
       for (const [id, character] of Object.entries(story.characters)) {
-        normalizeName(id, "character ID");
+        requireName(id, "character ID");
         if (id === "all") {
           throw storyError(story, "'all' is reserved and cannot be a character ID.");
         }
@@ -1661,23 +1433,23 @@
           throw storyError(story, "character '" + id + "' must be an object.");
         }
         if (character.name !== undefined) {
-          normalizeName(character.name, "character '" + id + "' name");
+          requireText(character.name, "character '" + id + "' name");
         }
         if (character.hidden !== undefined && typeof character.hidden !== "boolean") {
           throw storyError(story, "character '" + id + "' hidden must be a boolean.");
         }
         if (character.description !== undefined) {
-          normalizeName(character.description, "character '" + id + "' description");
+          requireText(character.description, "character '" + id + "' description");
         }
       }
       for (const [name, trait] of Object.entries(story.traits)) {
-        normalizeName(name, "trait name");
+        requireName(name, "trait name");
         if (!isPlainRecord(trait) || !isPlainRecord(trait.concepts) ||
             Object.keys(trait.concepts).length === 0) {
           throw storyError(story, "trait '" + name + "' must define a non-empty concepts object.");
         }
         for (const [concept, weight] of Object.entries(trait.concepts)) {
-          normalizeName(concept, "trait '" + name + "' concept");
+          requireName(concept, "trait '" + name + "' concept");
           if (typeof weight !== "number" || !Number.isFinite(weight) || weight === 0) {
             throw storyError(story, "trait '" + name + "' weight for '" + concept +
               "' must be a finite non-zero number.");
@@ -1687,7 +1459,7 @@
           throw storyError(story, "trait '" + name + "' color must be a #rrggbb hex string.");
         }
         if (trait.label !== undefined) {
-          normalizeName(trait.label, "trait '" + name + "' label");
+          requireText(trait.label, "trait '" + name + "' label");
         }
       }
       if (story.memory.halfLife !== undefined) {
@@ -1708,7 +1480,7 @@
     }
 
     _validateCharacter(id, location) {
-      const name = normalizeName(id, location + " character");
+      const name = requireName(id, location + " character");
       if (!hasOwn(this.story.characters, name)) {
         throw storyError(this.story, location + " references unknown character '" + name + "'.");
       }
@@ -1721,7 +1493,7 @@
     }
 
     _validateTraitName(trait, location) {
-      const name = normalizeName(trait, location + " trait");
+      const name = requireName(trait, location + " trait");
       if (!hasOwn(this.story.traits, name)) {
         throw storyError(this.story, location + " references unknown trait '" + name + "'.");
       }
@@ -1764,7 +1536,7 @@
       }
       this._validatePerspective(spec.perspective, location);
       if (spec.subject !== undefined) {
-        normalizeName(spec.subject, location + " subject");
+        requireName(spec.subject, location + " subject");
       }
       this._validateAbout(spec.about, location, false);
       if (spec.among !== undefined) {
@@ -1793,12 +1565,8 @@
         if (!isPlainRecord(operation)) {
           throw storyError(this.story, location + " must be an object.");
         }
-        const type = normalizeName(operation.type, "operation type");
-        if (BUILTIN_OPERATIONS.indexOf(type) === -1 &&
-            !this.operationHandlers.has(type)) {
-          if (context.allowUnregistered) {
-            continue;
-          }
+        const type = requireName(operation.type, "operation type");
+        if (OPERATIONS.indexOf(type) === -1) {
           throw storyError(this.story, location + " has unknown type '" + type + "'.");
         }
         if (type === "remember") {
@@ -1806,21 +1574,15 @@
           if (operation.strength !== undefined) {
             validatePositiveNumber(operation.strength, location + " strength");
           }
-          if (operation.metadata !== undefined) {
-            cloneJsonValue(operation.metadata, location + " metadata");
-          }
           if (operation.summary !== undefined) {
-            normalizeName(operation.summary, location + " summary");
-            if (operation.metadata !== undefined && !isPlainRecord(operation.metadata)) {
-              throw storyError(this.story, location + " metadata must be an object when summary is used.");
-            }
+            requireText(operation.summary, location + " summary");
           }
           if (operation.witnesses !== undefined) {
             this._validateCharacters(operation.witnesses, location + " witnesses");
           }
           if (operation.subject !== undefined) {
-            const subject = normalizeName(operation.subject, location + " subject");
-            if (!operation.concepts.some(function (concept) { return concept.trim() === subject; })) {
+            const subject = requireName(operation.subject, location + " subject");
+            if (operation.concepts.indexOf(subject) === -1) {
               throw storyError(this.story, location + " subject '" + subject + "' must be one of its concepts.");
             }
           }
@@ -1844,19 +1606,19 @@
             throw storyError(this.story, location + " doubt belief must be a number in [0, 1).");
           }
         } else if (type === "set") {
-          normalizeName(operation.variable, location + " variable");
+          requireName(operation.variable, location + " variable");
           cloneJsonValue(operation.value, location + " value");
         } else if (type === "inc" || type === "dec") {
-          normalizeName(operation.variable, location + " variable");
+          requireName(operation.variable, location + " variable");
           if (operation.amount !== undefined) {
             validatePositiveNumber(operation.amount, location + " amount");
           }
         } else if (type === "describe") {
           this._validateCharacter(operation.character, location + " describe");
-          normalizeName(operation.description, location + " description");
+          requireText(operation.description, location + " description");
           this._validateTemplate(operation.description, location + " description");
         } else if (type === "macro") {
-          const name = normalizeName(operation.name, location + " macro name");
+          const name = requireName(operation.name, location + " macro name");
           if (!hasOwn(this.story.macros, name)) {
             throw storyError(this.story, location + " references unknown macro '" + name + "'.");
           }
@@ -1871,7 +1633,6 @@
             throw storyError(this.story, "action macro '" + name + "' must define a do array.");
           }
           this._validateOperations(macro.do, {
-            allowUnregistered: context.allowUnregistered,
             macroStack: context.macroStack.concat([name]),
             location: "macro '" + name + "'"
           });
@@ -1883,27 +1644,23 @@
       if (!isPlainRecord(condition)) {
         throw storyError(this.story, context.location + " condition must be an object.");
       }
-      const type = normalizeName(condition.type, context.location + " condition type");
-      if (BUILTIN_CONDITIONS.indexOf(type) === -1 &&
-          !this.conditionHandlers.has(type)) {
-        if (context.allowUnregistered) {
-          return;
-        }
+      const type = requireName(condition.type, context.location + " condition type");
+      if (CONDITIONS.indexOf(type) === -1) {
         throw storyError(this.story, context.location + " has unknown condition type '" + type + "'.");
       }
       if (type === "always") {
         return;
       }
       if (type === "association") {
-        normalizeName(condition.a, context.location + " association a");
-        normalizeName(condition.b, context.location + " association b");
+        requireName(condition.a, context.location + " association a");
+        requireName(condition.b, context.location + " association b");
         validateNonNegativeNumber(condition.min, context.location + " association min");
         this._validatePerspective(condition.perspective, context.location);
       } else if (type === "trait") {
         this._validateTraitName(condition.trait, context.location);
         this._validatePerspective(condition.perspective, context.location);
         if (condition.subject !== undefined) {
-          normalizeName(condition.subject, context.location + " subject");
+          requireName(condition.subject, context.location + " subject");
         }
         if (condition.min === undefined && condition.max === undefined) {
           throw storyError(this.story, context.location + " trait condition needs min or max.");
@@ -1926,7 +1683,7 @@
         }
         this._validatePerspective(condition.perspective, context.location);
         if (condition.subject !== undefined) {
-          normalizeName(condition.subject, context.location + " subject");
+          requireName(condition.subject, context.location + " subject");
         }
         if (condition.margin !== undefined) {
           validateNonNegativeNumber(condition.margin, context.location + " margin");
@@ -1938,7 +1695,7 @@
           validateBelief(condition.min, context.location + " knows min");
         }
       } else if (type === "variable") {
-        normalizeName(condition.name, context.location + " variable name");
+        requireName(condition.name, context.location + " variable name");
         if (CONDITION_OPERATORS.indexOf(condition.operator) === -1) {
           throw storyError(this.story, context.location + " has an invalid variable operator.");
         }
@@ -1950,10 +1707,23 @@
           throw storyError(this.story, context.location + " relational value must be a finite number.");
         }
       } else if (type === "visited") {
-        normalizeName(condition.node, context.location + " visited node");
+        requireName(condition.node, context.location + " visited node");
         if (!hasOwn(this.story.nodes, condition.node)) {
           throw storyError(this.story, context.location + " references unknown node '" + condition.node + "'.");
         }
+        if ((condition.operator === undefined) !== (condition.value === undefined)) {
+          throw storyError(this.story, context.location + " visited needs both operator and value, or neither.");
+        }
+        if (condition.operator !== undefined) {
+          if (CONDITION_OPERATORS.indexOf(condition.operator) === -1) {
+            throw storyError(this.story, context.location + " has an invalid visited operator.");
+          }
+          if (!Number.isSafeInteger(condition.value) || condition.value < 0) {
+            throw storyError(this.story, context.location + " visited count must be a non-negative integer.");
+          }
+        }
+      } else if (type === "firstVisit") {
+        // No fields: it is about whichever scene the player is in.
       } else if (type === "not") {
         this._validateCondition(condition.condition, context);
       } else if (type === "all" || type === "any") {
@@ -1964,7 +1734,7 @@
           this._validateCondition(child, context);
         }
       } else if (type === "macroCondition") {
-        const name = normalizeName(condition.name, context.location + " macro name");
+        const name = requireName(condition.name, context.location + " macro name");
         if (!hasOwn(this.story.macros, name)) {
           throw storyError(this.story, context.location + " references unknown macro '" + name + "'.");
         }
@@ -1979,7 +1749,6 @@
           throw storyError(this.story, "condition macro '" + name + "' must define a condition.");
         }
         this._validateCondition(macro.condition, {
-          allowUnregistered: context.allowUnregistered,
           macroStack: context.macroStack.concat([name]),
           location: "macro '" + name + "' condition"
         });
@@ -2083,8 +1852,7 @@
   const PLACEHOLDER = /\{(name|var):([^{}]+)\}/g;
 
   function substitute(text, engine) {
-    return text.replace(PLACEHOLDER, function (match, kind, value) {
-      const name = value.trim();
+    return text.replace(PLACEHOLDER, function (match, kind, name) {
       if (kind === "name") {
         return engine.characterName(name);
       }
@@ -2104,7 +1872,7 @@
   }
 
   function hasSummary(event) {
-    return isRecord(event.metadata) && typeof event.metadata.summary === "string";
+    return isPlainRecord(event.metadata) && typeof event.metadata.summary === "string";
   }
 
   function beliefNote(belief) {
@@ -2151,8 +1919,7 @@
         throw storyError(engine.story, location + " format and otherwise only apply to recall parts.");
       }
       if (part.if !== undefined) {
-        engine._validateCondition(part.if, { allowUnregistered: context.allowUnregistered,
-          macroStack: context.macroStack, location: location });
+        engine._validateCondition(part.if, { macroStack: context.macroStack, location: location });
       } else if (part.else !== undefined) {
         throw storyError(engine.story, location + " else requires if.");
       }
@@ -2161,7 +1928,7 @@
 
   function validateText(text, engine, context) {
     if (typeof text === "string") {
-      normalizeName(text, context.location);
+      requireText(text, context.location);
       engine._validateTemplate(text, context.location);
       return;
     }
@@ -2177,7 +1944,7 @@
       if (Array.isArray(variant.value)) {
         validateParts(variant.value, engine, context);
       } else {
-        normalizeName(variant.value, context.location + " variant value");
+        requireText(variant.value, context.location + " variant value");
         engine._validateTemplate(variant.value, context.location + " variant " + index);
       }
       validateTag(variant.tag, engine.story, context.location + " variant " + index);
@@ -2211,7 +1978,7 @@
       if (!isPlainRecord(entry)) {
         throw storyError(story, context.location + " route " + index + " must be an object.");
       }
-      const nodeId = normalizeName(entry.node, context.location + " destination");
+      const nodeId = requireName(entry.node, context.location + " destination");
       validateTag(entry.tag, story, context.location + " route " + index);
       if (!hasOwn(story.nodes, nodeId)) {
         throw storyError(story, context.location + " targets unknown node '" + nodeId + "'.");
@@ -2243,6 +2010,18 @@
     throw storyError(engine.story, "node '" + engine.currentNodeId + "' has no matching route.");
   }
 
+  function compare(actual, operator, expected) {
+    switch (operator) {
+      case "eq": return actual === expected;
+      case "neq": return actual !== expected;
+      case "gt": return actual > expected;
+      case "gte": return actual >= expected;
+      case "lt": return actual < expected;
+      case "lte": return actual <= expected;
+      default: return false;
+    }
+  }
+
   function routeDestinations(route) {
     if (typeof route === "string") {
       return [route];
@@ -2257,34 +2036,7 @@
       throw storyError(story, location + " must be an array.");
     }
     for (const concept of concepts) {
-      normalizeName(concept, location + " concept");
-    }
-  }
-
-  function createRegistry(label, handlers, builtins) {
-    return Object.freeze({
-      register: function (name, handler) {
-        const key = normalizeName(name, label + " name");
-        if (builtins.indexOf(key) !== -1) {
-          throw new Error("Cannot replace built-in " + label + " '" + key + "'.");
-        }
-        if (typeof handler !== "function") {
-          throw new TypeError(label + " handler must be a function.");
-        }
-        handlers.set(key, handler);
-      }
-    });
-  }
-
-  function registerInitialHandlers(source, registry, label) {
-    if (source === undefined) {
-      return;
-    }
-    if (!isPlainRecord(source)) {
-      throw new TypeError(label + "Handlers must be an object of functions.");
-    }
-    for (const [name, handler] of Object.entries(source)) {
-      registry.register(name, handler);
+      requireName(concept, location + " concept");
     }
   }
 
@@ -2331,10 +2083,6 @@
     return prototype === Object.prototype || prototype === null;
   }
 
-  function isRecord(value) {
-    return value !== null && typeof value === "object" && !Array.isArray(value);
-  }
-
   function isScalar(value) {
     return value === null || typeof value === "string" ||
       typeof value === "boolean" ||
@@ -2354,11 +2102,19 @@
     });
   }
 
-  function normalizeName(value, label) {
+  // Names (ids, concepts, variables) are used exactly as written, so one
+  // with spaces around it would never match its uses.
+  function requireName(value, label) {
+    if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+      throw new TypeError(label + " must be a non-empty string without surrounding spaces.");
+    }
+    return value;
+  }
+
+  function requireText(value, label) {
     if (typeof value !== "string" || value.trim().length === 0) {
       throw new TypeError(label + " must be a non-empty string.");
     }
-    return value.trim();
   }
 
   function validatePositiveNumber(value, label) {
@@ -2371,13 +2127,6 @@
   function validateNonNegativeNumber(value, label) {
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
       throw new TypeError(label + " must be a finite non-negative number.");
-    }
-    return value;
-  }
-
-  function validateNonNegativeInteger(value, label) {
-    if (!Number.isSafeInteger(value) || value < 0) {
-      throw new TypeError(label + " must be a non-negative safe integer.");
     }
     return value;
   }
@@ -2428,7 +2177,7 @@
   }
 
   function storyError(story, message) {
-    const id = isRecord(story) && typeof story.id === "string"
+    const id = isPlainRecord(story) && typeof story.id === "string"
       ? story.id
       : "unknown";
     return new Error("Story '" + id + "': " + message);
@@ -2440,9 +2189,6 @@
       : String(error);
   }
 
-  function invalidInitialVariables() {
-    throw new TypeError("initialVariables must be a plain object.");
-  }
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = NarrativeEngine;

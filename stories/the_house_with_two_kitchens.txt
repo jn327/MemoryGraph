@@ -9,8 +9,8 @@ osei: Dr Osei
 father: Dad
 
 == traits
-present (someone who stayed present): rest, routine, here +1.5
-searching (someone chasing a ghost): chase, overtired, decode
+present (grounded): rest, routine, here +1.5
+searching (stuck in the past): chase, overtired, decode
 tender: listen, comfort, share
 closed (closed off): avoid, refuse, conceal
 honest: truth, admit +1.5, lie -1.5
@@ -25,6 +25,11 @@ mattieClose: mattie sees you as tender >= 1 # your brother
 === blue_room
 present: osei, father
 ~ remember world: father, blue_kitchen, orange, episode (seen by no one)
+~ clues = 0
+~ worked_out = false
+~ found_key = false
+~ found_depot = false
+~ admitted_driving = false
 
 You have narcolepsy. Your brain doesn't keep a clean border between waking and dreaming; sometimes it lets the dream through while your eyes are open. Dr Osei calls these hypnagogic episodes and helps you manage them with medication, a strict bedtime, and a diary.
 
@@ -46,13 +51,39 @@ Tonight, at the end of a sixteen-hour day, he looks up from the orange. 'You lef
 === sorting
 present: halina, mattie
 
-Your father's house is a bungalow full of fifty years of everything. On Saturday you go through it with your mother and your brother Mattie. Mattie has a developer's offer on his phone that expires at the end of the month, and a spreadsheet with tabs. Your mother picks up a mug, puts it down, and picks it up again. Nobody has said the word 'sell' out loud, but Mattie has typed it eleven times.
+{first visit: Your father's house is a bungalow full of fifty years of everything. On Saturday you go through it with your mother and your brother Mattie. Mattie has a developer's offer on his phone that expires at the end of the month, and a spreadsheet with tabs. Your mother picks up a mug, puts it down, and picks it up again. Nobody has said the word 'sell' out loud, but Mattie has typed it eleven times.}
 
+{first visit: Three boxes are already stacked by the door, taped and labelled in your father's capitals.}
+
+{box == "shed": The shed box smells of oil and pencil shavings. His tools are wrapped in newspaper from the week he died, and you read the sport pages before you can stop yourself. Under the tools, folded small, is a letter from the bus company, thirty years old, confirming his transfer to the Northfield depot 'with effect from 1 December'. You never knew he'd worked at Northfield. Nobody has ever said the word Northfield in this house.}
+{box == "kitchen": The kitchen box is mostly odd mugs. Under them is his paring knife, the blade worn thin and crescent-shaped from fifty years of oranges. Your mother sees it and leaves the room for a minute.}
+{box == "bureau": The bureau box is bank letters, guarantees for things long since broken, and a key you don't recognise, on a tag in your mother's handwriting: BACK DOOR. NEW LOCK. JAN. She takes it out of your hand, looks at it, and gives it back.}
+
+{visited sorting >= 4: It's dark outside. You've opened all three boxes and you're reaching for a fourth. Mattie has stopped typing and is just watching you. Your mother has made tea twice and drunk neither. 'Cass,' Mattie says. 'There are forty more of these.'}
+{visited sorting == 2: Mattie checks the time. Your mother picks up the mug.}
+{visited sorting == 3: Mattie checks the time again, and doesn't hide it. Your mother puts the mug down.}
+
+* (once) Open the box marked SHED
+  ~ box = "shed"
+  ~ clues += 1
+  ~ found_depot = true
+  ~ remember chase, house, father "sat on the floor of his house reading old newspaper from his toolbox"
+  -> sorting
+* (once) Open the box marked KITCHEN
+  ~ box = "kitchen"
+  ~ remember chase, house, orange "found his paring knife and held onto it"
+  -> sorting
+* (once) Open the box marked BUREAU
+  ~ box = "bureau"
+  ~ clues += 1
+  ~ found_key = true
+  ~ remember chase, decode, house "turned a stranger's key over and over, looking for a meaning"
+  -> sorting
+* {visited sorting >= 4} Keep going. Every box, however late it gets
+  ~ remember chase, overtired, house "insisted on opening every box, however late it got"
+  -> photograph
 * Back Mattie: take the offer, keep a few things, let the rest go
   ~ remember here, decide, house "sided with your brother about selling the house"
-  -> photograph
-* Insist on going through every box yourself, however long it takes
-  ~ remember chase, overtired, house "insisted on opening every box, however late it got"
   -> photograph
 * Ask your mother, gently, what she actually wants
   ~ remember listen, halina "asked your mother what she wanted before anyone decided"
@@ -80,6 +111,7 @@ Your mother looks at the photograph for a long time. Then she puts it face-down 
 * Put it under your pillow tonight, and see what the kitchen does
   ~ remember chase, decode, photograph (seen by father)
       "slept with the photograph under your pillow"
+  ~ clues += 1
   ~ reveal to father about flood
   -> osei
 
@@ -111,6 +143,7 @@ Dr Osei has a plant on her desk she calls Gerald and a habit of letting silences
 {osei knows photograph: She studies the photograph you brought. 'Memory is a strange organ,' she says. 'An image can make a room feel remembered without proving you remember it. Your mother might have described this kitchen to you a hundred times before you could talk.'}
 
 * Tell her the truth: you've been driving there exhausted
+  ~ admitted_driving = true
   ~ remember admit, truth, driving "admitted you'd been driving when you shouldn't"
   -> dream_two
 * Tell her you're keeping to your routine
@@ -142,20 +175,34 @@ It happens at the bungalow, on the sofa, at five in the afternoon. You're awake 
 
 === orange_answer
 {
+- clues >= 2:
+'Because of the sink,' he says. Then he frowns, as if something has been moved in his kitchen.
+{found_depot == true: 'Northfield,' he says slowly. 'I took the Northfield job in the December. I told her it was the money.'}
+{found_key == true: 'And the key. When I came back the key didn't fit, love. She'd changed the lock in the January. I had to knock.'}
+{father knows flood: 'The flood was February. Water to the second stair, and I wasn't on the stairs.'}
+He looks at the orange as if it belongs to someone else. 'I wasn't here that winter, was I? You've worked it out. I'm only what you know, and you know that now.'
 - father knows flood: # the photograph under your pillow
 'Because of the sink,' he says. 'The Sunday after the flood. I sat at this table and peeled an orange, and your mother watched me and didn't say anything, and I thought, if I can just get the peel off in one piece, she'll let me...' He stops, as if he's walked to the edge of a room and found no more floor. 'I don't know the rest, love. You don't either. Not yet.'
 - else:
 He looks at the orange in his hands as if he's only just noticed it. 'I don't know, love,' he says. 'You'd have to ask someone who remembers.' The kitchen holds very still. You realise he can only know what you know.
 }
 
-* Wake up -> mattie_garage
-
+* {clues >= 2} Wake up, and write down what he said before it fades
+  ~ worked_out = true
+  ~ remember decode, truth, dad_left, father (seen by father)
+      "worked out from a letter and a key that Dad had left that winter"
+  -> mattie_garage
+* {clues >= 2} Wake up, and decide you didn't hear it
+  ~ remember avoid, refuse, father "woke from the dream and decided you hadn't heard it"
+  -> mattie_garage
+* {clues < 2} Wake up -> mattie_garage
 
 === mattie_garage
 present: mattie
 
 Mattie finds you in the garage, sitting in Dad's deckchair with a box of fuse wire on your knee.
 {mattie sees you as searching >= 1: 'You're sleeping in his chair,' he says. 'You're up till three opening boxes. Mum's hiding something and you're making it worse by digging.' | 'Mum's hiding something,' he says. 'You've noticed, right? Don't tell me you haven't noticed.'}
+{worked_out == true: You tell him what you've pieced together from the boxes and the dream. He stares at you. 'How do you know that? I've never told anyone that.' # what you worked out}
 He sits on an upturned crate. He's three years older than you; he was eight that winter in the first house. 'I remember the flood,' he says. 'And I remember that Dad wasn't there for it. He wasn't there all winter. I used to hear Mum crying through the wall.'
 
 * Ask him to tell you everything he remembers
@@ -177,10 +224,12 @@ present: halina
 
 {
 - mumTrusts:
+{found_key == true and worked_out == true: Before she can begin you put the key on the table, the one with BACK DOOR on the tag. She looks at it for a long time. 'I changed the lock in the January,' she says. 'I had to. And then I let him knock.'}
 Your mother tells you on Wednesday night at her own kitchen table, without being asked. She has made tea neither of you drinks. When you were five, your father left. Three months. He'd met someone at the depot; it didn't last. The street flooded in February and she bailed water out of the kitchen with a saucepan and Mattie held a torch. The Sunday after, he came back before anyone woke and fixed the sink, and peeled an orange at the table, and she let him stay.
 
 'You adored him,' she says. 'You were five. I wasn't going to take that away from you to make myself feel honest.'
 - else:
+{found_key == true and worked_out == true: You put the key on the table, the one with BACK DOOR on the tag, and she goes very still. 'So you know,' she says. 'Then I suppose I'd better tell you the parts you got wrong.'}
 You ask your mother on Wednesday night at her kitchen table, and for a long time she doesn't answer. Then it comes out of her flatly, as if she's reading a statement. When you were five, your father left. Three months. The street flooded in February and she bailed water out with a saucepan. The Sunday after, he came back before anyone woke and fixed the sink, and she let him stay.
 
 'I've kept it for thirty years,' she says. 'I didn't plan to be made to give it up at a table.'
@@ -189,15 +238,35 @@ You ask your mother on Wednesday night at her kitchen table, and for a long time
 * Hold her hand and let her tell all of it
   ~ remember comfort, listen, halina "held her hand and let her tell all of it"
   ~ reveal to father about dad_left
+  -> mattie_drives if admitted_driving == true
   -> the_drive
 * Ask her why she let you believe a story for thirty years
   ~ remember truth, refuse, halina "asked her why she'd lied for thirty years"
   ~ reveal to father about dad_left
+  -> mattie_drives if admitted_driving == true
   -> the_drive
 * Say you need to sleep, and leave. You don't have to let it in
   ~ remember avoid, halina "left the table before she'd finished"
   ~ doubt father about dad_left
+  -> mattie_drives if admitted_driving == true
   -> the_drive
+
+
+=== mattie_drives
+present: mattie
+
+Mattie is waiting outside your mother's house with the engine running. You told Dr Osei the truth, and Dr Osei told you, very kindly, that you are not to drive until she says so, and you told Mattie, and Mattie said nothing and started turning up. He doesn't ask what Mum said. He drives the long way home without seeming to decide to.
+{mattieClose: Halfway home he says, 'I'm glad she told you. I've been carrying that winter on my own since I was eight.' He doesn't look away from the road. | He has the radio on low, to a station neither of you likes, so that neither of you has to talk.}
+
+* Tell him everything she said
+  ~ remember share, listen, mattie "told your brother everything your mother said, in his car, at midnight"
+  -> dream_three
+* Fall asleep against the window. You're allowed to, now
+  ~ remember rest, here, mattie "fell asleep in your brother's car because someone else was driving"
+  -> dream_three
+* Ask him to stop outside the first house on the way
+  ~ remember chase, first_house, mattie "asked your brother to stop outside the first house at midnight"
+  -> dream_three
 
 
 === the_drive
@@ -286,7 +355,8 @@ Your own kitchen is yellow. The cupboard door is crooked; it's been crooked sinc
 
 
 === old_door (ending)
-The first house has been repainted green. Somebody's bicycle is chained to the gate. Your mother points to the window on the left, the kitchen, and says that's where your father used to wave from when she came up the path, before, and after. You don't recover the blue kitchen. It isn't in there. It was never a place you could go back to.
+The first house has been repainted green. Somebody's bicycle is chained to the gate. Your mother points to the window on the left, the kitchen, and says that's where your father used to wave from when she came up the path, before, and after. {found_key == true: At the gate she takes the old key out of her coat pocket, the one with the tag, and holds it up to the green door's lock without touching it. 'Wouldn't fit now anyway,' she says, and laughs, and puts it back.}
+You don't recover the blue kitchen. It isn't in there. It was never a place you could go back to.
 {mumTrusts: She takes your arm on the walk back to the car. 'I'm glad you know,' she says. 'I'm glad it's not only mine any more.' | On the walk back to the car she says, 'I hope that was worth it,' and you're not sure which of you she's asking.}
 
 {mattieClose: Mattie is waiting in the car with the engine off. He's been crying and pretends he hasn't. You let him pretend. | Mattie didn't come. He sends a thumbs-up when you text him a photo of the green door.}

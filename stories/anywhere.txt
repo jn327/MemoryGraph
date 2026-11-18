@@ -12,23 +12,28 @@ notebook: Teo's notebook (hidden)
 == traits
 honest: truth, admit +1.5
 deceptive (a liar): lie, conceal +0.7
-guarded (someone who shuts doors): lock, exclude, hide +0.7
-open (someone who opens doors): welcome, share, trust +0.7
+guarded: lock, exclude, hide +0.7
+open (welcoming): welcome, share, trust +0.7
 fair: evidence, restraint
 suspicious (quick to suspect): accuse, surveil, rumor +0.7
 
 == macros
 pimTrusts: pim sees you as more open than guarded or pim sees you as honest >= 1 # Pim trusts you
 abaraKnowsLie: abara knows lie, portfolio # Abara knows you lied
-teoCaught: abara knows teo_clue # what Abara knows
+noticedRenovation: player with renovation >= 1 # what you noticed
+teoCaught: abara knows stale_photo and links >= 2 # the case you made
 corwinBlamed: not teoCaught and abara knows accuse, corwin # your accusation
 saulCleared: teoCaught or corwinBlamed or abara knows stale_photo # what Abara knows
+credible: teoCaught or (world sees you as fair >= 2 and not abaraKnowsLie) # whether the council believes you
+streetTrusts: dalia sees you as more open than guarded # your street
 
 
 === intrusion
 present: dalia, teo, notebook
 ~ remember world: shift, arrival, oren, cake (seen by no one)
 ~ hours = 0
+~ links = 0
+~ promised_pim = false
 
 It has been three years since the Shift, since the morning people discovered that anyone who could picture a room clearly enough could simply be in it. Locks became ornaments. Your trade became rooms nobody can picture: crooked walls, shifting panels, light that never falls the same way twice.
 
@@ -56,16 +61,38 @@ present: dalia, pim
 - dalia sees you as suspicious >= 1:
 Dalia Brenner opens the door before you knock. The Watch has already messaged her: an arrival reported at your address, an Oren Brenner, her brother. 'You were right to report him,' she says, and her voice says she is not sure. Behind her, Pim, turning nine today, is sitting inside the wardrobe with the door pulled shut.
 
-'Third arrival this month,' Dalia says quietly. 'Last week a man stood over Pim's bed. He said he was looking for the previous tenant. I need a room nobody can picture. You do that.' From the wardrobe, a small voice: 'If nobody can picture my room, how will I find it?'
+'Third arrival this month,' Dalia says quietly. 'Last week a man stood over Pim's bed. He said he was looking for the previous tenant. I need a room nobody can picture. You do that.' She studies you. 'Why do you? Build rooms nobody can find?'
 - dalia sees you as deceptive >= 1:
 Oren tells everyone you were expecting him. Dalia Brenner raises an eyebrow at you over his shoulder, but she lets the kindness stand. Behind her, Pim, turning nine today, is sitting inside the wardrobe with the door pulled shut.
 
-'Third arrival this month,' Dalia says once Oren is busy with candles. 'Last week a man stood over Pim's bed. He said he was looking for the previous tenant. I need a room nobody can picture. You do that.' From the wardrobe, a small voice: 'If nobody can picture my room, how will I find it?'
+'Third arrival this month,' Dalia says once Oren is busy with candles. 'Last week a man stood over Pim's bed. He said he was looking for the previous tenant. I need a room nobody can picture. You do that.' She studies you. 'Why do you? Build rooms nobody can find?'
 - else:
 Dalia Brenner takes the cake from her brother and the measure of you in the same glance. 'You were kind to him,' she says. 'I need you to be much less kind to everyone else.' Behind her, Pim, turning nine today, is sitting inside the wardrobe with the door pulled shut.
 
-'Third arrival this month. Last week a man stood over Pim's bed. He said he was looking for the previous tenant. I need a room nobody can picture.' From the wardrobe, a small voice: 'If nobody can picture my room, how will I find it?'
+'Third arrival this month. Last week a man stood over Pim's bed. He said he was looking for the previous tenant. I need a room nobody can picture.' She studies you. 'Why do you do it? Build rooms nobody can find?'
 }
+
+* 'Someone arrived in my bedroom once, the first winter. I don't want anyone else to wake up to that'
+  ~ motive = "fear"
+  ~ remember confide, arrival, dalia "told Dalia a stranger had once arrived at the foot of your bed too"
+  -> commission
+* 'Because it's the last hard problem left in architecture'
+  ~ motive = "craft"
+  ~ remember craft, dalia "told Dalia you build hidden rooms because the problem is beautiful"
+  -> commission
+* 'Because it pays better than anything I've ever done'
+  ~ motive = "money"
+  ~ remember commission, money, dalia "told Dalia, frankly, that hidden rooms pay well"
+  -> commission
+
+
+=== commission
+present: dalia, pim
+
+{motive == "fear": Dalia nods slowly, the way everyone nods now when someone mentions the first winter. 'Then you know,' she says.}
+{motive == "craft": Dalia looks at you as if you've described the weather on another planet. 'I don't need it to be beautiful,' she says. 'I need it to be shut.'}
+{motive == "money": Dalia almost smiles. 'Good,' she says. 'I can afford honest. I can't afford a hobby.'}
+From the wardrobe, a small voice: 'If nobody can picture my room, how will I find it?'
 
 * Take the commission, and ask Pim to help you design it
   ~ remember share, trust, pim "asked a nine-year-old to help design their own room"
@@ -73,7 +100,9 @@ Dalia Brenner takes the cake from her brother and the measure of you in the same
 * Take the commission, but keep the design secret, even from Pim
   ~ remember hide, lock, pim "kept a child's own room secret from them"
   -> studio
-
+* Quote her double your usual fee. Fear is good for business, and she knows it
+  ~ remember price, commission, dalia "charged a frightened mother double for her child's room"
+  -> studio
 
 === studio
 present: abara
@@ -97,25 +126,51 @@ You know the photograph. It ran in a magazine profile of your work. You took it.
 present: abara
 
 {
+- not first visit:
+{look == "chair": You crouch by the yellow chair. It isn't just turned to the window; it has been dragged there, two pale scuffs on the boards. On the sill, in the corner of the frame, someone has left a stub of black crayon. Hollis Fenn had no children. Abara bags it before you've straightened up.}
+{look == "rug": You kneel where the blue rug used to be. The boards are a shade lighter in a perfect rectangle. You moved that rug yourself, on a wet Tuesday eight months ago, and it went into storage. In Abara's printout it is still on the floor. The photograph is out of date. And you only arrive where the picture is true.}
+{look == "wall": You pace out the crooked wall, heel to toe, the way you did when you built it. Then you do it again. It is a metre left of where the photograph puts it, because eight months ago you moved it there. Anyone who pictured the photograph would have pictured a room that no longer exists, and you only arrive where the picture is true.}
+{look == "abara": 'Where did the photograph come from?' Abara flips her notebook. 'The forum. And a copy on Saul Vey's laptop, his business partner. The prosecutor likes the laptop very much.' She closes the notebook. 'I'm interviewing him at four.'}
+
+{visited crime_scene >= 3: Abara is in the doorway, keys in her hand. 'That's your ten minutes. Tell me what you think before I talk to Vey.' | Abara checks her watch and lets you look.}
 - abara sees you as honest >= 1:
 'Thank you,' Abara says, folding the printout. 'Most people lie about the small things first.' She takes you to Fenn House in a car, like it's the old days.
 
-The study is taped off. Hollis Fenn's chair is turned to the window. And you see at once what she can't: the crooked wall is not where the photograph puts it. Eight months ago you renovated this room. The wall moved a metre to the left; the blue rug went to storage. Anyone who pictured the photograph would have pictured a room that no longer exists. Arrival doesn't work like that. You only land where the picture is true.
+The study is taped off. Hollis Fenn's chair is turned to the window. Abara holds the printout up beside the room: the yellow chair, the blue rug, the crooked wall. 'Somebody pictured this,' she says, 'and arrived.' She gives you ten minutes, which in her voice sounds generous. Something about the room is wrong, and you can't yet say what.
 - else:
 Abara studies you a beat longer than is comfortable, then drives you to Fenn House in a car, like it's the old days.
 
-The study is taped off. Hollis Fenn's chair is turned to the window. And you see at once what she can't: the crooked wall is not where the photograph puts it. Eight months ago you renovated this room. The wall moved a metre to the left; the blue rug went to storage. Anyone who pictured the photograph would have pictured a room that no longer exists. Arrival doesn't work like that. You only land where the picture is true.
+The study is taped off. Hollis Fenn's chair is turned to the window. Abara holds the printout up beside the room: the yellow chair, the blue rug, the crooked wall. 'Somebody pictured this,' she says, 'and arrived.' She gives you ten minutes, which in her voice sounds generous. Something about the room is wrong, and you can't yet say what.
 }
 
-* Tell Abara the photograph is out of date: whoever came here had seen the new room
+* (once) {visited crime_scene < 3} Look at the chair turned to the window
+  ~ look = "chair"
+  ~ remember evidence, crayon, chair "found a stub of black crayon on the dead man's windowsill"
+  -> crime_scene
+* (once) {visited crime_scene < 3} Kneel where the blue rug used to be
+  ~ look = "rug"
+  ~ remember renovation, rug (seen by no one) "knelt where the old rug used to be, and knew why the floor was pale"
+  -> crime_scene
+* (once) {visited crime_scene < 3} Pace out the crooked wall against the photograph
+  ~ look = "wall"
+  ~ remember renovation, wall (seen by no one) "paced out the crooked wall and found it a metre from the photograph"
+  -> crime_scene
+* (once) {visited crime_scene < 3} Ask Abara where the photograph came from
+  ~ look = "abara"
+  ~ remember ask, photograph, saul "asked the inspector where the photograph came from"
+  -> crime_scene
+* {noticedRenovation} Tell Abara the photograph is out of date: whoever came here had seen the new room
   ~ remember evidence, truth, stale_photo
       "pointed out that the photograph of the study was out of date"
   -> saul
-* Say nothing about the renovation. The photo already points away from you
+* {noticedRenovation} Say nothing about the renovation. The photo already points away from you
+  ~ hid_renovation = true
   ~ remember conceal, renovation (seen by no one)
       "kept quiet about the renovation while someone else was charged"
   -> saul
-
+* {not noticedRenovation} Tell Abara you've seen enough
+  ~ remember restraint, study "told the inspector you'd seen enough of the study"
+  -> saul
 
 === saul
 present: abara, saul
@@ -167,7 +222,7 @@ You have the afternoon before the Watch meeting tonight, where Teo is presenting
 Corwin Fenn lives in a flat with no art on the walls. 'Pictures are maps now,' he says. He is younger than you expected and he has not slept. He knows what people say about him and his uncle. 'We fought about money. We fought about everything. I loved him in the way you love weather.'
 
 * Tell him you're sorry, and ask what Hollis was afraid of
-  ~ remember restraint, evidence, teo_clue "listened to Corwin instead of accusing him"
+  ~ remember restraint, evidence, night_visit "listened to Corwin instead of accusing him"
   -> corwin_answer
 * Ask him straight out where he was that night
   ~ remember accuse, corwin "interrogated a grieving man in his own kitchen"
@@ -176,7 +231,7 @@ Corwin Fenn lives in a flat with no art on the walls. 'Pictures are maps now,' h
 
 === corwin_answer
 {
-- player with teo_clue >= 1: # you listened
+- player with night_visit >= 1: # you listened
 Corwin is quiet for a long time. 'A week before he died, he called me. He'd found someone standing in his study at two in the morning. Just standing, looking. The man apologised and said he was the Watch, checking the arrival points were secure. Hollis thought it was funny.' Corwin's mouth twists. 'He thought it was funny.'
 - else:
 'At home,' Corwin says. 'Alone. Which I understand is the worst possible answer.' He opens the door for you, which these days is a pointed thing to do. 'You built him a house nobody could imagine. Somebody imagined it anyway. Maybe start there.'
@@ -203,11 +258,11 @@ present: pim, teo, notebook
 Teo Lindqvist leads the patrol like a scoutmaster, warm and organised, with a clipboard of addresses. Pim is with him, holding his sleeve, because Dalia works late on Tuesdays. At each house Teo asks the owners about their arrival points and makes notes, then he crouches beside Pim. 'Close your eyes. Tell me the room. Every detail.' Pim describes it perfectly. Teo writes it all down.
 
 * Say nothing, and watch what he writes
-  ~ remember surveil, teo_clue, teo (seen by no one)
+  ~ remember surveil, notes, teo (seen by no one)
       "watched the Watch captain copy down every room a child described"
   -> afternoon
 * Ask Teo, lightly, why the Watch needs such detail
-  ~ remember evidence, restraint, teo
+  ~ remember evidence, restraint, notes, teo
       "asked the Watch captain why he needed every detail of every room"
   -> patrol_answer
 
@@ -241,7 +296,7 @@ The community hall smells of urns and wet coats. Teo stands beside a projected s
       "argued against the Registry in front of everyone"
   -> pims_room
 * Stay quiet and watch who signs first
-  ~ remember restraint, teo_clue, teo (seen by no one)
+  ~ remember restraint, registry_gap, teo (seen by no one)
       "noticed the Watch captain leave Fenn House off his own Registry entry"
   -> pims_room
 
@@ -291,6 +346,7 @@ Then, before you can say anything kind, it all comes out in a rush. Teo takes Pi
       "told a frightened child it wasn't their fault, and told the truth beside them"
   -> dalia_truth
 * Promise Pim you'll keep this between the two of you
+  ~ promised_pim = true
   ~ remember hide, conceal, pim (seen by pim)
       "promised to keep a child's secret, even from their mother"
   -> abara_choice
@@ -300,7 +356,8 @@ Then, before you can say anything kind, it all comes out in a rush. Teo takes Pi
 present: dalia, pim, teo, notebook
 
 It is the community hall, drawn in black crayon, with a tall figure beside a small one. You find them there: Pim wrapped in Teo's coat, Teo making cocoa on the urn. 'Kid's a natural,' Teo says warmly. 'Turned up here at midnight. This is why we need the Registry.' Pim will not look at you.
-{player with teo_clue >= 1: You watch Teo's hands on the cups and think about everything he writes down. # what you noticed}
+{player with notes >= 1 or player with night_visit >= 1: You watch Teo's hands on the cups and think about everything he writes down. # what you noticed}
+{player with crayon >= 1: Black crayon. You think of the stub on Fenn's windowsill, and the chair dragged round to face the view. # what you noticed}
 {pim knows teo_clue, fenn_study: As Dalia lifts Pim, Pim whispers into her shoulder, loud enough for you: 'Ask him about Mr Fenn's chair.' # Pim told you once}
 
 * Take Pim home and ask, gently, what they meant
@@ -332,6 +389,7 @@ At Dalia's kitchen table, Pim tells it all again. Teo, the walk-throughs, the st
       "asked a mother's permission before taking her child's words to the police"
   -> abara_choice
 * Keep Pim out of it entirely, and look for other proof
+  ~ promised_pim = true
   ~ remember hide, restraint, pim "kept the child's name out of the case"
   -> abara_choice
 
@@ -356,20 +414,76 @@ Abara's office is the only one in the station with a door that locks, which she 
 {not saulCleared: She taps the file. 'The prosecutor wants to charge Saul Vey by Friday. If you have something, it has to be now.'}
 {teo_fled == true: She almost smiles. 'And I hear our Watch captain has vanished. Into thin air, as people still insist on saying.'}
 
-* Give her everything you know, including the parts that cost you
-  ~ remember truth, evidence, admit
-      "handed over everything, including the parts that made you look bad"
-  ~ reveal to abara about teo_clue
-  ~ reveal to abara about renovation
-  -> arrest
-* Give her the stale photograph, and nothing about Pim
-  ~ remember evidence, conceal, stale_photo
-      "handed over the stale photograph and nothing else"
-  -> arrest
+* Lay out what you've found, piece by piece
+  ~ remember evidence, restraint, case "laid out the case for the inspector piece by piece"
+  -> the_case
 * Tell her you're sure it was Corwin, and you can help make it stick
   ~ remember accuse, lie, corwin "offered to help the police frame Corwin Fenn"
   -> arrest
+* Tell her you've got nothing, and ask her to keep your name out of it
+  ~ remember conceal, exclude, case "asked the inspector to keep your name out of it"
+  -> arrest
 
+
+=== the_case
+present: abara
+
+{first visit: Abara clears a space on her desk and sets down a clean sheet of paper. On it she writes HOW? and, halfway down, WHO? 'One thing at a time,' she says. 'And tell me why each one matters.'}
+{first visit and abara knows stale_photo: Under HOW? she has already written REOPENING PARTY, from what you told her at the house.}
+{piece == "photo": You draw the study for her twice, the room in the photograph and the room you rebuilt. The wall moves a metre. The rug disappears. 'So whoever arrived had seen the new room,' Abara says, and writes REOPENING PARTY under HOW?.}
+{piece == "photo" and hid_renovation == true: Then she looks up. 'You knew this at the house.' She doesn't say anything else. She doesn't need to.}
+{piece == "crayon": 'A child,' Abara says, turning the evidence bag in the light. 'At the window of a man with no children.' She writes it under WHO? with a question mark.}
+{piece == "corwin": Abara writes down 2 A.M. and WATCH, and underlines the second word twice. 'Hollis laughed at him,' she says. 'Corwin told you that?'}
+{piece == "notes": 'Every room,' Abara repeats. 'Described by children, with their eyes shut.' She writes CLIPBOARD under WHO?.}
+{piece == "registry": Abara pulls up Teo Lindqvist's Registry entry on her own screen. Every house on the street, including several he has no business picturing. Not Fenn House. 'People don't leave out the one they're proudest of,' she says, 'unless they're hiding it.'}
+{piece == "pim": You tell her what Pim told you: the walk-throughs, the eyes closed, Mr Fenn's new study described for him the week after the party. Abara puts her pen down to listen, which she hasn't done for anything else.}
+{piece == "pim" and promised_pim == true: You hear yourself breaking your word as you say it. It doesn't feel the way you thought it would. It feels like being right too late.}
+{not first visit and teoCaught: Abara has stopped writing. She looks at the sheet, HOW? and WHO?, as if it has finally answered her. 'That's enough,' she says. 'That's a warrant.'}
+{not first visit and links >= 2 and not teoCaught: 'A man with a clipboard who likes children's descriptions,' Abara says. 'Fine. But how did he arrive in a room that doesn't match the photograph everyone has? Without the how, I've got a story, not a case.'}
+{not first visit and links < 2: 'Keep going,' Abara says, 'if you've got more.'}
+
+* (once) {noticedRenovation and not abara knows stale_photo} Tell her the photograph is eight months out of date
+  ~ piece = "photo"
+  ~ remember evidence, truth, stale_photo (seen by abara)
+      "showed the inspector that the famous photograph was out of date"
+  -> the_case
+* (once) {player with crayon >= 1} Remind her of the crayon on the sill: a child stood at that window
+  ~ piece = "crayon"
+  ~ links += 1
+  ~ remember evidence, crayon, teo_clue (seen by abara)
+      "pointed out that a child had stood at the dead man's window"
+  -> the_case
+* (once) {player with night_visit >= 1} Tell her Corwin's story: a man from the Watch in the study at two in the morning
+  ~ piece = "corwin"
+  ~ links += 1
+  ~ remember evidence, night_visit, teo_clue (seen by abara)
+      "passed on Corwin's story of a Watchman in the study at night"
+  -> the_case
+* (once) {player with notes >= 1} Tell her about Teo's clipboard: every room, described by children
+  ~ piece = "notes"
+  ~ links += 1
+  ~ remember evidence, notes, teo_clue (seen by abara)
+      "told the inspector about the Watch captain's clipboard"
+  -> the_case
+* (once) {player with registry_gap >= 1} Tell her Teo left Fenn House off his own Registry entry
+  ~ piece = "registry"
+  ~ links += 1
+  ~ remember evidence, registry_gap, teo_clue (seen by abara)
+      "noticed what was missing from the Watch captain's Registry entry"
+  -> the_case
+* (once) {(visited studio_found or visited dalia_truth) and promised_pim != true} Tell her what Pim told you, with Dalia's blessing
+  ~ piece = "pim"
+  ~ links += 2
+  ~ remember evidence, truth, confession, teo_clue (seen by abara)
+      "carried a child's account to the inspector, with their mother's permission"
+  -> the_case
+* (once) {promised_pim == true} Break your word, and tell her what Pim told you
+  ~ piece = "pim"
+  ~ links += 2
+  ~ remember evidence, confession, teo_clue, break_promise (seen by abara, pim, dalia)
+      "broke your word to a frightened child to make the case"
+  -> the_case
+* That's everything. Let her decide -> arrest
 
 === arrest
 {
@@ -381,6 +495,8 @@ They arrest Teo Lindqvist at his kitchen table, mid-breakfast; he does not try t
 Corwin Fenn is charged on Thursday. Your hunch, and the motive everyone already believed, are enough for a prosecutor who wants a name. Saul goes home. Corwin's flat with no pictures on the walls is photographed for the evening news, every corner of it, until anyone in the city could stand in his kitchen.
 - abara knows stale_photo:
 The stale photograph is enough to free Saul Vey, but not enough to name anyone else. The case goes quiet. On the street, the Watch patrols continue, and Teo still crouches beside children with his clipboard, saying, 'Close your eyes. Tell me the room.'
+- links >= 2:
+Abara believes you. The prosecutor doesn't: a clipboard is not a method, and the photograph on Saul Vey's laptop is. Saul is charged on Friday. Teo Lindqvist is questioned once, politely, and sent home with an apology and a cup of station coffee.
 - else:
 Saul Vey is charged on Friday. The photograph on his laptop is the whole case, and nobody who knows better says so. You read about it on the same page as an advertisement for Teo's Registry: SAFER STREETS START WITH KNOWING WHO SEES.
 }
@@ -393,12 +509,14 @@ A month later the city council meets to decide what a home is now. On the agenda
 {world sees you as deceptive >= 1.5: Walking in, you realise how many small untruths it took to get here, and how many people in this room have heard one of them.}
 {abara knows accuse, lie, corwin: Inspector Abara is in the second row. When you meet her eyes she looks away, the way you would from someone who once offered to help you frame an innocent man. | # Abara remembers}
 {world sees you as fair >= 2 and not abara knows accuse, lie, corwin: Inspector Abara is in the second row. She nods at you once, the way she would at a colleague.}
+{motive == "money": The licensing proposal, you notice, would triple your fees. You notice yourself noticing.}
 What will you tell them a city should do when every door is already open?
 
 * Argue for consent: no one may arrive uninvited, and no one may be mapped
   ~ remember restraint, welcome, consent
       "argued that nobody should be mapped without consent"
-  -> ending_consent
+  -> ending_consent if credible
+  -> ending_registry
 * Argue for the Registry: the city must know who can picture what
   ~ remember surveil, lock, registry
       "argued for a city that knows who can picture every room"
@@ -407,14 +525,16 @@ What will you tell them a city should do when every door is already open?
   ~ remember hide, exclude, commission "walked out of the hearing to sell hiding places"
   -> ending_shelter
 * Tell them there is no lock for this, only neighbours worth trusting
-  ~ remember trust, welcome, share "told the council the only lock left is each other"
-  -> ending_open
+  ~ remember trust, welcome, share, neighbours "told the council the only lock left is each other"
+  -> ending_open if streetTrusts
+  -> ending_registry
 
 
 === ending_consent (ending)
 The Picture Laws pass by two votes. Arriving uninvited becomes a crime; so does trading pictures of other people's rooms. Nobody can enforce either rule perfectly. But consent stops being something a family has to argue for after the fact, and becomes something the city owes them before.
 {teoCaught: Teo's notebooks are the first evidence burned under the new law, eleven hundred rooms going up in a council furnace, and half the city comes to watch.}
 {recall notebook among open, guarded, honest, deceptive, fair, suspicious if teoCaught: Before they go in, Abara shows you the page with your address on it. You never knew he was writing you down. In neat capitals it notes that you {summary}.}
+{motive == "craft": You never design another unpicturable room. You miss the problem less than you expected, and the people more.}
 {corwinBlamed: Corwin Fenn's appeal cites the new law. It will take years. You testify for him, which helps less than you had hoped.}
 
 {pimTrusts: Pim draws your studio on every birthday card after that, always with a small figure under the table, always with the door open. | Pim grows up careful. They never describe a room to anyone again, including you, and you are never sure whether that is the lesson you meant to teach.}
@@ -424,6 +544,8 @@ The Picture Laws pass by two votes. Arriving uninvited becomes a crime; so does 
 
 
 === ending_registry (ending)
+{player with consent >= 1: You argued for consent, well. But the Fenn case went the way it went, and everyone on the council knew who had been in the room, and nobody had a reason to believe you. # what the council believed}
+{player with neighbours >= 1: You told them the only lock left was each other. On your own street, nobody stood up to say it with you. # your street}
 The Registry passes. Every resident lists the rooms they can picture; the list is kept by the Watch, in a building with no windows. Arrivals fall by half in the first year. Nobody can say exactly how many of the remaining arrivals were made by people who had read the list.
 {teoCaught: The Watch has a new captain. She is very sincere. She asks children to close their eyes and describe rooms, for safety, and she writes everything down. | Teo Lindqvist is appointed Registrar. He thanks you, in his acceptance speech, by name.}
 {recall notebook among open, guarded, honest, deceptive, fair, suspicious if not teoCaught: His notebooks become the Registry's founding volumes. The page with your address is near the front. You never knew he was writing you down. It notes that you {summary}.}
@@ -436,6 +558,8 @@ The Registry passes. Every resident lists the rooms they can picture; the list i
 === ending_shelter (ending)
 Your waiting list is two years long. You build rooms that cannot be pictured by anyone who has not been carried through them blindfolded: vaults with sofas in them. Your clients sleep well. Their children have to be led to breakfast. A quiet new inequality settles over the city, between homes that can hide and homes that cannot, and you are its most famous architect.
 {not teoCaught: The one client you turn away is Teo Lindqvist, and you never fully explain to yourself why.}
+{motive == "money": You told Dalia once that it pays better than anything. It still does.}
+{player with price >= 1: Dalia's was the first room you ever charged double for. It was not the last.}
 
 {pimTrusts: Pim's room, the one with the secret in it, is the only one you never put in a portfolio. Sometimes you picture it, just to check you still can't. | Pim's room is still the strangest thing you ever built. Dalia tells you Pim sleeps on the sofa.}
 {recall abara among honest, deceptive, fair, suspicious: Inspector Abara closes the Fenn file. Her last note on it records that you {summary}.}
@@ -443,6 +567,7 @@ Your waiting list is two years long. You build rooms that cannot be pictured by 
 
 === ending_open (ending)
 The council laughs, then stops laughing. Nothing passes that night. But on your street a different kind of watch begins: no clipboards, no lists, just a rota of people who check on each other and who knock, out of courtesy, even though they don't have to. One neighbour refuses to join, remembering how quickly a watch becomes a list of strangers to suspect. You keep knocking on her door anyway.
+{motive == "fear": At the first meeting you tell them about the stranger at the foot of your bed, the first winter. It's the first time you've said it to anyone but Dalia. Half the room nods.}
 {teo_fled == true: Somewhere, Teo is standing in a room he memorised. Some nights you wonder whether it is yours.}
 
 {pimTrusts: Pim runs the rota by the time they're twelve. They are very strict about knocking. | Pim keeps their distance from you for a long time. When they finally knock on your door, years later, you almost don't believe it.}

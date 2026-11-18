@@ -10,9 +10,9 @@ ilse: Surveyor Brandt
 
 == traits
 kind: help, listen, stay
-user (someone who used them): use, take +1.5, hurry +0.5
-faithful (someone who kept their word): keep_promise +1.5, return, name
-faithless (someone who broke their word): break_promise +1.5, lie
+user (a user): use, take +1.5, hurry +0.5
+faithful (a promise-keeper): keep_promise +1.5, return, name
+faithless (a promise-breaker): break_promise +1.5, lie
 
 == macros
 maraTrustsFaith: mara sees you as more faithful than kind, user, faithless # Mara's faith
@@ -21,6 +21,25 @@ ilseWithYou: with_ilse == true
 familyKnows: visited corin_hears or visited corin_late
 saidName: corin knows name, mara # Mara's name
 bridgeOnRecord: ilse knows survey, mara
+
+
+=== setting_out
+~ owes_ansel = false
+
+You have been walking north for four days, and your boots have opinions about it. Everyone you pass on this road asks the same thing sooner or later, and you have got used to answering.
+
+* 'Work. The mines at Carrow pay in silver, and I've nothing left that pays in anything'
+  ~ reason = "work"
+  ~ remember work, north "set out north for the silver mines at Carrow"
+  -> the_bridge
+* 'I'm carrying a letter to my sister. She hasn't heard from home in a year'
+  ~ reason = "letter"
+  ~ remember letter, north "carried a letter north to a sister who hadn't heard from home"
+  -> the_bridge
+* 'I'm walking away from something. North was the way I happened to be facing'
+  ~ reason = "away"
+  ~ remember away, north "walked north to get away from something"
+  -> the_bridge
 
 
 === the_bridge
@@ -107,6 +126,7 @@ Half a day north, a man has become a spring. His name, he says, is Ansel; he was
 ~ gossip ansel to mara (belief 0.8)
 
 By the time the last stone is out, your hands are blue and you can't feel your fingers. The spring runs clear and loud. 'The river goes past Mara,' Ansel says, in a voice like a man who has been holding his breath for a year. 'I'll tell her about you. Water talks.' Then, more quietly: 'That cold in your hands. It'll pass. But be careful how often you let yourself be needed out here. That's how it starts. That's how it started for all of us.'
+{reason == "letter": 'And you've somewhere to be,' he adds. 'Somebody at the end of it. Don't let the road keep you.'}
 
 * Flex your fingers and walk north -> the_ash_tree
 
@@ -191,6 +211,7 @@ Corin listens to you describe the bridge. At 'used to be a woman' he looks up sh
 present: ansel, wren, corin
 
 By the ruined orchard wall the soil is soft and dark, the best you've seen since the river.
+{player with rooted >= 2: Lys watches you cross the yard. 'You're limping,' she says, and then, looking closer, 'There's moss in your laces.' There is. You pick it out. It grows back by evening. # taking root}
 {seeds == true: Wren's three seeds are in your pocket. | You have nothing to plant here. The wall seems to be waiting for something anyway.}
 {ilseWithYou and ilse knows survey, mara: Ilse is sitting on the wall, writing up her report. 'Requisition order for the bridge at the old flood goes in tonight,' she says. 'Does she have a name? The remarks column likes a name.'}
 {ilseWithYou and not ilse knows survey, mara: Ilse is sitting on the wall, frowning at her map. 'There was something at the river,' she says. 'I'm sure there was. There's a grey thumbprint where my notes should be.'}
@@ -204,6 +225,7 @@ By the ruined orchard wall the soil is soft and dark, the best you've seen since
       "kept the ash's seeds in your pocket instead of planting them"
   -> ilse_order
 * {owes_ansel == true} Go back south to clear the spring, as you promised, before the low field floods
+  ~ owes_ansel = false
   ~ remember keep_promise, help, ansel, rooted (seen by ansel)
       "walked a day back south to keep your promise to the spring"
   ~ gossip ansel to mara (belief 0.8)
@@ -285,8 +307,10 @@ You walk back to the river with Corin in the cart and Lys at the reins. Mara rec
 {mara knows help, ansel: 'The river told me about you,' she says, when you step onto her planks. 'The spring was singing about your hands for two days.'}
 {mara knows lie, comfort, mara: She asks Corin about the three pear trees. 'There's one, Aunt Mara,' he says, puzzled. 'Just one.' The bridge goes quiet under you.}
 {mara knows take, ansel: The water under her is low and brown. 'Ansel's choking,' she says, to nobody in particular. 'The river's been telling me.'}
+{owes_ansel == true: The water under her is low and brown. 'Ansel's choking,' she says. 'He keeps telling the river someone promised to come back.'}
 {requisitioned == true: Nailed to her first plank is a brass plate: PROPERTY OF THE CROWN. TOLL ONE PENNY. Lys reads it twice.}
 {player with rooted >= 2: Standing on her planks, you notice your feet have gone cold and heavy, the way your hands did at the spring, and that they don't want to move. # taking root}
+{player with rooted >= 2: Ansel's warning comes back to you, word for word. Be careful how often you let yourself be needed out here. You have been needed on this road again and again, and you can feel exactly what one more time would do. # taking root}
 Then Mara asks you something nobody has asked anyone in thirty years. 'Would you take my place? Just for one night. So I can stand on the bank and hold my nephew. I'll lie back down at dawn. I promise.'
 
 * Lie down across the river, and let her stand
@@ -309,6 +333,8 @@ Then Mara asks you something nobody has asked anyone in thirty years. 'Would you
 
 {requisitioned == true: The Crown's toll-keeper arrives in the autumn. Corin pays Mara's penny every Sunday, and makes a point of saying her name to the toll-keeper each time.}
 {wren knows keep_promise, seeds: By the orchard wall, three ash seedlings come up in the spring. Lys waters them through the dry weeks without anyone asking her. | Up on the ridge, an ash tree waits for the birds to come back each evening, and remembers a traveller, or doesn't.}
+{reason == "letter": You post your sister's letter from Bell, a week late. She writes back that it was worth the wait, and asks who Mara is.}
+{owes_ansel == true: You never do go back for the stones in Ansel's mouth. The low field at Bell floods in the spring, and Lys moves the seedlings uphill.}
 {recall mara among kind, user, faithful, faithless: Under the planks, when the water is high, the bridge hums a song about a goose, and a story about the traveller who {summary}.}
 {recall mara among kind, user, faithful, faithless rank 2: There is a second verse, for low water, about how the same traveller {summary}.}
 
@@ -319,12 +345,20 @@ You walk north with the stories of the people you met.
 Ahead, the road bends out of sight. Every so often, out here, you pass a waystone or a well or a lone tree, and you stop and ask its name, and you say it back.
 {seeds == true: Wren's seeds are still in your pocket. The soil never seems quite good enough. You'll know the right place when you see it, you tell yourself. You've been telling yourself that for a long time.}
 
-{ansel knows take, ansel: You hear, much later, that the low end of Bell Orchard flooded that spring, and the last pear tree went with it. Nobody blames you. Nobody knows to. | You hear, much later, that the spring runs clear all year, and that the low field at Bell Orchard has never flooded since.}
+{ansel knows take, ansel: You hear, much later, that the low end of Bell Orchard flooded that spring, and the last pear tree went with it. Nobody blames you. Nobody knows to.}
+{owes_ansel == true: You hear, much later, that the low end of Bell Orchard flooded that spring, and the last pear tree went with it. The spring had been waiting for someone who promised to come back. Only one of you knows that.}
+{not ansel knows take, ansel and owes_ansel != true: You hear, much later, that the spring runs clear all year, and that the low field at Bell Orchard has never flooded since.}
+{reason == "letter": In a town much further north you put the letter into your sister's hands. She reads it twice, then asks why you look as if you've been somewhere a great deal further away.}
+{reason == "work": The mines at Carrow pay in silver, as promised. You spend the first coin on a pear.}
+{reason == "away": You never do get far enough away. But you get further.}
 {recall corin among kind, user, faithful, faithless: At Bell Orchard Corin tells the story of the stranger who {summary}, and Lys rolls her eyes, because she has heard it so many times.}
 
 
 === the_waystone (ending)
 You lie down across the river and the cold comes up through your back, and it is the same cold you felt at the spring, and under the ash tree, and in the orchard grass with white threads round your ankles. You had been needed too many times, too far from home. At dawn, Mara lies back down beside you, as she promised. You try to stand, and find you have become something you can't stand up from.
+{reason == "letter": The letter to your sister is still in your coat when you go under. Lys finds it in the reeds in spring, dries it on the stove, and posts it. Your sister writes back to the bridge. Lys reads her letters to you on Sundays.}
+{reason == "work": Somewhere north, the mines at Carrow take on someone else.}
+{reason == "away": Whatever you were walking away from never finds you here. Nothing does, except feet.}
 Two bridges now cross the river at the old flood place, side by side. Travellers call them the Pair. Your voice, when you find it, comes up through your planks low and worn, and you find you can feel every footstep: who hurries, who stops.
 
 {recall mara among kind, faithful: On quiet nights Mara talks to you across the gap. She likes to remind you of the day you {summary}.}
@@ -334,6 +368,7 @@ Two bridges now cross the river at the old flood place, side by side. Travellers
 
 === the_survey (ending)
 You walk north. Behind you, the Ministry of Works is very efficient. By midsummer there's a toll-house at the river, a brass plate on the first plank, and a penny for every crossing. Mara is maintained. Her planks are tarred and her rails are painted. The Ministry's brochure lists her under 'Crossings (Animate), North Road, No. 14.'
+{owes_ansel == true: You never went back for the stones in Ansel's mouth. The low field at Bell floods in the spring, and the Ministry sends a form.}
 {marked == true: The spring has a pump-house over it now. The ash on the ridge has a number painted on her trunk, and a timber assessment, filed for later.}
 
 {saidName: Corin pays his penny every Sunday and sits on the bank, and says her name, and the toll-keeper, who is a decent man, has started saying it too. | The family at Bell Orchard learns about the bridge from the Ministry brochure, years later. By then nobody is quite sure what she was called.}

@@ -39,12 +39,23 @@ story text (.txt) -> StoryText -> story data -> NarrativeEngine -> MemoryGraph
 - **Demo/UI** loads a story, renders the engine's plain-data view, and
   forwards player input. It owns presentation only; it must not duplicate
   story rules or memory logic. It reads reputation through
-  `engine.describeReputation()` rather than computing it.
+  `engine.reputationOf()` rather than computing it.
 
-The core library consists of `scripts/MemoryGraph.js` and
-`scripts/NarrativeEngine.js`. `scripts/StoryText.js` reads the authoring
-format, and `scripts/StoryCheck.js` is an optional authoring tool. The browser demo entry point is
-`scripts/storyPlayer.js`; it is not part of the core library. Story data
+Scripts are grouped by layer, and each layer may use only the ones above
+it in this list:
+
+- `scripts/core/`: the library. `MemoryGraph.js` and `NarrativeEngine.js`.
+  No DOM, and nothing from the other folders.
+- `scripts/authoring/`: reading and measuring stories. `StoryText.js` (the
+  text format), `StoryCheck.js` (random playthroughs) and `StoryMap.js`
+  (measurements and the scene-map layout). No DOM.
+- `scripts/writer/`: the demo's Writer tools views, such as
+  `storyMapView.js`.
+- `scripts/player/`: the browser demo. `storyPlayer.js` is the entry point.
+- `tools/`: Node-only scripts, such as `build-stories.js`. Never loaded by
+  the page.
+
+Story data
 belongs in `stories/`, author documentation in `docs/`, page markup in
 `index.html`, and shared styles in `styles/`.
 
@@ -53,7 +64,7 @@ belongs in `stories/`, author documentation in `docs/`, page markup in
 - Use browser-compatible JavaScript and browser APIs.
 - The browser app has no runtime dependencies and needs no build or local
   server to play. Node.js is used to run tests and to build the built-in
-  story library (`node scripts/build-stories.js`) after a `.txt` story
+  story library (`node tools/build-stories.js`) after a `.txt` story
   changes.
 - Opening `index.html` directly with `file://` is the supported launch
   method. Load the scripts using ordered classic `<script src>` tags;
@@ -97,7 +108,7 @@ dependency without approval. For browser-facing changes, open
 `index.html` directly with `file://`, inspect browser behavior and
 console errors, and verify the actual UI. There is no production build
 or local-server step; after changing a built-in story, run
-`node scripts/build-stories.js`.
+`node tools/build-stories.js`.
 
 Keep changes scoped, update directly related documentation, and report
 the files changed and checks actually performed. Never claim a test or

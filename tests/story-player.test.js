@@ -40,6 +40,14 @@ class Element {
     return found;
   }
   scrollIntoView(options) { this.scrollOptions = options; }
+  closest() { return new Element(); }
+}
+
+// Enough of classList for the player's toggles on <body>.
+class ClassList {
+  constructor() { this.names = new Set(); }
+  toggle(name, on) { if (on) this.names.add(name); else this.names.delete(name); }
+  contains(name) { return this.names.has(name); }
 }
 
 function createPlayer(globals) {
@@ -49,10 +57,14 @@ function createPlayer(globals) {
     "story-picker", "story-picker-title",
     "story-menu", "story-options", "story-title", "story-text", "choice-list", "ending-actions",
     "graph-summary", "graph-visualization", "graph-empty",
-    "ending-summary", "ending-traces", "ending-summary-empty", "ending-path",
-    "ending-path-label", "ending-choices", "ending-reputation", "ending-reputation-list", "reputation-panel", "reputation-tabs", "reputation-body",
-    "restart-button", "clear-button", "save-button", "restore-button", "status-message",
-    "info-button", "debug-panel", "debug-close", "debug-content", "check-button", "check-results"
+    "ending-summary", "ending-overall", "ending-path",
+    "ending-path-label", "ending-choices", "ending-reputation-list",
+    "cast-button", "cast-dot", "cast-drawer", "cast-close", "reputation-tabs", "reputation-body",
+    "cast-bar", "cast-bar-dot", "cast-bar-here", "cast-drawer-body",
+    "restart-button", "clear-button", "status-message",
+    "info-button", "tags-button", "about-button", "about-dialog", "about-close", "menu-button", "app-menu", "debug-panel", "debug-close", "debug-content", "check-button", "check-results",
+    "map-button", "glance-results", "debug-title", "writer-tab-overview", "writer-tab-map", "writer-tab-cast",
+    "writer-tab-graph", "writer-pane-overview", "writer-pane-map", "writer-pane-graph"
   ];
   const elements = Object.fromEntries(ids.map(function (id) {
     return [id, new Element()];
@@ -62,7 +74,10 @@ function createPlayer(globals) {
   const root = path.join(__dirname, "..");
   const scriptLoads = [];
   let context = null;
+  const body = new Element();
+  body.classList = new ClassList();
   const document = {
+    body: body,
     head: {
       // Mimic the browser: run the script asynchronously, then fire load/error.
       appendChild: function (script) {
@@ -101,10 +116,12 @@ function createPlayer(globals) {
     getItem: function (key) { return storage.has(key) ? storage.get(key) : null; }
   };
   const quietConsole = { error: console.error, log: console.log, warn: function () {} };
-  context = vm.createContext(Object.assign({ document, FileReader, localStorage, console: quietConsole }, globals));
+  // The story map draws into a real page; these tests only see what it's given.
+  const StoryMapView = { show: function () {} };
+  context = vm.createContext(Object.assign({ document, FileReader, localStorage, StoryMapView, console: quietConsole }, globals));
   context.window = context;
-  ["scripts/MemoryGraph.js", "scripts/NarrativeEngine.js", "scripts/StoryText.js", "scripts/StoryCheck.js",
-    "stories/built/manifest.js", "scripts/storyPlayer.js"].forEach(function (file) {
+  ["scripts/core/MemoryGraph.js", "scripts/core/NarrativeEngine.js", "scripts/authoring/StoryText.js", "scripts/authoring/StoryCheck.js",
+    "scripts/authoring/StoryMap.js", "stories/built/manifest.js", "scripts/player/storyPlayer.js"].forEach(function (file) {
     vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), context);
   });
   const ready = Promise.all(scriptLoads).then(function () {
@@ -113,7 +130,7 @@ function createPlayer(globals) {
   return { elements, storage, ready };
 }
 
-const StoryText = require("../scripts/StoryText.js");
+const StoryText = require("../scripts/authoring/StoryText.js");
 
 function readStoryFiles() {
   const directory = path.join(__dirname, "..", "stories");
@@ -164,7 +181,7 @@ test("every story file is listed, loads, and appears in the picker", async funct
   const options = player.elements["story-options"].children;
   assert.equal(player.elements["status-message"].textContent, "");
   assert.equal(options.length, definitions.length,
-    "each stories/*.txt file must be built into stories/built (node scripts/build-stories.js)");
+    "each stories/*.txt file must be built into stories/built (node tools/build-stories.js)");
   assert.equal(player.elements["story-picker"].disabled, false);
   assert.deepEqual(options.map(function (option) { return option.children[0].textContent; }).sort(),
     definitions.map(function (definition) { return definition.title; }).sort());
@@ -219,7 +236,23 @@ test("choosing a story option brings the new text into view", async function () 
   assert.equal(newText.scrollOptions.inline, "nearest");
 });
 
-test("Graph State reports memory sequence numbers", async function () {
+test("the ⋯ menu opens, and Writer tools closes it on the way", async function () {
+  const player = createPlayer();
+  await loadStory(player);
+  const elements = player.elements;
+  elements["menu-button"].click();
+  assert.equal(elements["app-menu"].hidden, false);
+  assert.equal(elements["menu-button"].attributes["aria-expanded"], "true");
+  elements["menu-button"].click();
+  assert.equal(elements["app-menu"].hidden, true);
+
+  elements["menu-button"].click();
+  elements["info-button"].click();
+  assert.equal(elements["app-menu"].hidden, true);
+  assert.equal(elements["debug-panel"].hidden, false);
+});
+
+test("Writer tools reports memory sequence numbers", async function () {
   const player = createPlayer();
   await loadStory(player);
   player.elements["choice-list"].children[0].click();
@@ -229,7 +262,7 @@ test("Graph State reports memory sequence numbers", async function () {
   assert.equal(debugInfo["Memory Graph"]["Events"][0].sequence, 1);
 });
 
-test("Graph State visualizes every concept and association", async function () {
+test("Writer tools visualizes every concept and association", async function () {
   const player = createPlayer();
   await loadStory(player);
   player.elements["choice-list"].children[0].click();
@@ -261,7 +294,7 @@ test("transcript preserves shown text and choices across revisits and resets", a
   assert.deepEqual(transcript(player), ["Before choosing."]);
 });
 
-test("ending summarizes choice memories and restores the player's path", async function () {
+test("ending summarizes choice memories and the player's path", async function () {
   const player = createPlayer();
   await loadStory(player);
   assert.equal(player.elements["ending-summary"].hidden, true);
@@ -274,16 +307,11 @@ test("ending summarizes choice memories and restores the player's path", async f
   assert.deepEqual(player.elements["ending-choices"].children.map(function (item) {
     return item.textContent;
   }), ["Choose again", "Finish"]);
-  assert.equal(player.elements["ending-traces"].children[0].children[0].textContent, "choice");
+  assert.equal(player.elements["ending-overall"].children[0].textContent, "Nothing you did here defined you.",
+    "a story without traits says so instead of listing raw memory concepts");
 
-  player.elements["save-button"].click();
   player.elements["restart-button"].click();
   assert.equal(player.elements["ending-summary"].hidden, true);
-  player.elements["restore-button"].click();
-  assert.equal(player.elements["ending-summary"].hidden, false);
-  assert.deepEqual(player.elements["ending-choices"].children.map(function (item) {
-    return item.textContent;
-  }), ["Choose again", "Finish"]);
 });
 
 test("picked choices echo their effect and the reputation panel tracks each view", async function () {
@@ -305,11 +333,14 @@ test("picked choices echo their effect and the reputation panel tracks each view
     "Later.",
     "* Lie",
     "  ~ remember lie \"lied in private\"",
-    "  -> end",
+    "  -> after",
+    "=== after",
+    "Later still.",
+    "* Finish -> end",
     "=== end (ending)",
     "The end."
   ].join("\n") }]);
-  assert.equal(player.elements["reputation-panel"].hidden, true, "nothing to show before any choice");
+  assert.equal(player.elements["cast-button"].hidden, true, "nothing to show before any choice");
 
   player.elements["choice-list"].children[0].click();
   const picked = player.elements["story-text"].children[1];
@@ -317,7 +348,7 @@ test("picked choices echo their effect and the reputation panel tracks each view
   assert.equal(echo.children[0].textContent, "(↑ kind · Mira saw)", "hidden witnesses are not named");
 
   const panel = player.elements;
-  assert.equal(panel["reputation-panel"].hidden, false);
+  assert.equal(panel["cast-button"].hidden, false);
   assert.deepEqual(panel["reputation-tabs"].children.map(function (tab) { return tab.textContent; }),
     ["Overall", "Mira"], "the hidden file has no tab");
   const rows = panel["reputation-body"].children[0].children;
@@ -330,6 +361,10 @@ test("picked choices echo their effect and the reputation panel tracks each view
   panel["reputation-tabs"].children[1].click();
   assert.equal(panel["reputation-body"].children[1].textContent,
     "What Mira remembers most: you helped Mira.", "Mira never learned about the lie");
+
+  player.elements["choice-list"].children[0].click();
+  assert.equal(panel["cast-button"].hidden, true, "at an ending the summary replaces Who's who");
+  assert.equal(panel["ending-summary"].hidden, false);
 });
 
 test("ending lists how each witness remembers the player", async function () {
@@ -351,31 +386,14 @@ test("ending lists how each witness remembers the player", async function () {
   ].join("\n") }]);
   player.elements["choice-list"].children[0].click();
 
-  assert.equal(player.elements["ending-reputation"].hidden, false);
+  assert.equal(player.elements["ending-reputation-list"].hidden, false);
   const items = player.elements["ending-reputation-list"].children;
   assert.equal(items.length, 1, "only Mira witnessed anything");
   assert.equal(items[0].children[0].textContent, "Mira");
-  assert.equal(items[0].children[1].textContent, " remembers you as a liar.");
+  assert.equal(items[0].children[1].textContent, "Will remember you as a liar.");
   assert.equal(items[0].children[2].textContent, "Mostly, that you lied about the flour.");
-});
-
-test("saving and restoring preserves the transcript and accepts older saves", async function () {
-  const player = createPlayer();
-  await loadStory(player);
-  player.elements["choice-list"].children[0].click();
-  player.elements["save-button"].click();
-  const key = "memory-graph:transcript_test";
-  const saved = player.storage.get(key);
-  player.elements["choice-list"].children[1].click();
-  player.elements["restore-button"].click();
-  assert.deepEqual(transcript(player), ["Before choosing.", "Choose again", "After choosing."]);
-
-  const olderSave = JSON.parse(saved);
-  delete olderSave.transcript;
-  player.storage.set(key, JSON.stringify(olderSave));
-  player.elements["restore-button"].click();
-  assert.deepEqual(transcript(player), ["After choosing."]);
-  assert.match(player.elements["status-message"].textContent, /Earlier story text is unavailable/);
+  assert.equal(player.elements["ending-overall"].children[0].textContent, "You leave seen as a liar.");
+  assert.equal(player.elements["cast-button"].hidden, true, "the ending summary replaces Who's who");
 });
 
 test("uploads report authoring warnings, and Check story plays the story", async function () {
@@ -383,7 +401,7 @@ test("uploads report authoring warnings, and Check story plays the story", async
   const warned = story.replace("=== loop", "== traits\nkind: help\n\n=== loop");
   await upload(player, [{ name: "w.txt", content: warned }]);
   assert.match(player.elements["status-message"].textContent,
-    /1 story loaded\. 1 authoring warning: open Graph State \(i\) to see them\./);
+    /1 story loaded\. 1 authoring warning: see Writer tools in the ⋯ menu\./);
 
   player.elements["info-button"].click();
   const lines = function () {
@@ -443,7 +461,14 @@ const castStory = [
 
 test("passages show who is here, and names explain who people are", async function () {
   const player = createPlayer();
-  await upload(player, [{ name: "cast.txt", content: castStory }]);
+  // The choice leads to a scene with no one in it (not the ending, where
+  // the summary replaces Who's who).
+  await upload(player, [{ name: "cast.txt", content: castStory.replace("  -> end", "  -> hold") + [
+    "",
+    "=== hold",
+    "The hold is empty.",
+    "* Go -> end"
+  ].join("\n") }]);
   const passage = player.elements["story-text"].children[0];
   assert.equal(plainText(passage), "Hale counts heads. The man in the grey coat reads. Nobody speaks.");
   const here = findAll(passage, "story-here")[0];
@@ -471,7 +496,79 @@ test("passages show who is here, and names explain who people are", async functi
   assert.equal(player.elements["reputation-body"].children[0].textContent, "Runs the ferry.");
 });
 
-test("Graph State can start the story from any scene with memories in place", async function () {
+test("Who's who opens on Overall, marks what changed, and opens on a person from their name", async function () {
+  const player = createPlayer();
+  await upload(player, [{ name: "cast.txt", content: castStory.replace("  -> end", "  -> wharf") + [
+    "",
+    "=== wharf",
+    "present: hale",
+    "Hale ties off.",
+    "* Go -> end"
+  ].join("\n") }]);
+  const elements = player.elements;
+  assert.equal(elements["cast-button"].hidden, false, "people are here, so there's a cast");
+  assert.equal(elements["cast-drawer"].hidden, true);
+  assert.equal(elements["cast-dot"].hidden, true, "nothing has changed yet");
+
+  elements["cast-button"].click();
+  assert.equal(elements["cast-drawer"].hidden, false);
+  assert.equal(elements["cast-button"].attributes["aria-expanded"], "true");
+  assert.equal(elements["reputation-tabs"].children[0].attributes["aria-pressed"], "true", "opens on Overall");
+  elements["cast-close"].click();
+  assert.equal(elements["cast-drawer"].hidden, true);
+
+  elements["choice-list"].children[0].click();
+  assert.equal(elements["cast-dot"].hidden, false, "helping Hale changed how you're seen");
+  const changed = elements["reputation-tabs"].children.filter(function (tab) { return /is-changed/.test(tab.className); })
+    .map(function (tab) { return tab.textContent; });
+  assert.deepEqual(changed, ["Overall", "Captain Hale · here"], "the hidden man's view is secret, so never news");
+  const chip = findAll(elements["story-text"].lastElementChild, "character-name")[0];
+  assert.match(chip.className, /is-changed/);
+
+  chip.listeners.click();
+  assert.equal(elements["cast-drawer"].hidden, false);
+  assert.equal(elements["reputation-tabs"].children[1].attributes["aria-pressed"], "true", "opens on Hale");
+  assert.equal(elements["cast-dot"].hidden, true);
+  assert.doesNotMatch(elements["reputation-tabs"].children[1].className, /is-changed/, "looked at now");
+  assert.match(elements["reputation-tabs"].children[0].className, /is-changed/, "Overall still unseen");
+
+  elements["choice-list"].children[0].click();
+  assert.equal(elements["cast-drawer"].hidden, true, "the ending replaces Who's who");
+  assert.equal(elements["cast-button"].hidden, true);
+  const cards = elements["ending-reputation-list"].children.map(readable);
+  assert.deepEqual(cards, [
+    "Captain HaleWill remember you as kind.Mostly, that you helped the captain with the ropes.",
+    "the man in the grey coatYou can't tell what they make of you."
+  ], "hidden characters keep their view secret at the ending too");
+});
+
+test("on narrow screens Who's who docks as a bar that expands and collapses", async function () {
+  const player = createPlayer({
+    matchMedia: function (query) {
+      return { matches: query === "(max-width: 959px)", addEventListener: function () {} };
+    }
+  });
+  await upload(player, [{ name: "cast.txt", content: castStory }]);
+  const elements = player.elements;
+  assert.equal(elements["cast-drawer"].hidden, false, "the bar is always there while there's a cast");
+  assert.equal(elements["cast-drawer"].className, "cast-drawer is-docked is-collapsed");
+  assert.equal(elements["cast-drawer-body"].hidden, true);
+  assert.equal(elements["cast-bar-here"].textContent, "Here: Captain Hale, the man in the grey coat");
+
+  elements["cast-bar"].click();
+  assert.equal(elements["cast-drawer"].className, "cast-drawer is-docked");
+  assert.equal(elements["cast-drawer-body"].hidden, false);
+  assert.equal(elements["cast-bar"].attributes["aria-expanded"], "true");
+
+  elements["cast-bar"].click();
+  assert.equal(elements["cast-drawer"].hidden, false, "collapsing leaves the bar");
+  assert.equal(elements["cast-drawer-body"].hidden, true);
+
+  elements["choice-list"].children[0].click();
+  assert.equal(elements["cast-drawer"].hidden, true, "no bar at an ending");
+});
+
+test("Writer tools can start the story from any scene with memories in place", async function () {
   const player = createPlayer();
   await upload(player, [{ name: "cast.txt", content: castStory }]);
   player.elements["info-button"].click();
@@ -486,7 +583,7 @@ test("Graph State can start the story from any scene with memories in place", as
   assert.equal(plainText(player.elements["story-text"].children[0]), "Hale nods.");
   assert.match(player.elements["status-message"].textContent, /Started at end with 1 thing already in place\./);
   const reputation = player.elements["ending-reputation-list"].children.map(readable);
-  assert.ok(reputation.some(function (line) { return /^Captain Hale remembers you as kind\./.test(line); }), reputation.join("\n"));
+  assert.ok(reputation.some(function (line) { return /^Captain HaleWill remember you as kind\./.test(line); }), reputation.join("\n"));
 });
 
 test("a watched story file reloads on save and replays the choices made so far", async function () {
@@ -529,4 +626,112 @@ test("a watched story file reloads on save and replays the choices made so far",
   assert.match(player.elements["status-message"].textContent,
     /watched\.txt line 14: there is no scene called 'nowhere'.*The last working version is still playing\./);
   assert.deepEqual(transcript(player), ["Before choosing.", "Choose again", "After choosing, edited."]);
+});
+
+function linkGlobals(href) {
+  const location = { href: href };
+  Object.defineProperty(location, "search", { get: function () { return new URL(location.href).search; } });
+  const history = { replaceState: function (state, title, url) { location.href = url; } };
+  return { location: location, history: history, URL: URL, URLSearchParams: URLSearchParams };
+}
+
+test("a ?story= link opens that story and picking a story updates the link", async function () {
+  const globals = linkGlobals("http://localhost/index.html?story=the_night_ferry");
+  const player = createPlayer(globals);
+  await player.ready;
+  assert.equal(player.elements["story-picker-title"].textContent, "The Night Ferry");
+  assert.ok(player.elements["choice-list"].children.length, player.elements["status-message"].textContent);
+
+  const options = player.elements["story-options"].children;
+  const other = options.find(function (option) { return option.children[0].textContent !== "The Night Ferry"; });
+  other.click();
+  assert.match(globals.location.href, /\?story=(?!the_night_ferry)\w+$/);
+});
+
+test("a ?story= link to a missing story says so and loads nothing", async function () {
+  const player = createPlayer(linkGlobals("http://localhost/index.html?story=nope"));
+  await player.ready;
+  assert.equal(player.elements["story-picker-title"].textContent, "Choose a story");
+  assert.match(player.elements["status-message"].textContent, /no story called "nope"/);
+});
+
+test("a link's path replays those choices, and each choice extends it", async function () {
+  const globals = linkGlobals("http://localhost/index.html?story=the_night_ferry&path=0");
+  const player = createPlayer(globals);
+  await player.ready;
+  assert.equal(player.elements["story-text"].children.length, 3, player.elements["status-message"].textContent);
+  assert.match(player.elements["status-message"].textContent, /replayed 1 choice\./);
+  assert.match(globals.location.href, /[?&]path=0$/);
+
+  player.elements["choice-list"].children[0].click();
+  assert.equal(player.elements["story-text"].children.length, 5);
+  assert.match(globals.location.href, /[?&]path=0\.\d+$/);
+
+  // Keeping memory means the run can't be rebuilt from its choices alone.
+  player.elements["restart-button"].click();
+  assert.doesNotMatch(globals.location.href, /path=/);
+  assert.match(globals.location.href, /story=the_night_ferry/);
+  player.elements["choice-list"].children[0].click();
+  assert.doesNotMatch(globals.location.href, /path=/);
+
+  // A fresh run is shareable again.
+  player.elements["clear-button"].click();
+  player.elements["choice-list"].children[0].click();
+  assert.match(globals.location.href, /[?&]path=\d+$/);
+});
+
+test("a link's path that no longer fits replays as far as it can", async function () {
+  const globals = linkGlobals("http://localhost/index.html?story=the_night_ferry&path=0.99");
+  const player = createPlayer(globals);
+  await player.ready;
+  assert.match(player.elements["status-message"].textContent, /replayed 1 of 2 choices/);
+  assert.match(globals.location.href, /[?&]path=0$/);
+});
+
+test("Writer tools measures the story and shows the story map as a tab with the run and the last check", async function () {
+  const shown = [];
+  const StoryMapView = { show: function (host, options, tab) { shown.push({ host: host, options: options, tab: tab }); } };
+  const player = createPlayer({ StoryMapView: StoryMapView });
+  await loadStory(player);
+  const elements = player.elements;
+  elements["info-button"].click();
+  assert.equal(elements["debug-panel"].hidden, false);
+  assert.equal(elements["writer-tab-overview"].attributes["aria-selected"], "true");
+  assert.equal(elements["writer-pane-map"].hidden, true);
+  assert.equal(elements["debug-title"].textContent, "Writer tools · Transcript test");
+  const glance = elements["glance-results"].children.map(function (child) { return child.textContent; });
+  assert.match(glance[0], /^2 scenes, 1 ending, 2 choices and 0 characters\. \d+ words, \d+% of them shown only sometimes\.$/);
+  assert.match(glance[1], /The shortest route to an ending is 1 choice\./);
+  assert.equal(shown.length, 0, "the map is drawn only when its tab opens");
+
+  elements["debug-close"].click();
+  elements["choice-list"].children[0].click();
+  elements["info-button"].click();
+  elements["map-button"].click();
+  assert.equal(shown.length, 1);
+  assert.equal(shown[0].tab, "map");
+  assert.equal(shown[0].host, elements["writer-pane-map"]);
+  assert.equal(elements["writer-pane-map"].hidden, false);
+  assert.equal(elements["writer-pane-overview"].hidden, true);
+  assert.equal(elements["writer-tab-map"].attributes["aria-selected"], "true");
+  assert.deepEqual(Array.from(shown[0].options.path.nodes), ["loop", "loop"]);
+  assert.equal(shown[0].options.check, null, "no check has run yet");
+
+  elements["writer-tab-overview"].click();
+  elements["check-button"].click();
+  assert.match(elements["glance-results"].children[2].textContent, /^In 300 random runs a playthrough took 1–\d+ choices/);
+  elements["writer-tab-cast"].click();
+  assert.equal(shown[1].tab, "cast");
+  assert.equal(shown[1].options.check.runs, 300, "the map gets the last check");
+
+  // Writer tools reopens on the tab it was closed on.
+  elements["debug-close"].click();
+  assert.equal(elements["debug-panel"].hidden, true);
+  elements["info-button"].click();
+  assert.equal(elements["writer-tab-cast"].attributes["aria-selected"], "true");
+
+  // The map's "Start from this scene…" goes to Start from a scene with it chosen.
+  shown[shown.length - 1].options.startAt("end");
+  assert.equal(elements["writer-tab-overview"].attributes["aria-selected"], "true");
+  assert.equal(elements["scene-select"].value, "end");
 });

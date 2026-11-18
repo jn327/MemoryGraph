@@ -52,7 +52,7 @@ The first scene's text.
   underscores, such as `=== the_quay`. Mark an ending with
   `=== the_quay (ending)`.
 - Lines starting with `//` are notes to yourself. Start one with
-  `// TODO:` and it is listed in Graph State, so you won't forget it.
+  `// TODO:` and it is listed in Writer tools, so you won't forget it.
 
 ## 2. Scenes and choices
 
@@ -214,6 +214,8 @@ in routes:
 | `player with grey >= 1` | The two concepts have appeared together at least once. |
 | `coins >= 2` | Compares a variable: `==`, `!=`, `>`, `>=`, `<`, `<=`. Text goes in double quotes. |
 | `visited deck` | That scene has been visited this run. |
+| `visited deck >= 2` | That scene has been visited at least twice (any comparison works). The current visit counts. |
+| `first visit` | This is the player's first time in the scene they're in now. |
 | `not …`, `… and …`, `… or …`, `( … )` | Combine conditions. |
 
 Use `world` instead of a character to ask what's true overall, for example
@@ -259,6 +261,48 @@ such as `{jory knows accuse, jory: …}`. Put these reactions in text, not
 routes. **Check story** starts every run with empty memory, so it will list
 them as never shown, and a scene only reachable on a replay would fail the
 built-in story tests.
+
+**Scenes you come back to.** A choice can go back to the scene it's in,
+or to any earlier scene, which gives you a shop, a hub to explore from, or
+a room to search. Three things make loops easier:
+
+```
+=== shop
+{
+- first visit:
+A cramped shop that smells of lamp oil. The shopkeeper doesn't look up.
+- visited shop >= 4:
+'Anything else?' The shopkeeper has started counting the till.
+- else:
+'Anything else?'
+}
+
+* (once) {coins >= 2} Buy the lamp
+  ~ coins -= 2
+  ~ remember buy, lamp "bought the shopkeeper's last lamp"
+  -> shop
+* (once) Ask about the lighthouse -> shop
+* Leave -> street
+```
+
+- `first visit` and `visited shop >= 2` let the scene say something
+  shorter when the player comes back. Every visit is added to the story
+  so far, so a scene that repeats its whole description gets tiresome.
+- `(once)` before a choice's text hides it after the player has picked it.
+  It goes in the same brackets as a label: `(lamp, once)`.
+- Give the player a way out that isn't `(once)`. Writer tools warns you if
+  every choice in a scene that loops back to itself is `(once)`.
+  `{visited shop < 3}` on the looping choices is a simple time limit.
+- Lines under the scene's heading run again on every visit, and every
+  choice's `~ remember` records a new event each time. Doing something
+  three times counts three times, which is usually what you want: it's how
+  repetition becomes part of who you are.
+- To show what the last pick turned up, set a variable in the choice
+  (`~ found = "lamp"`) and check it in the text:
+  `{found == "lamp": The lamp is heavier than it looks.}`
+
+*The House With Two Kitchens* (`sorting`) and *Anywhere* (`crime_scene`)
+use this.
 
 ## 7. Text that adapts
 
@@ -336,26 +380,57 @@ soon as the player arrives in the scene.
   missing `->`, stop the story loading. The page tells you the line number,
   and usually suggests what you meant: *line 42: there is no character
   called 'jroy' (did you mean 'jory'?)*.
-- **Likely mistakes** are listed in **Graph State** (the `i` button) with
+**Writer tools** (in the **⋯** menu) fills the screen and has four tabs:
+**Overview**, **Story map**, **Who's in each scene** and **Memory graph**.
+Press Escape or × to go back to your story.
+
+- **Likely mistakes** are listed on the **Overview** tab with
   their line numbers. These include a concept you check for but never
   remember (usually a typo, so it suggests the closest one), a trait that
   can never score, a character who never learns anything, a summary in
   the wrong form, a variable that's never set, and a macro that's never
   used.
-- **Check story** in the same panel plays your story 300 times at random.
+- **Check story**, also on Overview, plays your story 300 times at random.
   It reports any crashes and dead ends, how often each ending came up, and
   any scene or text that never appeared.
-- **Start from a scene**, also in Graph State, jumps straight to any scene.
+- **Start from a scene**, also on Overview, jumps straight to any scene.
   Tick the memories and variables that should already be in place, such as
   "you lied to the captain" or "coins = 3", so you can test a late scene
   without playing the whole story to reach it.
+- **Story at a glance**, at the top of Overview, gives your story's
+  size: scenes, endings, choices, words, how much of the text depends on
+  memory, and the shortest route to an ending. After **Check story** it
+  also says how long a playthrough usually is.
+- **Story map** draws every scene as a box and every choice as an arrow, from the start
+  at the top to the endings at the bottom. Dashed arrows are choices that
+  are only sometimes offered or taken, and purple arrows loop back. The bar
+  under each scene shows how much you've written there. Select a scene to
+  see its choices, who's there, what it remembers, its line number, and a
+  shortcut to **Start from a scene**. Drag the background to move around a
+  big map. Colour the map by:
+  - **Structure:** scenes no choice leads to, scenes with no way to an
+    ending, and scenes *every route* passes through.
+  - **Reach:** how often Story check's random runs reached each scene and
+    took each route.
+  - **Your path:** the scenes the run you're playing has been through.
+  - **Memory:** pick a trait or concept to see where it's set up (green) and
+    where the story checks it (blue). It points out a check nothing earlier
+    in the run can make true, which then only works after **Begin again ·
+    keep memory**, and a check about someone who never witnesses or hears
+    about the thing it asks about.
+
+  The **Who's in each scene** tab lists every character against every scene,
+  and marks anyone who witnesses something in a scene whose `present:` line
+  leaves them out.
+- **Memory graph** shows what the run you're playing has remembered so far:
+  each concept, and how strongly memories link them.
 
 ## 10. Adding a built-in story
 
 Save the story as `stories/<name>.txt`, then run:
 
 ```sh
-node scripts/build-stories.js
+node tools/build-stories.js
 ```
 
 The page can't read `.txt` files from your disk by itself, so this wraps

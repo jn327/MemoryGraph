@@ -1,13 +1,13 @@
 "use strict";
 
-// The story text format (scripts/StoryText.js): what each piece of syntax
+// The story text format (scripts/authoring/StoryText.js): what each piece of syntax
 // becomes, and the errors writers see when something is wrong.
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const StoryText = require("../scripts/StoryText.js");
-global.MemoryGraph = require("../scripts/MemoryGraph.js");
-const NarrativeEngine = require("../scripts/NarrativeEngine.js");
+const StoryText = require("../scripts/authoring/StoryText.js");
+global.MemoryGraph = require("../scripts/core/MemoryGraph.js");
+const NarrativeEngine = require("../scripts/core/NarrativeEngine.js");
 
 function parse(lines, fileName) {
   return StoryText.parse(lines.join("\n"), { fileName: fileName || "test_story.txt" });
@@ -260,10 +260,6 @@ test("the engine shows who is present, applies describe, and joins punctuation",
   assert.equal(view.text, "Hale looks up.", "no space before closing punctuation");
   const next = engine.choose(0);
   assert.equal(next.present[0].description, "The captain, now your friend.");
-  const saved = engine.toJSON();
-  const restored = new NarrativeEngine(story, { graph: engine.graph });
-  restored.loadState(saved);
-  assert.equal(restored.characterDescription("hale"), "The captain, now your friend.", "descriptions are saved");
   engine.reset();
   assert.equal(engine.characterDescription("hale"), "Runs the ferry, strictly.", "and reset with the run");
 });
@@ -285,4 +281,59 @@ test("apply runs operations before a run, and lint suggests a concept for typos"
   assert.ok(engine.traitScore("honest", "hale") > 0);
   const warning = engine.lint().find(function (entry) { return /'lei'/.test(entry.message); });
   assert.match(warning.message, /concept 'lei' is never remembered, so this condition is never true \(did you mean 'lie'\?\)\./);
+});
+
+test("loops: visit counts, first visit, and once-only choices", function () {
+  const { story } = parse(HEADER.concat([
+    "=== shop",
+    "{",
+    "- first visit:",
+    "A cramped shop.",
+    "- visited shop >= 3:",
+    "'You again,' says the shopkeeper.",
+    "- else:",
+    "'Anything else?'",
+    "}",
+    "",
+    "* (once) Buy the lamp -> shop",
+    "* (rope, once) Buy the rope -> shop",
+    "* {visited shop == 2} Look around -> shop",
+    "* Leave -> street",
+    "",
+    "=== street (ending)",
+    "Outside."
+  ]));
+  const choices = story.nodes.shop.choices;
+  assert.equal(choices[0].once, true);
+  assert.equal(choices[0].id, "buy_the_lamp", "(once) alone keeps the id from the text");
+  assert.deepEqual([choices[1].id, choices[1].once], ["rope", true]);
+  assert.equal(choices[3].once, undefined);
+  assert.deepEqual(choices[2].showIf, { type: "visited", node: "shop", operator: "eq", value: 2 });
+
+  const engine = new NarrativeEngine(story);
+  let view = engine.start();
+  assert.match(view.text, /A cramped shop/);
+  assert.deepEqual(view.choices.map(function (c) { return c.id; }), ["buy_the_lamp", "rope", "leave"]);
+  view = engine.choose(0);
+  assert.match(view.text, /Anything else/);
+  assert.deepEqual(view.choices.map(function (c) { return c.id; }), ["rope", "look_around", "leave"],
+    "a once choice is gone after it is picked");
+  view = engine.choose(0);
+  assert.match(view.text, /You again/);
+  assert.deepEqual(view.choices.map(function (c) { return c.id; }), ["leave"]);
+  assert.deepEqual(engine.lint().filter(function (w) { return /^node/.test(w.location); }), []);
+});
+
+test("loop mistakes are caught", function () {
+  assert.throws(function () {
+    parse(HEADER.concat(["=== a", "Hi.", "* {visited a >= 1.5} Go -> a", "* Stay -> b", "=== b (ending)", "End."]));
+  }, /whole number/);
+  assert.throws(function () {
+    parse(HEADER.concat(["=== a", "Hi.", "* (x, y) Go -> b", "=== b (ending)", "End."]));
+  }, /only one label/);
+  const { story } = parse(HEADER.concat([
+    "=== a", "Hi.", "* (once) Again -> a", "* (once) Out -> b", "=== b (ending)", "End."
+  ]));
+  const messages = new NarrativeEngine(story).lint().map(function (w) { return w.message; });
+  assert.ok(messages.some(function (m) { return /every choice is \(once\)/.test(m); }), messages.join("; "));
 });

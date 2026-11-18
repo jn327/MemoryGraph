@@ -1,14 +1,21 @@
 title: The Village Remembers
-synopsis: In rain-soaked Brackenridge a bell rings before people disappear. Everyone you meet sees something different of you, and in a village this small, they talk.
+synopsis: In rain-soaked Brackenridge a bell rings before people disappear, and everyone says their names out loud to keep them. Everyone you meet sees something different of you, and in a village this small, they talk.
 
 == characters
 mira: Mira
+  The baker. Floury, furious, and keeping a list of everyone she loves chalked on her wall.
 tomas: Tomas
+  Mira's younger brother. Came home three nights ago, wrong.
 anwen: Sister Anwen
-jory: Jory
+  Keeps the chapel and the parish register, and has noticed lines going blank in it.
+hob: Hob
+  Innkeeper of the Drowned Hart. Counts everything, including you.
 sefa: Sefa
+  A traveller in a red scarf, here to forget someone. It isn't working.
 reeve: The reeve
+  Aldous Crane, who runs Brackenridge, and the tithe, and the tower.
 village: Brackenridge
+  Forty roofs, one bell, and a habit of saying names out loud.
 
 == traits
 merciful: mercy, help, kindness +0.7
@@ -18,64 +25,101 @@ deceptive (a liar): deception, lie
 greedy (a thief): greed, steal +1.5, bribe +0.7
 defiant: defiance, accuse
 trustworthy: mercy, help, honesty, confess +1.5, promise +0.5
-dangerous: violence +1.5, threat, deception, lie +0.5, steal, greed +0.5
+dangerous: violence +1.5, threat, deception, lie +0.5, steal, greed +0.5, bargain +1.5
 
 == macros
 miraAlly: mira sees you as more trustworthy than dangerous # Mira stands with you
 anwenAlly: anwen sees you as more trustworthy than dangerous # Anwen stands with you
-joryAlly: jory sees you as more trustworthy than dangerous # Jory stands with you
+hobAlly: hob sees you as more trustworthy than dangerous # Hob stands with you
 villageFears: village sees you as more dangerous than trustworthy # fear
 tomasDied: visited river_aftermath
 tomasTrusts: tomas sees you as merciful >= 1 # Tomas trusts you
 hasEvidence: has_key == true or has_ledger == true or visited traveller_reveal
+timeLeft: visited crossroads < 4
+sefaAlly: visited traveller_story and sefa sees you as more trustworthy than dangerous # Sefa stands with you
+knowsNames: has_ledger == true or names_copied == true or names_spoken == true or took_book == true or ally == "hob" # the names you carry
+knowsBell: visited anwen_bell or visited traveller_reveal or visited bell_vision # how the bell works
+touchedBell: visited bell_vision or bargained == true # you've felt the bell
+knowsElsbet: found_first_entry == true or ally == "sefa" or sefa sees you as honest >= 1 # his wife's name
 
 
 === arrival
 ~ remember world: brackenridge, village, rain, bell, forest, river
-~ visits = 0
+~ has_key = false
+~ has_ledger = false
+~ has_rubbing = false
+~ names_copied = false
+~ names_spoken = false
+~ took_book = false
+~ found_first_entry = false
+~ bargained = false
+~ target = "none"
+~ ally = "none"
+~ quiet_entry = false
+~ loud_entry = false
+~ said_elsbet = false
+~ shamed = false
 
-Rain follows you into Brackenridge. The village sits in a fold of land between a black forest and a river that has burst its banks and stayed burst. Smoke hangs low over forty roofs. In the middle of it all stands a bell tower with no rope, and as you reach the first house, the bell rings once.
+Brackenridge is forty roofs in a fold of wet land, with a black wood on one side and, on the other, a river that burst its banks in the autumn and has seen no reason to go back. Everything smells of woodsmoke and drowned grass. In the middle, taller than anything has a right to be in a village this size, stands a bell tower with no rope.
 
-Nobody is near the tower. Nobody looks up. A woman pulling washing off a line goes very still, then carries on, faster.
-{village knows player and villageFears: Then she turns and sees you, and drops everything she is holding into the mud. 'It's them,' she says, to nobody, to the whole lane. 'It's them again.' Shutters close one after another all the way to the square. # Brackenridge remembers}
+As you reach the first house, the bell rings once.
+
+Nobody looks up. That is the first strange thing. The second is the woman taking washing off a line, who stops, puts her hand flat on her own front door, and says to it, quite clearly, 'Wynn Hollis. Wynn Hollis.' Painted on the lintel above her head, in fresh white letters, is the same name. Then she goes back to the pegs, faster.
+{village knows player and villageFears: Then she turns and sees you, and drops everything she's holding into the mud. 'It's them,' she says, to nobody, to the whole lane. 'It's them again.' Shutters bang shut one after another, all the way to the square. # Brackenridge remembers}
 {village knows player and not villageFears: Then she turns and sees you, and her hands stop on the pegs. 'You came back,' she says quietly, as if she isn't sure she's allowed to remember you. 'You came back.' # Brackenridge remembers}
-You have the feeling, which will not leave you, that from this moment on everything you do here will be seen by someone and repeated to someone else.
 
-* Go to the market -> market
-* Visit the chapel -> chapel
-* Walk down to the river -> riverbank
-* Find the inn -> inn
+'You'll want to say your name, here,' she says. 'Everybody does.' She waits. Something in you doesn't want to, and you don't, and you watch her decide to remember that. Brackenridge, you will learn, remembers everything, and repeats it. 'Well,' she says. 'What brings you, then?'
+
+* 'I'm looking for my brother, Hal. He wrote from here in the spring, and then he stopped writing'
+  ~ reason = "brother"
+  ~ remember brother, hal (seen by village) "came to Brackenridge looking for a brother who'd stopped writing"
+  -> crossroads
+* 'Somewhere a man is looking for me about a debt. I'd rather he looked somewhere else'
+  ~ reason = "debt"
+  ~ remember debt, flight (seen by village) "came to Brackenridge to hide from a debt"
+  -> crossroads
+* 'Needles, thread and buttons. I'll be gone by morning'
+  ~ reason = "trade"
+  ~ remember trade, pedlar (seen by village) "came to Brackenridge with a pack of needles and thread to sell"
+  -> crossroads
 
 
 === crossroads
 {
-- visits >= 3:
-The light is going. Somewhere ahead, in the square, a man is calling people together. There is no more time to wander.
+- visited crossroads >= 4:
+The light has gone the colour of pewter. In the square somebody is beating a pan to call people together, and the lanes are emptying towards the sound. There is no more time to wander.
+- visited crossroads == 3:
+Back under the cooper's eaves. Up and down the lanes people are lighting lamps and saying names to their doors as they bolt them, a low murmur like a congregation that has lost its place. The tower has gone from grey to black. Time for one more errand, perhaps.
 - else:
-You stand where the village's four lanes meet, under the dripping eaves of a cooper's shop. The bell tower watches you over the rooftops. The afternoon is getting on.
+Four lanes meet under the dripping eaves of a cooper's shop. The cooper, planing a stave with tremendous concentration, says 'Ivo Marsh' as you pass, by way of good afternoon, and then looks at you, expecting yours. Above the roofs the tower watches. The afternoon is getting on.
 }
 
-* {not visited market and visits < 3} Go to the market -> market
-* {not visited chapel and visits < 3} Visit the chapel -> chapel
-* {not visited riverbank and visits < 3} Walk down to the river -> riverbank
-* {not visited inn and visits < 3} Find the inn -> inn
-* Go to the square -> square
+* {not visited market and timeLeft} Follow the shouting to the market -> market
+* {not visited chapel and timeLeft} Visit the chapel -> chapel
+* {not visited riverbank and timeLeft} Walk down to the river -> riverbank
+* {not visited inn and timeLeft} Find the inn -> inn
+* Go to the square -> bell_calls
 
 
 === market
 present: mira, reeve, village
-~ visits += 1
 ~ remember world: market, mira, baker, guard, flour, tithe (seen by no one)
 
-The market is three stalls and a lot of mud. Mira, the baker, a broad woman with flour to the elbows, is arguing with one of the reeve's guards over a sack of flour. 'It's the tithe,' says the guard, Brannock, bored. 'It's my week's bread,' says Mira. 'It's my brother's supper.' Brannock has a hand on the sack. A few people are watching from doorways, the way people watch weather.
+The market is three stalls, a great deal of mud, and an argument. Mira the baker, who has forearms like loaves and flour to the elbows, has both hands on one end of a sack of flour. One of the reeve's guards has a hand on the other end. In his free hand he is eating an apple, which gives him the advantage of not seeming to try.
 
-* Help Mira carry the flour back into her shop before Brannock can take it
+'Tithe,' says Brannock, chewing.
+
+'It's my week's bread,' says Mira. 'It's my brother's supper. Mira Tanner, since you've forgotten. You were at my christening, Brannock Fell. You dropped me.'
+
+'Tithe,' says Brannock. People watch from the doorways the way you'd watch weather coming in: with interest, and ready to go inside.
+
+* Help Mira haul the flour back into her shop before Brannock can take it
   ~ remember help, mercy, kindness, mira (seen by mira, village)
       "carried the baker's flour out of the guard's reach"
   -> mira_thanks
-* Help yourself to a handful of flour while they argue
+* You haven't eaten since yesterday. Pocket a bun from the stall while they argue
   ~ remember steal, greed, flour (seen by village)
-      "stole flour off a stall while the baker was being robbed"
+      "pocketed a bun off a stall while the baker was being robbed"
   -> crossroads
 * Tell Brannock, loudly, that this is extortion
   ~ remember accuse, defiance, guard
@@ -90,7 +134,11 @@ The market is three stalls and a lot of mud. Mira, the baker, a broad woman with
 === mira_thanks
 present: mira
 
-Inside the bakery it's warm and smells of yeast. Mira wipes her hands and looks at you properly for the first time. 'People here have stopped helping each other,' she says. 'Everyone's waiting to see who the bell wants next, and nobody wants to be standing near them when it decides. I won't forget this.' She means it as thanks. In Brackenridge it also sounds like a warning.
+The bakery is the only warm room you've been in all day. Mira kicks the door shut behind the flour and leans on it, breathing hard. Behind her the whole back wall is chalked with names in a big, careful hand: TOMAS. GRANDDA OWEN. AUNT BET. HOB (DROWNED HART). Halfway down there's a smudge, as if someone wiped a name off with their thumb, and her eyes keep sliding past it without stopping.
+
+'People here have stopped helping each other,' she says. 'Everyone's waiting to see who the bell wants next, and nobody wants to be standing close when it decides.' She looks at you properly for the first time. 'I won't forget this.'
+
+In Brackenridge, you are beginning to understand, that is a thank-you and a warning at once.
 
 * Ask her why everyone is so afraid
   ~ remember listen, mira, bell "asked what the village was afraid of"
@@ -101,7 +149,11 @@ Inside the bakery it's warm and smells of yeast. Mira wipes her hands and looks 
 === mira_secret
 present: mira
 
-Mira lowers her voice, though there's no one else in the shop. 'The bell rings before someone goes. Not dies. Goes. One morning they're just not anyone's any more. Their family forgets the shape of their face.' She grips the edge of the counter. 'My brother Tomas heard it three nights ago. He came back. But he came back wrong. He sits at the river all day. He won't tell me what he did.'
+Mira lowers her voice, though there's nobody in the shop but you and the loaves. 'The bell rings before somebody goes. Not dies. Goes. One morning they're not anyone's any more. Their family can't think of their face. Their chair's just a chair.' She nods at the chalk wall. 'That's why the list. Everyone I love, and I read it out every morning like an idiot.'
+
+Her thumb finds the smudge and stops there, puzzled, as if it has touched something hot.
+
+'My brother Tomas heard the bell three nights ago,' she says. 'He came back. But he came back wrong. He sits by the river all day, and he won't tell me what he did.'
 
 * Promise her you'll find Tomas and help him
   ~ remember promise, help, mira, tomas "promised to help the baker's brother"
@@ -114,7 +166,9 @@ Mira lowers her voice, though there's no one else in the shop. 'The bell rings b
 === guard_warning
 present: mira, reeve, village
 
-Brannock lets go of the sack and steps close enough that you can smell his breakfast. 'Careful, stranger,' he says pleasantly. 'The reeve dislikes questions. He dislikes them so much that people who ask them tend to stop.' Behind him, Mira has dragged the flour inside and is watching you through the bakery window with her mouth open.
+Brannock lets go of the sack, which Mira immediately drags inside, and steps close enough that you can smell the apple. 'Careful, stranger,' he says pleasantly. He has never raised his voice in his life. He has never needed to. 'The reeve doesn't like questions. He dislikes them so much that people who ask them tend to stop.' Another bite. 'Tend to stop being anything much, really.'
+
+Through the bakery window, Mira is watching you with her mouth open.
 
 * Raise your hands and back away
   ~ remember yield, guard (seen by village) "backed down from the reeve's guard"
@@ -126,23 +180,26 @@ Brannock lets go of the sack and steps close enough that you can smell his break
 
 === chapel
 present: anwen
-~ visits += 1
 ~ remember world: chapel, anwen, statue, candles (seen by no one)
 
-The chapel smells of wet stone and old candle smoke. Water drips somewhere behind the altar. Sister Anwen, a small, sharp woman in a habit gone grey at the hem, is binding a cracked statue of a saint with a strip of linen, as if setting a broken arm. The saint has no face; it's been worn smooth by hands.
+The chapel smells of wet stone and old smoke, and something behind the altar is dripping with the patience of a clock. Sister Anwen, a small, sharp woman in a habit gone grey at the hem, is binding a cracked statue of a saint with a strip of linen, the way you'd set a broken arm. The saint has no face. Centuries of hands have worn it smooth.
+
+On the lectern beside her the parish register lies open. Even from the door you can see that some of its lines are blank: not empty, but blank the way a word is blank when it has been scraped away.
 
 * Hold the statue steady while she binds it
   ~ remember help, kindness, anwen "held the broken saint steady while it was bound"
   -> anwen_trust
 * Ask her about the bell -> anwen_bell
-* Take a candle from the rack without asking, for the dark later
+* Take a candle from the rack for the dark later. There are dozens
   ~ remember steal, greed, candle, anwen
       "pocketed a chapel candle when you thought nobody was looking"
   -> anwen_bell
 
 
 === anwen_trust
-Anwen ties off the linen and studies you over it. 'Kindness is scarce here,' she says. 'It makes people suspicious. You'll learn.' She nods at the tower through the window. 'They'll tell you the bell is a warning. It isn't, exactly. It's an invitation. It asks you to give it something. Most people say yes eventually.'
+'There. No, there. Thank you.' Anwen ties off the linen and studies you over the saint's bandaged shoulder. 'Kindness is scarce here,' she says. 'It makes people suspicious. You'll learn.'
+
+She nods at the tower through the window. 'They'll tell you the bell is a warning. It isn't, quite. It's an invitation. It asks you for something.' She tucks the end of the linen in. 'I've been here thirty years. Most people say yes eventually.'
 
 * Ask her: an invitation to what? -> anwen_bell
 * Leave her to her prayers -> chapel_exit
@@ -151,9 +208,10 @@ Anwen ties off the linen and studies you over it. 'Kindness is scarce here,' she
 === anwen_bell
 present: anwen
 
-'The bell takes names,' Anwen says. 'You give it a name, yours or someone else's, and in return it gives you what you want most. Bread in a famine. Forgetting, in grief. Then the person whose name you gave stops being anyone. And the bell keeps the name, and uses it to call the next one.'
-She looks at you steadily. 'It rings loudest for people who have broken a promise. It rings for the thing you most wish you hadn't done.'
-{anwen knows candle: Her eyes go, briefly, to your coat pocket.}
+'The bell takes names,' Anwen says, in the voice you'd use for the price of candles. 'You give it a name, yours or someone else's, and it gives you what you want most. Bread in a famine. Forgetting, in grief. And the person whose name you gave stops being anyone at all.' She lays a finger on one of the blank lines in the register. 'I baptised this one. I can't tell you who it was. The bell keeps the name, and uses it to call the next.'
+
+She looks at you steadily. 'It rings loudest for people who've broken a promise. It rings for the thing you most wish you hadn't done.'
+{anwen knows candle: Her eyes go, briefly and without comment, to your coat pocket.}
 
 * Tell her about a lie you once told, and who it hurt
   ~ remember confess, honesty, anwen
@@ -167,17 +225,18 @@ She looks at you steadily. 'It rings loudest for people who have broken a promis
 === chapel_exit
 ~ gossip anwen to village (belief 0.5)
 
-The chapel door closes softly behind you. Through the rain you can see Anwen at the window, already talking to an old woman who has come to light a candle. They both glance your way.
+The chapel door sighs shut behind you. Through the rain-streaked window you watch Anwen turn to an old woman who has come in to light a candle, and lean close. They both look out at you. The old woman says something, and Anwen writes it down.
 
 * Go back to the crossroads -> crossroads
 
 
 === riverbank
 present: tomas, village
-~ visits += 1
 ~ remember world: river, footbridge, tomas (seen by no one)
 
-The river has swallowed half the old footbridge. What's left juts out over the brown water like a broken jaw. A young man sits on a stone at the end of it, staring into the current. He's soaked through and doesn't seem to notice. His hands are trembling. On the far bank, two women stop beating laundry to watch you approach.
+The river took half the old footbridge in the autumn and is still thinking about the rest. What's left sticks out over the brown water like a broken jaw. A young man sits on the last plank with his boots in the current, so soaked he has stopped noticing. His hands shake. He is saying something, over and over, too quietly to hear, and when you get closer you realise it is a name.
+
+On the far bank two women beating laundry on the stones stop to watch you.
 
 * Sit down beside him, and wait
   ~ remember mercy, kindness, tomas (seen by tomas)
@@ -187,9 +246,9 @@ The river has swallowed half the old footbridge. What's left juts out over the b
   ~ remember threat, tomas (seen by tomas)
       "stood over a frightened man at the river and demanded answers"
   -> tomas_story
-* Push him into the river
-  ~ remember violence, tomas, death, river (seen by village) (strength 3)
-      "pushed the baker's brother into the flood"
+* Grab him by the collar and shake the answer out of him
+  ~ remember violence, threat, tomas, death, river (seen by village) (strength 3)
+      "shook the baker's brother until the broken footbridge gave way under him"
   -> river_aftermath
 
 
@@ -198,9 +257,11 @@ present: tomas
 
 {
 - tomasTrusts:
-Tomas looks up when he's ready, which takes a long time. 'I heard my own voice from the bell tower,' he says. 'Three nights ago. It said: bring me a name, and you'll never be hungry again. We've been hungry since the tithe went up.' He watches your face for a flinch. When there isn't one, he keeps going. 'I gave it my mother's name. Elian. Now Mira can't remember her. I can. I'm the only one who can.'
+It takes a long time. You let it. Eventually Tomas stops saying the name to the river and says it to you instead. 'Elian,' he says. 'My mother. I heard my own voice from the tower, three nights ago. It said: bring me a name, and you'll never be hungry again. We've been hungry since the tithe went up.'
+
+He watches your face for the flinch. It doesn't come, so he goes on. 'I gave it hers. In the morning Mira made one bowl of porridge too few and didn't know why. I'm the only one left who remembers her. If I stop saying it, nobody will.'
 - else:
-Tomas looks up at last, wary as a kicked dog. 'I heard my own voice from the bell tower,' he says. 'It told me to bring it a name. I gave it my mother's.' He stops there. Your questions have got an answer out of him, but not his trust.
+Tomas looks up at last, the way something cornered looks up. 'I heard my own voice from the bell tower,' he says. 'It told me to bring it a name. So I did. I gave it my mother's.' Then his mouth shuts like a door. You've had an answer out of him. You haven't had anything else.
 }
 
 * Tell him it isn't too late to make it right
@@ -219,74 +280,77 @@ Tomas looks up at last, wary as a kicked dog. 'I heard my own voice from the bel
 
 {
 - player with truth >= 1: # what you told Tomas
-Tomas takes a small iron key from around his neck. 'The old records are under the tower. The reeve keeps the door locked. Every bargain's written down there.' He presses it into your palm. 'Telling the truth won't bring her back. But it might stop him using her name to call someone else.'
+Tomas pulls a small iron key on a bootlace from inside his shirt. 'There's a low door under the tower. The reeve keeps it locked. Every bargain's written down in there, in his own hand.' He presses the key into your palm and folds your fingers over it, hard. 'The truth won't bring her back. But it might stop him using her name to call the next one.'
 - player with elian >= 1: # you asked about Elian
-After a long silence, Tomas takes a small iron key from around his neck. 'Her name was Elian,' he says again, as if practising. 'She sang when she kneaded bread. The records are under the tower; this opens them. Put her name back in the book if you can. Don't let her be a rumour.'
+For a while Tomas doesn't say anything. Then he pulls a small iron key on a bootlace from inside his shirt. 'She sang when she kneaded bread,' he says. 'Badly. Always the same song, about a drowned bell, which you'd think would have warned somebody.' Something that is nearly a laugh. 'There's a door under the tower. This opens it. Put her name back in the book if you can. Don't let her turn into a rumour.'
 - else:
-Tomas takes a small iron key from around his neck and gives it to you. 'I trust you to keep this quiet,' he says. 'The records are under the tower.' You realise, as you pocket it, that a promise of silence protects the reeve as much as it protects Tomas.
+Tomas pulls a small iron key on a bootlace from inside his shirt and hands it over without looking at you. 'There's a door under the tower,' he says. 'Keep it quiet. You promised.' As you pocket it, it occurs to you that a promise of silence protects the reeve every bit as well as it protects Tomas.
 }
 
 * Thank him, and go -> crossroads
 
 
 === river_aftermath
-~ gossip village to mira, anwen, jory, reeve about death (belief 1)
+~ gossip village to mira, anwen, hob, reeve about death (belief 1)
 
-Tomas goes under without a sound, which is somehow the worst thing. The river takes him and doesn't give him back. On the far bank the laundry women are screaming. One of them is already running up the lane toward the houses, shouting a description of you that is very accurate.
+He wrenches away from you, and the end of the footbridge goes with him. Tomas goes into the river without a sound, which is somehow the worst part. The brown water closes over him. It doesn't open again. On the far bank the laundry women are screaming, and one of them is already running up the lane, shouting a description of you that is very accurate.
 
-By evening, every person in Brackenridge will know what you did. In a village like this one, they will remember it for a hundred years.
+By evening every person in Brackenridge will know what you did. In a village that has made a religion of remembering, they will keep it for a hundred years.
 
 * Get away from the river -> crossroads
 
 
 === inn
 present: sefa
-~ visits += 1
-~ remember world: inn, jory, traveller, ledger (seen by no one)
+~ remember world: inn, hob, traveller, ledger (seen by no one)
 
-The Drowned Hart is warm and crowded and nobody is talking above a mutter. The innkeeper, Jory, is a lean man with a dishcloth over his shoulder and the eyes of someone who has made a living from noticing things. In the corner, a traveller in a red scarf sits alone by the fire, with a full cup she hasn't touched. On the desk by the door sits a thick ledger bound in cracked leather.
+Outside the Drowned Hart, a painted sign of a stag up to its antlers in water hangs from one hinge and bangs whenever the wind gets up. Inside it is warm and full, and nobody is talking above a mutter. The innkeeper, Hob, is a lean man with a dishcloth over one shoulder and a slate behind him on which he has chalked every customer's tab and, you notice, every customer's full name. He watches you come in the way a moneylender watches a coin he isn't sure of.
 
-* Ask Jory about the village -> jory_story
+In the corner a traveller in a red scarf sits alone by the fire, with a full cup she hasn't touched. On the desk by the door lies a fat ledger in cracked leather.
+
+* Ask Hob about the village -> hob_story
 * Sit down with the traveller -> traveller_story
-* Slip the ledger under your coat while Jory's back is turned
+* Slip the ledger under your coat while Hob's back is turned
   ~ remember steal, deception, ledger "stole the innkeeper's ledger off the desk"
   ~ has_ledger = true
   -> inn_exit
 
 
-=== jory_story
-present: jory
+=== hob_story
+present: hob
 
-Jory polishes a cup that is already clean. 'The reeve's been buying names,' he says, without looking up. 'From desperate people. Bread for a name, rent for a name. He takes them to the tower. He calls it the tithe.' He sets the cup down. 'A name's worth more than gold in Brackenridge. Cheaper too, if you're the one buying.'
+Hob polishes a cup that is already clean. 'The reeve's been buying names,' he says, without looking up. 'From desperate people. Bread for a name. Rent for a name. The doctor up from the valley, for a name. He takes them up the tower, and he calls it the tithe.' He sets the cup down exactly in its own ring. 'A name's worth more than gold in Brackenridge. Cheaper, too, if you're the one buying.'
 
 * Ask about the ledger on the desk
-  ~ remember listen, honesty, jory "asked the innkeeper straight out about his ledger"
+  ~ remember listen, honesty, hob "asked the innkeeper straight out about his ledger"
   -> ledger_clue
 * Put a coin on the bar and ask what else he knows
-  ~ remember bribe, jory "tried to buy the innkeeper's secrets with a coin"
+  ~ remember bribe, hob "tried to buy the innkeeper's secrets with a coin"
   -> ledger_clue
 
 
 === ledger_clue
-present: jory, village
+present: hob, village
 
 {
-- jory knows bribe:
-Jory pockets the coin without comment. 'The ledger's a copy,' he says. 'Every bargain made at the tower, in my own hand, because somebody ought to keep count. I don't sell it. But I'll trade. My sign's been hanging off one hinge since the storm. Fix it, and I'll tell you something worth more than that coin.'
+- hob knows bribe:
+Hob makes the coin disappear without appearing to touch it. 'The ledger's a copy,' he says. 'Every bargain made at that tower, in my hand, because somebody ought to keep count and I'm the only man in the village who can add up.' He nods at the door. 'I don't sell it. But I'll trade. My sign's been hanging off one hinge since the storm, and it's bad for business to look drowned twice. Fix it, and I'll give you something worth more than your coin.'
 - else:
-'It's a copy,' Jory says. 'Every bargain made at the tower, in my own hand, because somebody ought to keep count.' He looks at you for a long moment. 'I'll help you, if you help me first. My sign's been hanging off one hinge since the storm, and the reeve won't lend me a ladder.'
+'It's a copy,' Hob says. 'Every bargain made at that tower, in my hand, because somebody ought to keep count and I'm the only man in the village who can add up.' He looks at you for a long moment, adding you up as well. 'I'll help you, if you help me first. My sign's been hanging off one hinge since the storm, and the reeve won't lend me a ladder. Says it's a fire risk. It's a stag.'
 }
 
 * Climb up in the rain and fix his sign
-  ~ remember help, kindness, jory "climbed a ladder in the rain to fix the inn's sign"
-  -> jory_helped
+  ~ remember help, kindness, hob "climbed a ladder in the rain to fix the inn's sign"
+  -> hob_helped
 * Refuse. You didn't come here to do odd jobs -> inn_exit
 
 
-=== jory_helped
+=== hob_helped
 ~ has_rubbing = true
 
-When you come back in, dripping, Jory slides a folded paper across the bar: a charcoal rubbing of a lock. 'The tower door,' he says. 'Took it last winter, the night the reeve was drunk. The key's old. The lock's older. A patient person could manage without either.' Then, quieter: 'I'll be in the square tonight. If it comes to it.'
+When you come back in, soaked through, with the stag hanging straight for the first time in a month, Hob pours you something brown and slides a folded paper across the bar beside it. A charcoal rubbing of a lock. 'The tower door,' he says. 'Took it last winter, the night the reeve drank himself sentimental. Old lock. Older than the key. A patient person could open it without either.'
+
+Then, lower: 'I'll be in the square tonight. If it comes to it.'
 
 * Thank him -> inn_exit
 
@@ -294,7 +358,9 @@ When you come back in, dripping, Jory slides a folded paper across the bar: a ch
 === traveller_story
 present: sefa
 
-The traveller's name is Sefa. She came to Brackenridge, she says, to forget her sister. 'There's a story that the bell takes grief, if you give it a name. I had a name I wanted rid of.' She turns the cup in her hands. 'The bell made sure I remembered. Every night it rings, I remember more.'
+The traveller's name is Sefa, and she says it like someone setting down a heavy bag. She came to Brackenridge, she tells you, to forget her sister. 'There's a story down on the coast that the bell takes grief, if you give it a name. I had a name I wanted rid of.'
+
+She turns the cup and doesn't drink. 'Six nights I've been here. Every night it rings, I remember her better. Her laugh. The way she bit her nails. The bell's very thorough, it turns out, about what it won't take.'
 
 * Tell her about someone you've lost
   ~ remember honesty, confess, sefa "told a stranger by the fire about someone you'd lost"
@@ -307,21 +373,51 @@ The traveller's name is Sefa. She came to Brackenridge, she says, to forget her 
 === traveller_reveal
 {
 - sefa sees you as honest >= 1:
-Sefa is quiet for a long time. Then: 'My sister's name was Elsbet. She came here twelve years ago, in the famine, and married the reeve. She had a daughter. And then the bell had her name, and the daughter's, and nobody here remembers either of them except him. I found her in his ledger.' She looks at the fire. 'The bell doesn't steal people. People give them away. It just keeps them, and uses their names to call more.'
+Sefa is quiet a long time. The fire shifts. 'My sister's name was Elsbet,' she says at last. 'She came here twelve years ago, in the famine, and married the reeve. She had a daughter. And then the bell had her name, and the little one's, and nobody in this village remembers either of them except him.'
+
+She looks at the fire, not at you. 'I found her in Hob's ledger. First page. The bell doesn't steal people. People give them away. It just keeps them, and uses their names to call more.' Then, quieter: 'If you go up that tower, say her name to him. Elsbet. Nobody has said it to his face in twelve years. I'd like to know what it does to him.'
 - else:
-Sefa looks at you as if you've confirmed something. 'The bell doesn't steal people,' she says flatly. 'People give them away. It keeps the names it's given and uses them to call more. That's all you need to know.' She gets up and leaves her cup on the hearth, still full.
+Sefa looks at you as if you've confirmed something she already suspected about people in general. 'The bell doesn't steal people,' she says flatly. 'People give them away. It keeps the names it's given and uses them to call more. That's all you need, and more than you've earned.' She gets up and leaves her cup on the hearth, still full.
 }
 
 * Ask her how to reach the tower -> inn_exit
+* Ask her to come to the square tonight, whatever happens
+  ~ remember promise, honesty, sefa "asked a grieving stranger to stand in the square with you"
+  -> inn_exit
 
 
 === inn_exit
-~ gossip jory to village (belief 0.6)
-~ gossip sefa to jory about ledger (belief 1)
+~ gossip hob to village (belief 0.6)
+~ gossip sefa to hob about ledger (belief 1)
 
-The fire sinks low. The red-scarfed traveller has gone. Jory is talking in a low voice to two farmers at the bar, and when you pass, all three of them stop.
+The fire sinks. The red scarf has gone from the corner. Hob is talking in a low voice to two farmers at the end of the bar, and as you pass, all three of them stop. Without looking at you, Hob wipes something off his slate and writes something else.
 
 * Go back out into the rain -> crossroads
+
+
+=== bell_calls
+~ remember world: bell, offer, voice
+
+You are halfway up the lane to the square when the bell rings, once, and the sound doesn't stop when it should. It goes on underneath everything, under the rain and your own footsteps, and somewhere inside it there is a voice. It is your voice. It is using your name, the one you didn't give the woman at the washing line, and it says it fondly, the way your mother used to.
+{reason == "brother": 'Hal is mine,' it says. 'I have his name. Bring me another, and I'll give him back to you, whole, by morning.'}
+{reason == "debt": 'The man who's looking for you,' it says. 'Bring me a name, and he'll forget your face. Everyone who has ever wanted something from you will forget it.'}
+{reason == "trade": 'Bring me a name,' it says, 'and you'll never count coins again. Not once, for the rest of your life.'}
+'Any name,' it says. 'It needn't be anyone you love. There's a man in the square tonight who has given me forty. Aldous Crane. You could start with his.'
+
+* Give it the name it offered you: Aldous Crane, the reeve. Let him find out what it's like
+  ~ bargained = true
+  ~ target = "reeve"
+  ~ remember bargain, name, reeve (seen by no one) "gave the reeve's name to the bell"
+  -> square
+* {visited guard_warning} Give it the guard's name. Brannock Fell won't be missed
+  ~ bargained = true
+  ~ target = "guard"
+  ~ remember bargain, name, guard (seen by no one) "gave the reeve's guard's name to the bell"
+  -> square
+* Refuse it, out loud, so that it knows
+  ~ remember defiance, refuse, bell "refused the bell's bargain out loud in the street"
+  -> square
+* Say nothing, and walk faster -> square
 
 
 === square
@@ -329,9 +425,12 @@ present: reeve, village
 ~ gossip mira to village (belief 0.7)
 ~ gossip village to reeve (belief 0.8)
 
-At dusk the reeve addresses a crowd in the square. He is a tall, tired man called Aldous Crane, in a good coat gone shabby at the cuffs, and he speaks about the tithe and the flood and patience in a voice like someone reading a will. The bell tower rises behind him, black against the last of the light.
-Then he sees you. 'Our visitor,' he says, and the crowd turns. 'I'm told you've been asking questions.'
+The square is a well, a gibbet somebody has turned into a noticeboard, and most of Brackenridge standing in the rain. On the edge of the well stands the reeve: a tall, tired man called Aldous Crane, in a good coat gone shabby at the cuffs. He is speaking about the tithe and the flood and patience in the voice of someone reading out a will he didn't write. Behind him the tower is black against the last of the light.
+
+Then he sees you, and the sentence he's in stops. 'Our visitor,' he says, and two hundred faces turn. 'I'm told you've been asking questions. I'm told you haven't given anyone your name.'
 {tomasDied: Somebody in the crowd shouts the word murderer. Nobody tells them to be quiet.}
+{target == "reeve": As he speaks his voice keeps dropping out, like a lamp guttering. Nobody else seems to notice. You do. # your bargain}
+{target == "guard": Brannock is not at the reeve's side tonight. Nobody mentions him. Nobody seems to remember he had a side to be at. # your bargain}
 
 * Tell him, and all of them, what you've learned
   ~ remember honesty, truth, reeve
@@ -350,24 +449,29 @@ Then he sees you. 'Our visitor,' he says, and the crowd turns. 'I'm told you've 
 
 
 === reeve_response
-{tomasDied: The reeve watches the crowd turn from you to him and back again. 'You see?' he says to them softly. 'This is what strangers bring.' Your choices have given him a warning, and they have also put your own hands into the story. |}
-{not tomasDied and hasEvidence: The reeve's eyes drop to your coat, as if he can see through it to what you're carrying. He falters. The crowd begins to murmur.}
-{recall village among merciful, violent, honest, deceptive, greedy, defiant: Someone near the front says it out loud, the thing the village has already decided about you: this is the one who {summary}.}
-{villageFears: People step back from you. Not far. Just enough. | Nobody steps back. A few people, you notice, have edged closer.}
-{reeve sees you as deceptive >= 1: The reeve studies your face. He recognises the careful shape of a lie; he's worn it himself for twelve years.}
+{tomasDied: The reeve watches the crowd look from you to him and back. 'You see,' he says to them, softly, almost kindly. 'This is what strangers bring.' He doesn't need to say anything else, and he doesn't. |}
+{not tomasDied and hasEvidence: The reeve's eyes drop to your coat, as if he can see through the cloth to what you're carrying. For the first time tonight he loses his place. A murmur starts at the back of the crowd and doesn't stop.}
+{recall village among merciful, violent, honest, deceptive, greedy, defiant: Somebody near the front says it out loud, the thing the village has already agreed about you: that's the one who {summary}.}
+{villageFears: People step back from you. Not far. Just far enough to be able to say, later, that they weren't standing near you. | Nobody steps back. A few people, you notice, have shuffled closer.}
+{reeve sees you as deceptive >= 1: The reeve studies your face with something like professional interest. He knows the careful shape of a lie. He has been wearing one for twelve years.}
 
 * Turn your back on him and walk to the bell tower -> tower_gate
 * Ask the villagers to stand with you -> crowd
+* Shame them into it: they have all watched him do this, and said nothing
+  ~ shamed = true
+  ~ remember accuse, defiance, village "shamed the whole village for letting the reeve do it"
+  -> crowd
 * Slip away into the alleys before his guards can move -> alleys
 
 
 === crowd
 present: reeve, village
 
-You ask them. For a long moment, nobody moves.
-{miraAlly: Then Mira pushes through from the back, flour still on her arms. 'This one helped me,' she says. 'When none of you would.' | Mira is there, near the bakery. She looks at you, and then down at her feet.}
-{anwenAlly: Sister Anwen steps out from the chapel porch and comes to stand at your left shoulder without saying anything. | Sister Anwen stays in the chapel porch with her hands folded.}
-{joryAlly: Jory leans in the door of the Drowned Hart, then sighs, tosses his dishcloth onto a barrel, and walks over. 'If it comes to it,' he says. | Jory shuts the door of the Drowned Hart, and you hear the bar go across.}
+{shamed == true: Nobody likes being told. Some of them look at their boots. Some of them look as though they'd enjoy hitting you. But all of them are looking. | You ask them. The rain fills the silence for a long moment.}
+{miraAlly: Then Mira shoves through from the back, flour to the elbows, and plants herself beside you. 'This one helped me,' she says. 'When none of you would. Mira Tanner, if anyone's forgotten.' | Mira is there, by the bakery door. She looks at you, and then down at her own floury hands.}
+{anwenAlly: Sister Anwen comes down the chapel steps and stands at your left shoulder without a word, holding the parish register against her chest like a breastplate. | Sister Anwen stays in the chapel porch with her hands folded and her eyes shut.}
+{sefaAlly: At the edge of the crowd a red scarf moves forward. Sefa doesn't look at you. She looks at the reeve, and he looks away first. # Sefa stands with you}
+{hobAlly: Hob leans in the doorway of the Drowned Hart, then sighs, tosses his dishcloth onto a barrel and walks over, chalk still on his fingers. 'If it comes to it,' he says. 'Seems it has.' | Hob shuts the door of the Drowned Hart, and you hear the bar go across.}
 
 * {miraAlly} Ask Mira to speak
   ~ ally = "mira"
@@ -377,9 +481,13 @@ You ask them. For a long moment, nobody moves.
   ~ ally = "anwen"
   ~ remember world: anwen, speaks, bell, village
   -> ally_speaks
-* {joryAlly} Ask Jory to speak
-  ~ ally = "jory"
-  ~ remember world: jory, speaks, ledger, village
+* {sefaAlly} Ask Sefa to speak
+  ~ ally = "sefa"
+  ~ remember world: sefa, speaks, elsbet, village
+  -> ally_speaks
+* {hobAlly} Ask Hob to speak
+  ~ ally = "hob"
+  ~ remember world: hob, speaks, ledger, village
   -> ally_speaks
 * Go to the tower alone
   ~ remember alone, tower (seen by village) "walked to the tower alone"
@@ -391,19 +499,21 @@ You ask them. For a long moment, nobody moves.
 
 {
 - ally == "mira":
-Mira stands on the edge of the well so everyone can see her. 'My brother gave the bell our mother's name,' she says. 'Tomas told me tonight. I can't remember her face. Can any of you remember yours? Your sisters? Your children?' A sound goes through the crowd like wind through barley. Behind you, someone begins to cry, and then several people.
+Mira climbs onto the edge of the well where everyone can see her. 'My brother gave the bell our mother's name,' she says. 'Tomas told me tonight. I've a list of everyone I love chalked on my wall, and there's a smudge in the middle of it, and I've been reading round that smudge for three days.' Her voice cracks, and she lets it. 'Have any of you got a smudge? A chair nobody sits in? A bowl too many on the shelf?' A sound goes through the crowd that isn't a word. Somewhere at the back someone starts to cry, and then a great many people.
 - ally == "anwen":
-Anwen doesn't raise her voice; she doesn't need to. 'For twelve years I have buried people who were not dead,' she says. 'I have said prayers over empty beds because the families could not remember who had slept in them. I let you call it the tithe. I was afraid. I am finished being afraid.' The reeve takes a step back.
+Anwen opens the parish register and holds it up, pages outward, so the square can see the blank lines. 'For twelve years I have buried people who were not dead,' she says. 'I have said prayers over empty beds because the families couldn't remember who had slept in them. I let you call it the tithe. I let him. I was afraid.' She shuts the book. 'I am finished being afraid. It is very tiring, and it hasn't worked.' The reeve takes a step back.
+- ally == "sefa":
+'Elsbet Crane was my sister,' Sefa says, and the reeve flinches as if she's struck him. 'She married him in the famine. She had a daughter called Nell. Look at him. Ask him where they are. Ask yourselves why not one of you remembers them.' Nobody can. That is the terrible part, and everyone in the square feels it at once.
 - else:
-Jory holds up his ledger, or the place where his ledger should be, and recites from memory. 'Hesketh, for rent. Old Alys, for medicine. Elian, for bread.' He goes on. He has every one. The reeve's face goes grey. People are saying names back to Jory now, names they didn't know they'd forgotten.
+Hob holds up his ledger, or the place where his ledger should be, and doesn't open it. He doesn't need to. 'Hesketh Rowe, for rent,' he says. 'Old Alys, for medicine. A boy from the mill, for his father's debts. Elian Tanner, for bread.' He goes on. He has every one, in order, with the price. The reeve's face goes the colour of the rain. Then people start saying names back to Hob, names they didn't know they'd lost, and the sound rises until the reeve can't speak over it.
 }
 
 * Go to the tower with them at your back -> tower_gate
 
 
 === alleys
-You lose the guards in the alleys behind the tannery, in the smell of lye and rot. The bell rings again. This time, under the bronze, you hear a voice in it. It is saying your name. You've never told anyone in Brackenridge your name.
-{recall among violent, deceptive, greedy: Then, in your own voice, it says the thing you most wish you hadn't done, loud enough for every shuttered window to hear: 'You {summary}.' | Then it stops, as if it had expected to have more to say about you, and was disappointed. # the bell}
+You lose the guards in the lanes behind the tannery, all lye and rot and drying hides that hang in the dark like people. The bell rings again. This time you hear the voice clearly. It is saying your name, over and over, gently, the way a mother calls a child in for supper. Every shutter in the lane is closed, and behind every shutter somebody is listening.
+{recall among violent, deceptive, greedy: Then, still in your own voice, it tells them the thing you most wish you hadn't done, loud enough for the whole lane: 'You {summary}.' | Then it stops, as though it had expected to have more to say about you, and was disappointed. # the bell}
 
 * Follow the sound -> tower_gate
 * Hide in a woodshed until dawn
@@ -412,7 +522,7 @@ You lose the guards in the alleys behind the tannery, in the smell of lye and ro
 
 
 === dawn
-At dawn the village is quiet in a way that feels deliberate. Nobody has opened their shutters. When you come out of the woodshed, stiff with cold, you can see the bell tower from the end of the lane, and its iron door is standing open, as if it got tired of waiting for you.
+At dawn Brackenridge is quiet in a way that feels arranged. Not a shutter open. Not a name said. When you crawl out of the woodshed, stiff and smelling of resin, you can see the tower at the end of the lane. Its great door is standing open, as though it got tired of waiting for you.
 
 * Go in -> tower_inside
 
@@ -420,20 +530,44 @@ At dawn the village is quiet in a way that feels deliberate. Nobody has opened t
 === tower_gate
 present: reeve, village
 
-The tower door is oak bound in iron, swollen with rain. In the middle is a lock as big as your two hands, with a narrow slot for a narrow, old key.
+Up close the tower is older than the village, older than the chapel, built of a dark stone that matches nothing else for miles. The door is oak bound in iron and swollen with rain, with a lock in the middle as big as your two hands. Lower down, half drowned in nettles, is a second door, small and iron, with a slot for a narrow, old key.
 
-* {has_key == true} Use Tomas's iron key -> tower_inside
-* {has_rubbing == true} Use Jory's rubbing to work the lock -> tower_inside
+Above you the bell is breathing. You can't hear it. You can feel it in your teeth.
+
+* {has_rubbing == true} Work the great lock with Hob's rubbing, quietly
+  ~ quiet_entry = true
+  -> tower_inside
+* {has_key == true} Use Tomas's key on the low iron door -> records_room
 * Break the door down
+  ~ loud_entry = true
   ~ remember violence, tower, door "broke down the tower door"
   -> tower_inside
 * Search the base of the tower for another way in -> crypt
 
 
+=== records_room
+~ remember world: records, bargains, elsbet, nell
+
+The key turns as though it has been waiting to be asked. Behind the low door is a dry room, the only dry room in Brackenridge, lined from floor to ceiling with ledgers. Every bargain the bell has ever made is here, in the reeve's small, careful, frightened hand: the name, the date, the price. Bread. Rent. Medicine. A good harvest. A husband who'd stop drinking.
+
+You find the first entry without looking for it. It is the only page that has been cried on. *Elsbet Crane. Nell Crane. For bread. The famine winter.*
+{reason == "brother": Further along, in last spring's ledger, you find your brother. *Hal, a stranger. For a debt.* Somebody in Brackenridge owed money, and paid it with him.}
+{reason == "debt": The ledgers are full of debts. Rent, medicine, bread. Every one of them was paid with a person.}
+
+* Tear out the first page and take it with you
+  ~ found_first_entry = true
+  ~ remember truth, record, elsbet "took the first page of the reeve's ledger of bargains"
+  -> tower_inside
+* Leave the ledgers, and climb the inner stair -> tower_inside
+
+
 === crypt
 ~ remember world: crypt, names, elsbet, elian
 
-Round the back, half-hidden by nettles, steps lead down into a flooded crypt. You wade in up to the knee. The walls are carved with names, hundreds, the newest still pale in the stone. One of them is Elsbet. Beside it, small, a child's name: Wren. And near the end, so fresh the dust hasn't settled in the letters: Elian.
+Round the back, behind a curtain of nettles, steps go down into a crypt the river has got into. You wade in to the knee. The water is black and very still, and the walls are carved with names, hundreds of them, from the top of the vault to below the waterline, the oldest worn soft as soap, the newest still pale in the stone.
+
+You run your hand along them in the dark. *Elsbet.* Beside it, small, as if carved by someone trying to make it take up less room: *Nell.* And near the end, so fresh there's still grit in the letters: *Elian.*
+{reason == "brother": Three from the end, cut deeper than the rest, as if someone had been angry: *Hal.*}
 
 * Copy every name into your notebook
   ~ remember truth, names, record "copied every name from the crypt wall"
@@ -448,11 +582,19 @@ Round the back, half-hidden by nettles, steps lead down into a flooded crypt. Yo
 === tower_inside
 present: reeve
 
-Inside, the bell hangs over a mechanism of brass rings, dozens of them, nested like the inside of a clock. Each ring is engraved with a name. They turn very slowly, though nothing drives them. The reeve is standing beside a lectern with a book bound in black leather open on it.
-{crowd_rose == true: Through the open door behind you, you can hear the crowd at the foot of the tower, saying names. | Behind you the door has swung shut. It's just the two of you, and the bell.}
+Inside, the tower is a clock with its face taken off. The bell hangs high in the dark, and below it, filling the whole round room, turns a mechanism of brass rings, dozens of them, nested one inside another. Every ring is engraved with a name. They turn very slowly, though nothing drives them, with a sound like someone breathing through their teeth. The reeve is standing at a lectern with a book bound in black leather.
+{quiet_entry == true: He hasn't heard you come in. He is reading names from the black book in a whisper, and with each one a ring turns a little faster. # Hob's rubbing}
+{loud_entry == true: He heard you coming; half the village did. He has the black book under one arm and the bell's clapper in his other hand.}
+{target == "reeve": He is fainter than he was in the square. He looks at you and knows exactly what you've done. He did it first. # your bargain}
+{crowd_rose == true: Through the door behind you comes the sound of the crowd at the foot of the tower, saying names. | The door has swung shut behind you. It's just the two of you, and the bell, and the rings.}
 {names_spoken == true: Several of the rings have stopped turning.}
 
-* Take the book from the lectern
+* {quiet_entry == true} Take the black book while his back is turned
+  ~ took_book = true
+  ~ remember steal, truth, book (seen by no one) "lifted the black book from under the reeve's hands"
+  -> reeve_confrontation
+* {loud_entry != true and quiet_entry != true} Take the book from the lectern
+  ~ took_book = true
   ~ remember truth, book, reeve "took the black book from the lectern"
   -> reeve_confrontation
 * Ask him why he did it
@@ -468,7 +610,9 @@ Inside, the bell hangs over a mechanism of brass rings, dozens of them, nested l
 present: reeve
 ~ remember vision, elsbet, famine, reeve (seen by no one)
 
-The bronze is warm, like skin. The bell shows you something that isn't yours. A famine winter, twelve years ago. A younger Aldous Crane kneeling in this room with his wife's hand in his, her name already on his lips, and their daughter asleep in a shawl on the floor. The village was eating bark. The bell promised bread. He said two names. The bread came. Every year since, the bell has needed more, and he has fed it, so that nobody will ever know what he paid first.
+The bronze is warm, like skin, and faintly damp, like skin. The bell shows you something that isn't yours.
+
+A famine winter, twelve years ago. A village eating bark. A younger Aldous Crane kneeling in this room with his wife's hand in his and her name already in his mouth, and their daughter asleep in a shawl on the floor because there was nowhere warmer to put her. The bell promised bread. He said two names, very fast, the way you'd pull a tooth. The bread came. And every year since, the bell has wanted more, and he has fed it, so that nobody would ever find out what he paid first.
 
 * Tell him you understand his grief
   ~ remember mercy, kindness, reeve "said you understood the reeve's grief"
@@ -481,27 +625,36 @@ The bronze is warm, like skin. The bell shows you something that isn't yours. A 
 === reeve_confrontation
 {
 - tomasDied:
-The reeve looks past you, out of the slit window, toward the square where people are still saying Tomas's name. 'You know what this village does to people who give it a name?' he says. 'They'll do it to you now. And they'll be right.' The truth is within your reach. So is the cost of how you got here.
+The reeve looks past you, out of the slit window, to the square, where people are saying Tomas Tanner's name. 'Do you know what this village does to people who take one of its names?' he says. 'They'll do it to you now. And they'll be right to.' He doesn't move to stop you. He doesn't have to. You brought the worst thing into the tower with you.
+{not knowsNames: The rings turn and turn. You don't know a single name on them. # the names you carry}
 - reeve sees you as violent >= 2:
-The reeve backs against the brass rings with blood at his mouth and reaches for the bell's clapper with both hands. He believes force is the only language left to him; you have just taught him that again.
+The reeve is backed against the brass rings with blood at his mouth, reaching behind him for the bell's clapper with both hands. He looks almost relieved. For twelve years he has believed that force is the only thing anyone understands, and you have just proved him right.
+{not knowsNames: The rings turn and turn. You don't know a single name on them. # the names you carry}
 - reeve sees you as more merciful than violent, honest, deceptive:
-The reeve sits down on the steps of the lectern as if his legs have stopped working. 'You came here to stop me,' he says. 'Not to punish me. I didn't know there was a difference any more.' He looks up at the bell. 'Elsbet,' he says, very quietly, for the first time in twelve years.
+The reeve sits down on the lectern steps as though his legs have been taken from him. 'You came here to stop me,' he says. 'Not to punish me. I didn't know there was a difference any more.' He looks up into the dark where the bell hangs. 'Elsbet,' he says, very quietly, and the whole mechanism shivers.
+{not knowsNames: The rings turn and turn. You don't know a single name on them. # the names you carry}
 - reeve sees you as deceptive >= 1:
-The reeve looks at you the way one liar looks at another: with a kind of tired recognition. 'Neither of us is what we told them,' he says. 'So. What do you want? Everyone who comes up here wants something.'
+The reeve looks at you the way one liar looks at another across a card table: tired recognition, and a little relief at not having to pretend. 'Neither of us is what we told them,' he says. 'So. What do you want? Everyone who climbs up here wants something.'
+{not knowsNames: The rings turn and turn. You don't know a single name on them. # the names you carry}
 - else:
-The reeve waits, his hand resting on the black book, for you to make the first move.
+The reeve waits by the lectern with his hands folded, for you to make the first move. He has the look of a man who has been waiting a long time for somebody to.
+{not knowsNames: The rings turn and turn. You don't know a single name on them. # the names you carry}
 }
 
+* {knowsElsbet} Say his wife's name to him: Elsbet
+  ~ said_elsbet = true
+  ~ remember mercy, truth, elsbet, reeve "said his wife's and his daughter's names to the reeve's face"
+  -> ending_release
 * Destroy the bell -> ending_destroy
-* Release every name -> ending_release
-* Take hold of the bell yourself -> ending_control
-* Offer the bell your own name, in exchange for all of theirs -> ending_sacrifice
+* {knowsNames} Release every name -> ending_release
+* {touchedBell} Take hold of the bell yourself -> ending_control
+* {knowsBell} Offer the bell your own name, in exchange for all of theirs -> ending_sacrifice
 
 
 === ending_destroy
 present: reeve, village
 
-You take a stone from the window ledge and bring it down on the bell's lip with everything you have. The sound cracks the clouds. Every name in the rings comes loose at once, a sound like a flock of birds leaving a field, and the tower begins to come apart around you, brass and timber and stone.
+You take a stone from the window ledge and bring it down on the bell's lip with everything you have. The sound it makes isn't a ring. It's a crack, like ice going on a river, and it goes on and on. Every name in the rings comes loose at once, a noise like a whole field of birds getting up, and the tower begins to come apart around you, brass and timber and old dark stone.
 
 * Get everyone out: the reeve, the crowd at the door, anyone
   ~ remember help, mercy, tower
@@ -516,7 +669,8 @@ You take a stone from the window ledge and bring it down on the bell's lip with 
 === ending_release
 present: reeve, village
 
-You open the black book and read the names aloud, the way Jory would have, the way Elian would have wanted. One by one, the brass rings turn and stop and fall silent. Outside, at the foot of the tower, somebody gasps, and then somebody else, and then you hear a woman say 'Mother?' as if she's just remembered she had one. The bell grows quiet as the names return to the people who gave them away.
+{said_elsbet == true: The reeve says the first two himself. Elsbet. Nell. His voice goes on the second, and you take over.}
+You read the names aloud, every one you carry, the way Hob would have, the way Elian would have sung them, badly. One by one the brass rings slow, and stop, and fall silent. At the foot of the tower somebody gasps, and then somebody else, and then you hear a woman say 'Mother?' in the voice of someone who has just remembered she had one. The bell goes quiet as the names find their way home to the people who gave them away.
 
 * Sit down beside the reeve
   ~ remember mercy, kindness, reeve "sat beside the reeve while the names came home"
@@ -529,7 +683,9 @@ You open the black book and read the names aloud, the way Jory would have, the w
 === ending_control
 present: reeve, village
 
-You put both hands on the bronze. The bell accepts you. You feel every name in Brackenridge at once, like knowing where every coin in your purse is. You could call any of them. You could call anyone. Below, the village has fallen absolutely silent, waiting to hear what you'll do.
+You put both hands on the bronze, and the bell, which has been waiting for this, accepts you. All at once you can feel every name in Brackenridge the way you can feel your own teeth with your tongue: Mira Tanner, Ivo Marsh, Wynn Hollis, Hob, all of them, warm and small and yours. You could call any one of them. You could call anyone at all.
+
+Below, the whole village has gone completely silent, listening to find out what you are.
 
 * Keep it. Somebody has to, and you'll do it better than he did
   ~ remember greed, control, bell "took the bell for yourself"
@@ -540,7 +696,7 @@ You put both hands on the bronze. The bell accepts you. You feel every name in B
 
 
 === ending_sacrifice
-You say your name to the bell. The bell takes it. For a moment you are nobody. The reeve looks at you and frowns slightly, the way you'd frown at a coat left on a chair. Then every ring in the mechanism spins loose at once, and the names pour out of the tower like water out of a broken dam.
+You say your name to the bell. You have never said it so carefully. The bell takes it, and for a moment you are nobody: a draught, a coat left on a chair. The reeve looks at you and frowns slightly, the way you'd frown at a room you came into for something and can't think what. Then every ring in the mechanism spins loose at once, and the names pour out of the tower like water out of a broken dam.
 
 * Let them forget you
   ~ remember mercy, sacrifice, name "gave the bell your own name"
@@ -549,26 +705,32 @@ You say your name to the bell. The bell takes it. For a moment you are nobody. T
 
 
 === final_free (ending)
-Brackenridge wakes the next morning to a sky with no bell in it. People walk around touching doorframes and saying names. The tithe stops. It will take a generation for anyone to trust the quiet.
+Brackenridge wakes the next morning under a sky with no bell in it. People walk about touching doorframes and saying names, and for once nobody needs to. The tithe stops. Over the winter the white names on the lintels fade, and nobody repaints them. It will take a generation for anyone to trust the quiet.
 {tomasDied: They let you leave. Nobody stops you, and nobody says goodbye. Tomas's name is carved on the new stone by the river, and under it, without a name, a line about the stranger who came the year the bell broke. |}
-{not tomasDied and tomasTrusts: Tomas walks you to the edge of the village. He has started singing when he works, he tells you, one of his mother's songs. He's not very good. He sings it anyway.}
+{reason == "brother": With the names comes Hal, walking out of the wood at dawn with leaves in his hair, asking why everyone is staring at him.}
+{target == "guard": Brannock Fell walks back into the market at noon, blinking, and Mira gives him a loaf before she remembers she can't stand him.}
+{target == "reeve": The reeve's name comes home with all the others. He is the only person in Brackenridge who looks at you when it does.}
+{visited traveller_story and not tomasDied: Sefa leaves on the first coach to the coast. She remembers Elsbet now, all of her, and Nell, whom she never met.}
+{not tomasDied and tomasTrusts: Tomas walks you to the edge of the village. He has started singing when he works, he tells you, his mother's song about the drowned bell. He's not very good. He sings it anyway.}
 
-{recall mira among merciful, violent, honest, deceptive, greedy, defiant: Mira tells the story at the bakery counter for the rest of her life. In her version, you're the one who {summary}.}
-{recall jory among merciful, violent, honest, deceptive, greedy, defiant: Jory writes one last entry in his ledger: a stranger who {summary}.}
+{recall mira among merciful, violent, honest, deceptive, greedy, defiant: Mira tells the story across the bakery counter for the rest of her life. In her version, you're the one who {summary}.}
+{recall hob among merciful, violent, honest, deceptive, greedy, defiant: Hob writes one last entry in his ledger: a stranger who {summary}.}
 {recall village about reeve: The village will tell it differently for generations. Most versions agree on one thing: when it came to the reeve, you {summary}.}
 
 
 === final_cost (ending)
 {crowd_rose == true: You get out. The tower doesn't, and neither do all of the people who followed you to its door. The names come home to Brackenridge on the same night that three families lose someone under the stones, and the village never quite separates the two in its memory. | You get out. The tower doesn't, and neither does the reeve. The names come home to Brackenridge on the same night its reeve dies under the stones, alone with his book, and the village never quite separates the two in its memory.}
-{crowd_rose == true: The people who stood with you at the foot of the tower were the ones closest to the door. You find out their names afterwards. You make yourself learn them.}
+{reason == "brother": Hal walks out of the wood with the others. You meet him on the road, both of you white with stone dust, and for a moment neither of you knows the other.}
+{crowd_rose == true: The people who stood with you at the foot of the tower were the ones closest to the door. You find out their names afterwards. You make yourself learn them, and say them, every morning, like a list on a wall.}
 
 {recall anwen among merciful, violent, honest, deceptive, greedy, defiant: Sister Anwen says the funeral prayers. When someone asks her about the stranger, she says only that you {summary}, and lets them make of it what they will.}
 {recall village about reeve: Your choices are remembered unevenly. But everyone agrees that when it came to the reeve, you {summary}.}
 
 
 === final_reconcile (ending)
-The reeve weeps, and keeps weeping, and nobody comes up the stairs to stop him. In the morning he walks down into the square and says his wife's name, and his daughter's, and then every other name in the book, in order, to the faces of the people he took them from. Brackenridge does not forgive him. It begins the harder, slower work of understanding what happened, and who let it.
-Mira opens the bakery at sunrise. She remembers her mother's face now, and she makes Elian's bread, the plaited kind, and gives it away all morning.
+The reeve weeps, and keeps weeping, and nobody comes up the stairs to stop him. In the morning he walks down into the square in his shabby coat and says his wife's name, and his daughter's, and then every other name in the book, in order, to the faces of the people he took them from. It takes until noon. Brackenridge does not forgive him. It begins the harder, slower work of understanding what happened, and who let it.
+{reason == "brother": Hal is in the square by then, thin and baffled, eating Mira's bread with both hands.}
+Mira opens the bakery at sunrise. She has rubbed out the smudge on her wall and written ELIAN over it, bigger than all the other names, and she makes Elian's bread, the plaited kind, and gives it away all morning.
 
 {names_copied == true: You leave your notebook with Anwen: every name from the crypt wall, in your handwriting. She puts it on the altar, where the faceless saint used to stand.}
 {recall reeve among merciful, violent, honest, deceptive, greedy, defiant: Years later, an old man in a shabby coat tells a child about the stranger who {summary}. 'It was the first kind thing anyone had done for me in twelve years,' he says, 'and I didn't deserve it.'}
@@ -576,7 +738,10 @@ Mira opens the bakery at sunrise. She remembers her mother's face now, and she m
 
 
 === final_rule (ending)
-You become the keeper of the bell. Brackenridge is safe, after a fashion: orderly, fed, and afraid. The names are no longer stolen. They are surrendered by permission, to you, and you keep a very fair ledger.
+You become the keeper of the bell. Brackenridge is safe, after a fashion: orderly, fed, and afraid. The names are no longer stolen. They are surrendered by permission, to you, and you keep a very fair ledger in a small, careful hand that you don't quite recognise as your own.
+{reason == "brother": You give Hal his name back yourself. He thanks you, and is afraid of you, and never quite stops being either.}
+{reason == "debt": Nobody ever comes looking for you about the debt. The keeper of the bell can make sure of that.}
+{reason == "trade": You never count coins again. The bell was as good as its word.}
 {villageFears: Nobody is surprised. They had already decided what you were. | That's the part that hurts the people who stood with you most: they had believed you were different.}
 
 {recall anwen among merciful, violent, honest, deceptive, greedy, defiant: Sister Anwen keeps praying for the stranger who {summary}. She does not pray for the keeper of the bell. She doesn't think they're the same person.}
@@ -584,10 +749,12 @@ You become the keeper of the bell. Brackenridge is safe, after a fashion: orderl
 
 
 === final_sacrifice (ending)
-Years later, a child in Brackenridge asks who saved the village. Nobody can tell her. There was a stranger, people say, the year of the flood; or there wasn't; or it was a saint. The bell is still there, cracked and silent in its tower, and it never rings again.
+Years later, a child in Brackenridge asks who saved the village. Nobody can tell her. There was a stranger, people say, the year of the flood; or there wasn't; or it was a saint. The bell is still there, cracked and silent in its tower, and it never rings again. Over the chapel door somebody has painted a lintel with no name on it, and nobody can remember why.
 {tomas sees you as more merciful than violent: Tomas, alone of all of them, has the feeling of having forgotten someone. He carves a blank space on the stone by the river, beside his mother's name. He couldn't tell you why. | Nobody carves anything. There's nothing to carve. # Tomas, almost}
 
-{miraAlly: Mira bakes an extra loaf every morning and leaves it on the windowsill. She tells her customers it's for luck. She doesn't remember who it's for.}
-{jory knows help, jory: Jory's ledger has a page in it in his own handwriting about a stranger who fixed his sign in the rain. The name has been left blank. He reads that page sometimes, and it makes him unaccountably sad.}
+{miraAlly: Mira bakes an extra loaf every morning and leaves it on the windowsill. She tells her customers it's for luck. There's a smudge on her chalk wall that she reads round every morning, and she doesn't know whose it is.}
+{hob knows help, hob: Hob's ledger has a page in it, in his own handwriting, about a stranger who fixed his sign in the rain. The name has been left blank. He reads that page sometimes, and it makes him unaccountably sad.}
 {tomasDied: On the stone by the river, Tomas's name is carved with the others the bell gave back. Nobody in Brackenridge can say any longer who put him in the water. That was in the bargain too, and you didn't ask.}
+{reason == "brother": Hal comes home with the others. He doesn't remember having anyone who came looking for him. He thinks he walked out of the wood on his own.}
+{reason == "debt": Somewhere, a man who was looking for you about a debt finds he can't remember who he was looking for.}
 Whatever Brackenridge thought of you, it thinks it faintly now, the way you remember a dream at noon.

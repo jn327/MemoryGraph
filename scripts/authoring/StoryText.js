@@ -247,13 +247,7 @@
         }
         story.id = /^[0-9]/.test(id) ? "story_" + id : id;
       }
-      const ordered = { id: story.id, title: story.title };
-      for (const key of ["synopsis", "start", "memory"]) {
-        if (story[key] !== undefined) {
-          ordered[key] = story[key];
-        }
-      }
-      return ordered;
+      return story;
     }
 
     parseCharacters(lines, characters) {
@@ -395,17 +389,12 @@
         }
       }
 
-      const ordered = {};
       if (scene.ending) {
-        ordered.ending = true;
+        node.ending = true;
       }
-      const text = this.parseSceneText(textLines, scene, prefix);
-      ordered.text = text;
-      if (node.present !== undefined) {
-        ordered.present = node.present;
-      }
+      node.text = this.parseSceneText(textLines, scene, prefix);
       if (onEnter.length > 0) {
-        ordered.onEnter = this.parseOperations(onEnter, prefix + " onEnter");
+        node.onEnter = this.parseOperations(onEnter, prefix + " onEnter");
       }
       if (scene.ending && choices.length > 0) {
         this.fail("scene '" + scene.id + "' is an ending, so it can't have choices. Remove (ending) from its heading or remove the choices.", choices[0].head.number);
@@ -415,11 +404,11 @@
           this.fail("scene '" + scene.id + "' has no choices. Add some lines starting with *, or mark it '=== " + scene.id + " (ending)'.", scene.line);
         }
         const ids = new Set();
-        ordered.choices = choices.map((choice) => this.parseChoice(choice, prefix, ids));
+        node.choices = choices.map((choice) => this.parseChoice(choice, prefix, ids));
       }
       this.resolveWitnesses();
       this.scene = null;
-      return ordered;
+      return node;
     }
 
     parseSceneText(lines, scene, prefix) {
@@ -429,8 +418,7 @@
       }
       const opener = content.findIndex(function (line) { return line.text.trim() === "{"; });
       if (opener === -1) {
-        const built = this.buildPassage(lines, prefix + " text variant 0");
-        return built;
+        return this.buildPassage(lines, prefix + " text variant 0");
       }
       if (opener !== 0) {
         this.fail("a { … } block of alternatives must be the scene's whole text. To vary part of a passage, use {condition: text} inside it.", content[opener].number);
@@ -681,9 +669,22 @@
       let text = choice.head.text.trim().slice(1).trim();
       const result = {};
       let id;
-      const label = /^\(([a-z0-9_]+)\)\s*/.exec(text);
+      let once = false;
+      // "(label)", "(once)" or "(label, once)" before the text.
+      const label = /^\(\s*([a-z0-9_]+(?:\s*,\s*[a-z0-9_]+)*)\s*\)\s*/.exec(text);
       if (label !== null) {
-        id = label[1];
+        for (const word of label[1].split(",").map(function (part) { return part.trim(); })) {
+          if (word === "once") {
+            if (once) {
+              this.fail("this choice says (once) twice.", line);
+            }
+            once = true;
+          } else if (id !== undefined) {
+            this.fail("a choice can have only one label, as in (" + id + ", once).", line);
+          } else {
+            id = word;
+          }
+        }
         text = text.slice(label[0].length);
       }
       let showIf;
@@ -710,6 +711,7 @@
         this.fail("this choice has no text.", line);
       }
       result.text = this.template(text, line, false);
+      const labelled = id !== undefined;
       if (id === undefined) {
         id = choiceId(result.text);
       }
@@ -717,18 +719,21 @@
       for (let count = 2; ids.has(unique); count += 1) {
         unique = id + "_" + count;
       }
-      if (unique !== id && label !== null) {
+      if (unique !== id && labelled) {
         this.fail("two choices in this scene are labelled (" + id + ").", line);
       }
       ids.add(unique);
       const where = prefix + " choice '" + unique + "'";
       this.lines[where] = line;
-      const ordered = { id: unique, text: result.text };
+      result.id = unique;
       if (showIf !== undefined) {
-        ordered.showIf = showIf;
+        result.showIf = showIf;
       }
       if (tag !== undefined) {
-        ordered.tag = tag;
+        result.tag = tag;
+      }
+      if (once) {
+        result.once = true;
       }
 
       const operations = [];
@@ -751,20 +756,20 @@
         }
       }
       if (operations.length > 0) {
-        ordered.do = this.parseOperations(operations, where + " do");
+        result.do = this.parseOperations(operations, where + " do");
       }
       if (inlineRoute !== undefined && routes.length > 0) {
         this.fail("this choice has a '->' on its own line and another one below. Use one or the other.", line);
       }
       if (inlineRoute !== undefined) {
         this.checkName(inlineRoute, this.sceneIds, "scene", line);
-        ordered.goto = inlineRoute;
+        result.goto = inlineRoute;
       } else if (routes.length === 0) {
         this.fail("this choice doesn't say where it goes. End it with '-> scene_name'.", line);
       } else {
-        ordered.goto = this.parseRoutes(routes, where);
+        result.goto = this.parseRoutes(routes, where);
       }
-      return ordered;
+      return result;
     }
 
     parseRoutes(lines, where) {
@@ -792,20 +797,7 @@
       if (entries[entries.length - 1].if !== undefined) {
         this.fail("the last '->' needs no 'if', so the choice always has somewhere to go.", lines[lines.length - 1].number);
       }
-      if (entries.length === 1) {
-        return entries[0].node;
-      }
-      return entries.map(function (entry) {
-        const ordered = {};
-        if (entry.if !== undefined) {
-          ordered.if = entry.if;
-        }
-        ordered.node = entry.node;
-        if (entry.tag !== undefined) {
-          ordered.tag = entry.tag;
-        }
-        return ordered;
-      });
+      return entries.length === 1 ? entries[0].node : entries;
     }
 
     // Each item is a "~ …" line plus its indented continuation lines; a
@@ -1005,18 +997,12 @@
       if (summary !== undefined) {
         operation.summary = this.template(summary.trim(), line, false);
       }
-      const ordered = { type: "remember", concepts: operation.concepts };
-      for (const key of ["subject", "strength", "summary"]) {
-        if (operation[key] !== undefined) {
-          ordered[key] = operation[key];
-        }
-      }
       if (this.scene) {
-        this.scene.remembers.push({ operation: ordered, witnesses: witnesses, linkedTo: linkedTo, line: line });
+        this.scene.remembers.push({ operation: operation, witnesses: witnesses, linkedTo: linkedTo, line: line });
       } else if (witnesses !== undefined && witnesses !== null) {
-        ordered.witnesses = witnesses;
+        operation.witnesses = witnesses;
       }
-      return ordered;
+      return operation;
     }
 
     // Remembers without (seen by …) are seen by the scene's present:
@@ -1032,17 +1018,7 @@
         }
         resolved.set(entry.operation, witnesses);
         if (witnesses !== null) {
-          const ordered = {};
-          for (const [key, value] of Object.entries(entry.operation)) {
-            ordered[key] = value;
-            if (key === "concepts") {
-              ordered.witnesses = Array.isArray(witnesses) ? witnesses.slice() : witnesses;
-            }
-          }
-          for (const key of Object.keys(entry.operation)) {
-            delete entry.operation[key];
-          }
-          Object.assign(entry.operation, ordered);
+          entry.operation.witnesses = Array.isArray(witnesses) ? witnesses.slice() : witnesses;
         }
       }
     }
@@ -1343,7 +1319,21 @@
         this.next();
         const node = this.expectIdent("a scene");
         parser.checkName(node, parser.sceneIds, "scene", this.line);
+        const comparison = this.peek();
+        if (comparison !== undefined && comparison.kind === "symbol" && hasOwn(COMPARISONS, comparison.value)) {
+          this.next();
+          const count = this.next();
+          if (count === undefined || count.kind !== "number" || !Number.isSafeInteger(count.value) || count.value < 0) {
+            this.fail("compare a visit count with a whole number, for example 'visited " + node + " >= 2'.");
+          }
+          return { type: "visited", node: node, operator: COMPARISONS[comparison.value], value: count.value };
+        }
         return { type: "visited", node: node };
+      }
+      if (word === "first" && this.peekWord("visit", 1)) {
+        this.next();
+        this.next();
+        return { type: "firstVisit" };
       }
       const following = this.peek(1);
       if (following !== undefined && following.kind === "symbol" && hasOwn(COMPARISONS, following.value)) {
@@ -1573,7 +1563,6 @@
   const StoryText = {
     parse: parse,
     lineFor: lineFor,
-    suggest: suggest,
     StoryTextError: StoryTextError
   };
 

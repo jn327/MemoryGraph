@@ -36,7 +36,7 @@ For substantial changes, wait for approval before implementing.
 ## Step 4: Verify
 - Run relevant tests.
 - There is no production build step. After changing a built-in story in
-  `stories/*.txt`, run `node scripts/build-stories.js`. Run automated tests
+  `stories/*.txt`, run `node tools/build-stories.js`. Run automated tests
   with `node --test`.
   If Node.js is not installed, VS Code's runtime works:
   `ELECTRON_RUN_AS_NODE=1 "$LOCALAPPDATA/Programs/Microsoft VS Code/Code.exe" --test tests/*.test.js`.

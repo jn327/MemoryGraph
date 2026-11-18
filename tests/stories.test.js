@@ -1,7 +1,7 @@
 "use strict";
 
 // Plays every built-in story many times with seeded random choices (see
-// scripts/StoryCheck.js). Each run must finish without errors or dead ends,
+// scripts/authoring/StoryCheck.js). Each run must finish without errors or dead ends,
 // together the runs must reach every node, and the story must have no
 // authoring warnings. Text that no run ever showed is reported as a
 // diagnostic: it may be unreachable, or just rare.
@@ -10,9 +10,9 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
-const StoryCheck = require("../scripts/StoryCheck.js");
-const StoryText = require("../scripts/StoryText.js");
-const { buildOutputs } = require("../scripts/build-stories.js");
+const StoryCheck = require("../scripts/authoring/StoryCheck.js");
+const StoryText = require("../scripts/authoring/StoryText.js");
+const { buildOutputs } = require("../tools/build-stories.js");
 
 const RUNS = 1500;
 const STORIES = path.join(__dirname, "..", "stories");
@@ -42,7 +42,7 @@ for (const { file, definition, todos } of readStories()) {
   });
 }
 
-test("stories/built matches the .txt stories (run node scripts/build-stories.js)", function () {
+test("stories/built matches the .txt stories (run node tools/build-stories.js)", function () {
   const { files, errors } = buildOutputs();
   assert.deepEqual(errors, []);
   const built = path.join(STORIES, "built");

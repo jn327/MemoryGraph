@@ -6,16 +6,21 @@
   // branches no run ever reached, how often each ending came up, and the
   // engine's authoring warnings. Used by the test suite and the demo's
   // "Check story" button. Results are deterministic for the same seed.
+  //
+  // For the story map it also counts how many runs reached each scene
+  // (nodeRuns) and took each route between two scenes (routeRuns, keyed
+  // "from>to"), and how long the finished runs were in choices and in words
+  // read (lengths: { choices, words }, each { min, median, max }).
 
   const DEFAULT_RUNS = 500;
-  const DEFAULT_MAX_STEPS = 250;
+  const MAX_STEPS = 250;
   const MAX_REPORTED_ERRORS = 10;
+  const SEED = 1;
 
   function check(definition, options) {
-    const settings = options === undefined ? {} : options;
-    const runs = settings.runs === undefined ? DEFAULT_RUNS : settings.runs;
-    const maxSteps = settings.maxSteps === undefined ? DEFAULT_MAX_STEPS : settings.maxSteps;
-    const seed = settings.seed === undefined ? 1 : settings.seed;
+    const runs = options === undefined || options.runs === undefined ? DEFAULT_RUNS : options.runs;
+    const seed = SEED;
+    const maxSteps = MAX_STEPS;
     const NarrativeEngine = loadEngine();
 
     const fired = new Set();
@@ -23,26 +28,41 @@
     const endings = {};
     const errors = [];
     const errorMessages = new Set();
-    const probe = new NarrativeEngine(definition);
+    const nodeRuns = {};
+    const routeRuns = {};
+    const choiceCounts = [];
+    const wordCounts = [];
+    // One engine plays every run; reset() clears its progress and memory.
+    const engine = new NarrativeEngine(definition, {
+      onBranch: function (id) { fired.add(id); }
+    });
 
     for (let run = 0; run < runs; run += 1) {
       const next = random(seed + run);
-      const engine = new NarrativeEngine(definition, {
-        onBranch: function (id) { fired.add(id); }
-      });
+      engine.reset();
+      const reached = new Set();
+      const routes = new Set();
       try {
         let view = engine.start();
         visited.add(view.nodeId);
+        reached.add(view.nodeId);
+        let words = countWords(view.text);
         let steps = 0;
         while (!view.ended) {
           steps += 1;
           if (steps > maxSteps) {
             throw new Error("did not reach an ending within " + maxSteps + " choices");
           }
+          const from = view.nodeId;
           view = engine.choose(Math.floor(next() * view.choices.length));
           visited.add(view.nodeId);
+          reached.add(view.nodeId);
+          routes.add(from + ">" + view.nodeId);
+          words += countWords(view.text);
         }
         endings[view.nodeId] = (endings[view.nodeId] || 0) + 1;
+        choiceCounts.push(steps);
+        wordCounts.push(words);
       } catch (error) {
         const message = error && error.message ? error.message : String(error);
         if (!errorMessages.has(message) && errors.length < MAX_REPORTED_ERRORS) {
@@ -50,11 +70,13 @@
           errors.push({ run: run, seed: seed + run, message: message });
         }
       }
+      reached.forEach(function (id) { nodeRuns[id] = (nodeRuns[id] || 0) + 1; });
+      routes.forEach(function (key) { routeRuns[key] = (routeRuns[key] || 0) + 1; });
     }
 
-    const nodes = Object.keys(probe.story.nodes);
+    const nodes = Object.keys(engine.story.nodes);
     for (const id of nodes) {
-      if (probe.story.nodes[id].ending === true && endings[id] === undefined) {
+      if (engine.story.nodes[id].ending === true && endings[id] === undefined) {
         endings[id] = 0;
       }
     }
@@ -62,10 +84,24 @@
       runs: runs,
       errors: errors,
       unvisitedNodes: nodes.filter(function (id) { return !visited.has(id); }),
-      missedBranches: probe.branches().filter(function (id) { return !fired.has(id); }),
+      missedBranches: engine.branches().filter(function (id) { return !fired.has(id); }),
       endings: endings,
-      warnings: probe.lint()
+      warnings: engine.lint(),
+      nodeRuns: nodeRuns,
+      routeRuns: routeRuns,
+      lengths: { choices: spread(choiceCounts), words: spread(wordCounts) }
     };
+  }
+
+  function countWords(text) {
+    const words = String(text || "").match(/[A-Za-z0-9À-ɏ'’-]+/g);
+    return words === null ? 0 : words.length;
+  }
+
+  function spread(values) {
+    if (values.length === 0) return null;
+    const sorted = values.slice().sort(function (a, b) { return a - b; });
+    return { min: sorted[0], median: sorted[Math.floor(sorted.length / 2)], max: sorted[sorted.length - 1] };
   }
 
   function loadEngine() {
@@ -73,8 +109,8 @@
       return root.NarrativeEngine;
     }
     if (typeof require === "function") {
-      require("./MemoryGraph.js");
-      return require("./NarrativeEngine.js");
+      require("../core/MemoryGraph.js");
+      return require("../core/NarrativeEngine.js");
     }
     throw new Error("NarrativeEngine must be loaded before StoryCheck.");
   }

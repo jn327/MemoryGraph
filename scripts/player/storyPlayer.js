@@ -1,57 +1,93 @@
 (function () {
   "use strict";
 
-  const fileInput = document.getElementById("story-files");
-  const textInput = document.getElementById("story-text-files");
-  const folderUploadButton = document.getElementById("folder-upload-button");
-  const filesUploadButton = document.getElementById("files-upload-button");
-  const watchFileButton = document.getElementById("watch-file-button");
-  const picker = document.getElementById("story-picker");
-  const pickerTitle = document.getElementById("story-picker-title");
-  const storyMenu = document.getElementById("story-menu");
-  const storyOptions = document.getElementById("story-options");
-  const storyKicker = document.getElementById("story-kicker");
-  const storyTitle = document.getElementById("story-title");
-  const storyText = document.getElementById("story-text");
-  const nodeCounter = document.getElementById("node-counter");
-  const choiceList = document.getElementById("choice-list");
-  const endingSummary = document.getElementById("ending-summary");
-  const endingTraces = document.getElementById("ending-traces");
-  const endingSummaryEmpty = document.getElementById("ending-summary-empty");
-  const endingPath = document.getElementById("ending-path");
-  const endingPathLabel = document.getElementById("ending-path-label");
-  const endingChoices = document.getElementById("ending-choices");
-  const endingActions = document.getElementById("ending-actions");
-  const endingReputation = document.getElementById("ending-reputation");
-  const endingReputationList = document.getElementById("ending-reputation-list");
-  const restartButton = document.getElementById("restart-button");
-  const clearButton = document.getElementById("clear-button");
-  const saveButton = document.getElementById("save-button");
-  const restoreButton = document.getElementById("restore-button");
-  const statusMessage = document.getElementById("status-message");
-  const memoryTotal = document.getElementById("memory-total");
-  const memoryList = document.getElementById("memory-list");
-  const infoButton = document.getElementById("info-button");
-  const tagsButton = document.getElementById("tags-button");
-  const reputationPanel = document.getElementById("reputation-panel");
-  const reputationTabs = document.getElementById("reputation-tabs");
-  const reputationBody = document.getElementById("reputation-body");
-  const debugPanel = document.getElementById("debug-panel");
-  const debugClose = document.getElementById("debug-close");
-  const graphSummary = document.getElementById("graph-summary");
-  const graphVisualization = document.getElementById("graph-visualization");
-  const graphEmpty = document.getElementById("graph-empty");
-  const debugContent = document.getElementById("debug-content");
-  const checkButton = document.getElementById("check-button");
-  const checkResults = document.getElementById("check-results");
-  const sceneSelect = document.getElementById("scene-select");
-  const scenePresets = document.getElementById("scene-presets");
-  const sceneStartButton = document.getElementById("scene-start-button");
+  // The page's elements, looked up once. A missing one is a mistake in
+  // index.html, so it fails loudly here rather than quietly later.
+  function byId(id) {
+    const element = document.getElementById(id);
+    if (element === null) {
+      throw new Error("index.html has no element with id '" + id + "'.");
+    }
+    return element;
+  }
+
+  // "1 scene", "3 scenes"; pass the plural when it isn't just an added s.
+  function plural(count, word, many) {
+    return count.toLocaleString("en") + " " + (count === 1 ? word : many === undefined ? word + "s" : many);
+  }
+
+  const fileInput = byId("story-files");
+  const textInput = byId("story-text-files");
+  const folderUploadButton = byId("folder-upload-button");
+  const filesUploadButton = byId("files-upload-button");
+  const watchFileButton = byId("watch-file-button");
+  const picker = byId("story-picker");
+  const pickerTitle = byId("story-picker-title");
+  const storyMenu = byId("story-menu");
+  const storyOptions = byId("story-options");
+  const storyTitle = byId("story-title");
+  const storyText = byId("story-text");
+  const choiceList = byId("choice-list");
+  const endingSummary = byId("ending-summary");
+  const endingOverall = byId("ending-overall");
+  const endingPath = byId("ending-path");
+  const endingPathLabel = byId("ending-path-label");
+  const endingChoices = byId("ending-choices");
+  const endingActions = byId("ending-actions");
+  const endingReputationList = byId("ending-reputation-list");
+  const restartButton = byId("restart-button");
+  const clearButton = byId("clear-button");
+  const statusMessage = byId("status-message");
+  const infoButton = byId("info-button");
+  const tagsButton = byId("tags-button");
+  const menuButton = byId("menu-button");
+  const appMenu = byId("app-menu");
+  const aboutButton = byId("about-button");
+  const aboutDialog = byId("about-dialog");
+  const aboutClose = byId("about-close");
+  const castButton = byId("cast-button");
+  const castDot = byId("cast-dot");
+  const castDrawer = byId("cast-drawer");
+  const castClose = byId("cast-close");
+  const castBar = byId("cast-bar");
+  const castBarDot = byId("cast-bar-dot");
+  const castBarHere = byId("cast-bar-here");
+  const castDrawerBody = byId("cast-drawer-body");
+  const reputationTabs = byId("reputation-tabs");
+  const reputationBody = byId("reputation-body");
+  const debugPanel = byId("debug-panel");
+  const debugClose = byId("debug-close");
+  const graphSummary = byId("graph-summary");
+  const graphVisualization = byId("graph-visualization");
+  const graphEmpty = byId("graph-empty");
+  const debugContent = byId("debug-content");
+  const checkButton = byId("check-button");
+  const checkResults = byId("check-results");
+  const sceneSelect = byId("scene-select");
+  const scenePresets = byId("scene-presets");
+  const sceneStartButton = byId("scene-start-button");
+  const mapButton = byId("map-button");
+  const debugTitle = byId("debug-title");
+  const mapPane = byId("writer-pane-map");
+  // Writer tools' tabs; Story map and Who's in each scene share one pane.
+  const WRITER_TABS = ["overview", "map", "cast", "graph"];
+  const writerTabs = {};
+  WRITER_TABS.forEach(function (tab) { writerTabs[tab] = byId("writer-tab-" + tab); });
+  const writerPanes = {
+    overview: byId("writer-pane-overview"),
+    map: mapPane,
+    cast: mapPane,
+    graph: byId("writer-pane-graph")
+  };
+  const glanceResults = byId("glance-results");
   const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
   const WATCH_INTERVAL = 1000;
+  // Matches the stylesheet: below this width Who's who docks as a bottom
+  // bar; at or above it, it's a side column the page makes room for.
+  const DOCKED_QUERY = "(max-width: 959px)";
 
   // Built-in stories are written in stories/<name>.txt. The build script
-  // (scripts/build-stories.js) wraps each one in stories/built/<name>.js,
+  // (tools/build-stories.js) wraps each one in stories/built/<name>.js,
   // which calls registerStoryText(), and lists them in manifest.js.
   const STORY_FILES = Array.isArray(window.memoryGraphStoryFiles) ? window.memoryGraphStoryFiles : [];
 
@@ -59,9 +95,15 @@
   let storiesUploaded = false;
   let engine = null;
   let selectedStory = null;
-  let storageUnavailable = false;
   let transcript = [];
+  // Whether the current run can be shared as a list of choices: true when it
+  // began from the opening scene with no memories of earlier runs.
+  let runLinkable = false;
   let watched = null;
+  // The last Story check, kept for the story map's Reach view. It belongs to
+  // one loaded story object, so a reload or another story drops it.
+  let lastCheck = null;
+  let writerTab = "overview";
 
   if (!("webkitdirectory" in fileInput)) {
     folderUploadButton.hidden = true;
@@ -75,17 +117,13 @@
     setPickerOpen(false);
     textInput.click();
   });
-  if (watchFileButton) {
-    // Needs the File System Access API (Chrome and Edge, including file://).
-    watchFileButton.hidden = typeof window.showOpenFilePicker !== "function";
-    watchFileButton.addEventListener("click", function () {
-      setPickerOpen(false);
-      watchStoryFile();
-    });
-  }
-  if (sceneStartButton) {
-    sceneStartButton.addEventListener("click", startFromScene);
-  }
+  // Needs the File System Access API (Chrome and Edge, including file://).
+  watchFileButton.hidden = typeof window.showOpenFilePicker !== "function";
+  watchFileButton.addEventListener("click", function () {
+    setPickerOpen(false);
+    watchStoryFile();
+  });
+  sceneStartButton.addEventListener("click", startFromScene);
   [fileInput, textInput].forEach(function (input) {
     input.addEventListener("change", function () {
       loadStoryFiles(Array.from(input.files || []));
@@ -99,11 +137,22 @@
     if (!event.target.closest(".story-picker")) {
       setPickerOpen(false);
     }
+    if (!event.target.closest(".app-menu-wrap")) {
+      setMenuOpen(false);
+    }
   });
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && !storyMenu.hidden) {
+    if (event.key !== "Escape") return;
+    if (!appMenu.hidden) {
+      setMenuOpen(false);
+      menuButton.focus();
+    } else if (!storyMenu.hidden) {
       setPickerOpen(false);
       picker.focus();
+    } else if (!debugPanel.hidden) {
+      closeWriterTools();
+    } else if (castOpen) {
+      closeCast();
     }
   });
   restartButton.addEventListener("click", function () {
@@ -112,36 +161,80 @@
   clearButton.addEventListener("click", function () {
     restart(false);
   });
-  if (saveButton) saveButton.addEventListener("click", saveProgress);
-  if (restoreButton) restoreButton.addEventListener("click", restoreProgress);
-  
-  if (infoButton) {
-    infoButton.addEventListener("click", function () {
-      showDebugInfo();
+  // ---- The ⋯ menu ------------------------------------------------------
+  // Memory tags (a switch, so the menu stays open to show it change), How
+  // memory works, and Writer tools.
+  setMenuOpen(false);
+  menuButton.addEventListener("click", function () {
+    setMenuOpen(appMenu.hidden);
+    if (!appMenu.hidden) tagsButton.focus();
+  });
+  infoButton.addEventListener("click", function () {
+    setMenuOpen(false);
+    showDebugInfo();
+  });
+  mapButton.addEventListener("click", function () { setWriterTab("map", true); });
+  WRITER_TABS.forEach(function (tab) {
+    writerTabs[tab].addEventListener("click", function () { setWriterTab(tab); });
+    // Arrow keys move between the tabs, as in any tab list.
+    writerTabs[tab].addEventListener("keydown", function (event) {
+      const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (step === 0) return;
+      event.preventDefault();
+      const next = WRITER_TABS[(WRITER_TABS.indexOf(tab) + step + WRITER_TABS.length) % WRITER_TABS.length];
+      setWriterTab(next, true);
     });
+  });
+  aboutButton.addEventListener("click", function () {
+    setMenuOpen(false);
+    // A native modal dialog: it traps focus, closes on Escape, and puts
+    // focus back on the menu button when it closes.
+    if (typeof aboutDialog.showModal === "function") aboutDialog.showModal();
+    else aboutDialog.setAttribute("open", "");
+  });
+  aboutDialog.addEventListener("close", function () {
+    menuButton.focus();
+  });
+  // A click on the backdrop lands on the dialog itself.
+  aboutDialog.addEventListener("click", function (event) {
+    if (event.target === aboutDialog) aboutDialog.close();
+  });
+  aboutClose.addEventListener("click", function () { aboutDialog.close(); });
+
+  function setMenuOpen(open) {
+    appMenu.hidden = !open;
+    menuButton.setAttribute("aria-expanded", String(open));
   }
-  if (checkButton) {
-    checkButton.addEventListener("click", runStoryCheck);
+  checkButton.addEventListener("click", runStoryCheck);
+  debugClose.addEventListener("click", closeWriterTools);
+  castButton.addEventListener("click", function () {
+    if (castOpen) {
+      closeCast();
+    } else {
+      openCast(null, castButton);
+    }
+  });
+  castClose.addEventListener("click", closeCast);
+  castBar.addEventListener("click", function () {
+    if (castOpen) {
+      closeCast();
+    } else {
+      openCast(reputationView, castBar);
+    }
+  });
+  // Moving between the docked and side layouts (rotating, resizing) re-renders it.
+  if (typeof window.matchMedia === "function") {
+    const dockedQuery = window.matchMedia(DOCKED_QUERY);
+    const relayout = function () { renderReputationPanel(); };
+    if (typeof dockedQuery.addEventListener === "function") dockedQuery.addEventListener("change", relayout);
+    else if (typeof dockedQuery.addListener === "function") dockedQuery.addListener(relayout);
   }
-  if (debugClose && debugPanel) {
-    debugClose.addEventListener("click", function () {
-      debugPanel.hidden = true;
-    });
-  }
-  if (reputationPanel) {
-    try { reputationPanel.open = localStorage.getItem("memory-graph:show-reputation") === "1"; } catch (error) { /* closed by default */ }
-    reputationPanel.addEventListener("toggle", function () {
-      try { localStorage.setItem("memory-graph:show-reputation", reputationPanel.open ? "1" : "0"); } catch (error) { /* per-viewer preference only */ }
-    });
-  }
-  if (tagsButton && document.body && document.body.classList) {
-    let showTags = true;
-    try { showTags = localStorage.getItem("memory-graph:show-tags") !== "0"; } catch (error) { /* default on */ }
-    setTagsVisible(showTags);
-    tagsButton.addEventListener("click", function () {
-      setTagsVisible(tagsButton.getAttribute("aria-pressed") !== "true");
-    });
-  }
+  let showTags = true;
+  try { showTags = localStorage.getItem("memory-graph:show-tags") !== "0"; } catch (error) { /* default on */ }
+  setTagsVisible(showTags);
+  tagsButton.addEventListener("click", function () {
+    setTagsVisible(tagsButton.getAttribute("aria-checked") !== "true");
+  });
 
   picker.disabled = true;
   pickerTitle.textContent = "Loading stories…";
@@ -157,7 +250,7 @@
     if (STORY_FILES.length === 0) {
       stories = [];
       renderStoryPicker();
-      setStatus("No built-in stories were found. Run node scripts/build-stories.js to build them.", true);
+      setStatus("No built-in stories were found. Run node tools/build-stories.js to build them.", true);
       return;
     }
 
@@ -169,7 +262,7 @@
           const source = registered;
           registered = null;
           if (source === null) {
-            resolve({ fileName: name + ".txt", error: "the built file did not register a story (run node scripts/build-stories.js)" });
+            resolve({ fileName: name + ".txt", error: "the built file did not register a story (run node tools/build-stories.js)" });
             return;
           }
           try {
@@ -179,7 +272,7 @@
           }
         };
         script.onerror = function () {
-          resolve({ fileName: name + ".txt", error: "stories/built/" + name + ".js could not be loaded (run node scripts/build-stories.js)" });
+          resolve({ fileName: name + ".txt", error: "stories/built/" + name + ".js could not be loaded (run node tools/build-stories.js)" });
         };
         document.head.appendChild(script);
       });
@@ -193,11 +286,18 @@
       if (stories.length) {
         pickerTitle.textContent = "Choose a story";
       }
+      const linked = linkedStory();
+      if (linked) {
+        // Read the path first: starting the story rewrites the address bar
+        // to match the new run, which has no choices yet.
+        const path = linkParam("path");
+        pickerTitle.textContent = linked.definition.title;
+        selectStory(linked);
+        replayLinkedPath(path);
+      }
       if (rejected.length) {
-        setStatus("Skipped " + rejected.length + " built-in stor" +
-          (rejected.length === 1 ? "y" : "ies") + ": " + rejected.map(function (result) {
-          return result.fileName + ": " + result.error;
-        }).join(" · "), true);
+        setStatus("Skipped " + plural(rejected.length, "built-in story", "built-in stories") + ": " +
+          rejected.map(function (result) { return result.fileName + ": " + result.error; }).join(" · "), true);
       }
     });
   }
@@ -213,7 +313,7 @@
     }
     const definition = parsed.story;
     try {
-      const probe = new window.NarrativeEngine(definition, { graph: new window.MemoryGraph() });
+      const probe = new window.NarrativeEngine(definition);
       probe.start();
       const story = {
         fileName: fileName,
@@ -231,6 +331,95 @@
       const line = window.StoryText.lineFor(parsed.lines, error.message);
       throw new Error((line === null ? "" : "line " + line + ": ") + error.message);
     }
+  }
+
+  // ---- Story links -----------------------------------------------------
+  // index.html?story=the_night_ferry opens that built-in story straight away,
+  // and &path=0.2.1 then makes those choices: each number is the choice's
+  // position among all the choices written in its scene. The address bar
+  // always holds the link to what's on screen. The path is left off when the
+  // run can't be rebuilt from choices alone (it kept earlier memories, began
+  // at a chosen scene, or was restored from a save).
+
+  function storyName(story) {
+    return story.fileName.replace(/\.txt$/i, "");
+  }
+
+  function linkParam(name) {
+    try {
+      return new URLSearchParams(window.location.search).get(name);
+    } catch (error) {
+      return null; // no URL to read
+    }
+  }
+
+  function linkedStory() {
+    let wanted = linkParam("story");
+    if (!wanted) {
+      return null;
+    }
+    wanted = wanted.trim().replace(/\.txt$/i, "").toLowerCase();
+    const found = stories.find(function (story) {
+      return storyName(story).toLowerCase() === wanted || story.definition.id === wanted;
+    });
+    if (!found) {
+      setStatus("There is no story called \"" + wanted + "\". Choose one from the list.", true);
+    }
+    return found || null;
+  }
+
+  function replayLinkedPath(path) {
+    if (!engine || !path) {
+      return;
+    }
+    if (!/^\d+(\.\d+)*$/.test(path)) {
+      setStatus("This link's path isn't valid, so the story starts from the beginning.", true);
+      return;
+    }
+    const positions = path.split(".").map(Number);
+    const replayed = replay(positions.map(function (position) {
+      return function (view) {
+        const choice = selectedStory.definition.nodes[view.nodeId].choices[position];
+        return choice ? choice.id : null;
+      };
+    }));
+    setStatus(replayed === positions.length
+      ? "Opened from a link: replayed " + plural(replayed, "choice") + "."
+      : "Opened from a link: replayed " + replayed + " of " + positions.length +
+        " choices. The story has changed since the link was made.", replayed !== positions.length);
+  }
+
+  function linkPath() {
+    if (!runLinkable || !engine) {
+      return null;
+    }
+    const nodes = selectedStory.definition.nodes;
+    return engine.choiceHistory.map(function (entry) {
+      return nodes[entry.nodeId].choices.findIndex(function (choice) {
+        return choice.id === entry.choiceId;
+      });
+    }).join(".") || null;
+  }
+
+  function updateLink() {
+    try {
+      const url = new URL(window.location.href);
+      const shareable = selectedStory && !storiesUploaded;
+      const path = shareable ? linkPath() : null;
+      if (shareable) {
+        url.searchParams.set("story", storyName(selectedStory));
+      } else {
+        url.searchParams.delete("story");
+      }
+      if (path) {
+        url.searchParams.set("path", path);
+      } else {
+        url.searchParams.delete("path");
+      }
+      if (url.href !== window.location.href) {
+        window.history.replaceState(null, "", url.href);
+      }
+    } catch (error) { /* the link is a convenience; playing doesn't need it */ }
   }
 
   function formatWarning(warning, story) {
@@ -279,17 +468,17 @@
       const warningCount = stories.reduce(function (total, story) {
         return total + story.warnings.length;
       }, 0);
-      const summary = stories.length + " stor" +
-        (stories.length === 1 ? "y" : "ies") + " loaded." + (warningCount === 0 ? "" : " " +
-        warningCount + " authoring warning" + (warningCount === 1 ? "" : "s") +
-        ": open Graph State (i) to see them.");
+      const summary = plural(stories.length, "story", "stories") + " loaded." + warningNote(warningCount);
       setStatus(rejected.length === 0
         ? summary
-        : summary + " Skipped " + rejected.length + " invalid file" +
-          (rejected.length === 1 ? "" : "s") + ": " + rejected.join(" · "), rejected.length > 0);
+        : summary + " Skipped " + plural(rejected.length, "invalid file") + ": " + rejected.join(" · "), rejected.length > 0);
     }).catch(function (error) {
       setStatus("Could not read the selected stories: " + error.message, true);
     });
+  }
+
+  function warningNote(count) {
+    return count === 0 ? "" : " " + plural(count, "authoring warning") + ": see Writer tools in the ⋯ menu.";
   }
 
   function readStoryFile(file) {
@@ -372,24 +561,33 @@
     pickerTitle.textContent = story.definition.title + " (watching for changes)";
     selectStory(story);
     const replayed = replayChoices(history);
-    const warnings = story.warnings.length === 0 ? "" : " " + story.warnings.length + " authoring warning" +
-      (story.warnings.length === 1 ? "" : "s") + ": open Graph State (i) to see them.";
+    // A map left open redraws from the saved file.
+    if (!debugPanel.hidden) showDebugInfo();
     setStatus((isReload
       ? "Reloaded " + fileName + (history.length === 0 ? "." : replayed === history.length
-        ? " and replayed your " + history.length + " choice" + (history.length === 1 ? "" : "s") + "."
+        ? " and replayed your " + plural(history.length, "choice") + "."
         : " and replayed " + replayed + " of your " + history.length + " choices; the next one changed.")
-      : "Watching " + fileName + ". Save it in your editor and the story reloads here.") + warnings,
+      : "Watching " + fileName + ". Save it in your editor and the story reloads here.") + warningNote(story.warnings.length),
     false);
   }
 
   // Makes the same choices again, by id, until one is no longer offered.
   // Returns how many were replayed.
   function replayChoices(history) {
+    return replay(history.map(function (entry) {
+      return function (view) { return view.nodeId === entry.nodeId ? entry.choiceId : null; };
+    }));
+  }
+
+  // Each step is given the current view and names the id of the choice to
+  // make; replaying stops at the first step whose choice isn't offered.
+  function replay(steps) {
     let count = 0;
-    for (const entry of history) {
+    for (const step of steps) {
       const view = engine.getView();
-      const choice = view.choices.find(function (option) { return option.id === entry.choiceId; });
-      if (view.nodeId !== entry.nodeId || choice === undefined) break;
+      const choiceId = step(view);
+      const choice = view.choices.find(function (option) { return option.id === choiceId; });
+      if (choiceId === null || choice === undefined) break;
       try {
         const next = engine.choose(choice.index);
         transcript.push(choiceEntry(choice, next.echo), storyEntry(next));
@@ -443,21 +641,28 @@
 
   function selectStory(story) {
     selectedStory = story;
-    reputationView = null;
+    runLinkable = false;
     try {
       engine = new window.NarrativeEngine(story.definition);
-      const view = engine.start();
-      if (saveButton) saveButton.disabled = false;
-      updateRestoreButton();
-      transcript = [storyEntry(view)];
-      renderView(view);
+      beginRun(engine.start(), true, true);
       setStatus("A new run is ready.");
     } catch (error) {
       engine = null;
-      if (saveButton) saveButton.disabled = true;
-      if (restoreButton) restoreButton.disabled = true;
+      updateLink();
       setStatus(error.message, true);
     }
+  }
+
+  // Shows the opening view of a new run. linkable: the run can be shared as
+  // a list of choices. newCast: forget which views of you have been seen.
+  function beginRun(view, linkable, newCast) {
+    if (newCast) {
+      reputationView = null;
+      seenViews = {};
+    }
+    runLinkable = linkable;
+    transcript = [storyEntry(view)];
+    renderView(view);
   }
 
   // ---- Memory tags ----------------------------------------------------
@@ -485,35 +690,6 @@
     return entry;
   }
 
-  // Saved transcripts are untrusted; keep tag data only when well-formed.
-  function restoreEntry(entry) {
-    const restored = { type: entry.type, text: entry.text };
-    if (Array.isArray(entry.segments) && entry.segments.every(function (segment) {
-      return segment && typeof segment.text === "string" &&
-        (segment.cause === undefined || isCause(segment.cause));
-    }) && entry.segments.map(function (s) { return s.text; }).join("") === entry.text) {
-      restored.segments = entry.segments;
-    }
-    if (isCause(entry.arrival)) restored.arrival = entry.arrival;
-    if (isCause(entry.cause)) restored.cause = entry.cause;
-    if (isCause(entry.echo)) restored.echo = entry.echo;
-    if (Array.isArray(entry.present) && entry.present.every(isCharacter)) restored.present = entry.present;
-    return restored;
-  }
-
-  function isCharacter(id) {
-    return typeof id === "string" && !!selectedStory &&
-      Object.prototype.hasOwnProperty.call(selectedStory.definition.characters || {}, id);
-  }
-
-  function isCause(cause) {
-    return !!cause && typeof cause.tag === "string" && Array.isArray(cause.explanation) &&
-      cause.explanation.every(function (section) {
-        return section && typeof section.heading === "string" && Array.isArray(section.items) &&
-          section.items.every(function (item) { return typeof item === "string"; });
-      });
-  }
-
   function renderEntry(entry, isCurrent) {
     const paragraph = document.createElement("p");
     if (entry.type === "choice") paragraph.className = "story-picked-choice";
@@ -524,9 +700,17 @@
       here.className = "story-here";
       here.appendChild(document.createTextNode("Here: "));
       entry.present.forEach(function (id, index) {
-        if (index > 0) here.appendChild(document.createTextNode(", "));
+        if (index > 0) {
+          // The names show as chips, so the comma is for screen readers only.
+          const separator = document.createElement("span");
+          separator.className = "visually-hidden";
+          separator.textContent = ", ";
+          here.appendChild(separator);
+        }
         linked.add(id);
-        here.appendChild(createCharacterName(id, engine.characterName(id), isCurrent));
+        const name = createCharacterName(id, engine.characterName(id), isCurrent);
+        if (isCurrent && !engine.ended && reputationChanged(id)) name.className += " is-changed";
+        here.appendChild(name);
       });
       paragraph.appendChild(here);
     }
@@ -638,6 +822,18 @@
       tip.appendChild(part);
     });
     name.appendChild(tip);
+    // Clicking (or Enter on) a name opens Who's who on that person, once
+    // they're in the cast.
+    const open = function () {
+      if (engine && !engine.ended && castCharacters().indexOf(id) !== -1) openCast(id, name);
+    };
+    name.addEventListener("click", open);
+    name.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        open();
+      }
+    });
     return name;
   }
 
@@ -650,14 +846,39 @@
     return lines;
   }
 
-  function opinionOf(id) {
-    if (selectedStory.definition.characters[id].hidden === true) {
-      return "You can't tell what they make of you.";
-    }
-    const traits = engine.reputationOf(id).traits.filter(function (trait) { return trait.score > 0; });
-    return traits.length === 0
-      ? "Hasn't made up their mind about you."
-      : "Sees you as " + traits.slice(0, 2).map(function (trait) { return trait.label; }).join(" and ") + ".";
+  // ---- How people see you, in words ------------------------------------
+  // One set of phrasings for the tooltips, Who's who, and the ending: "Sees
+  // you as" while playing, "Will remember you as" at an ending.
+
+  function isHidden(id) {
+    return id !== null && selectedStory.definition.characters[id].hidden === true;
+  }
+
+  function opinionOf(id, atEnding) {
+    if (isHidden(id)) return "You can't tell what they make of you.";
+    return verdict(engine.reputationOf(id).traits, atEnding);
+  }
+
+  function traitList(traits) {
+    return traits.filter(function (trait) { return trait.score > 0; }).slice(0, 2)
+      .map(function (trait) { return trait.label; }).join(" and ");
+  }
+
+  function verdict(traits, atEnding) {
+    const list = traitList(traits);
+    if (list === "") return atEnding ? "Has no settled opinion of you." : "Hasn't made up their mind about you.";
+    return (atEnding ? "Will remember you as " : "Sees you as ") + list + ".";
+  }
+
+  function overallVerdict(traits, atEnding) {
+    const list = traitList(traits);
+    if (list === "") return atEnding ? "Nothing you did here defined you." : "Nothing you've done has defined you yet.";
+    return (atEnding ? "You leave seen as " : "So far you're seen as ") + list + ".";
+  }
+
+  function memoryLine(name, memory, atEnding) {
+    if (atEnding) return name === null ? "What people will remember most: you " + memory + "." : "Mostly, that you " + memory + ".";
+    return (name === null ? "What people remember most: you " : "What " + name + " remembers most: you ") + memory + ".";
   }
 
   function currentPresent() {
@@ -673,7 +894,77 @@
   // and the act that defines you to them. Hidden characters appear once
   // they've been in a scene, but what they think of you stays secret.
 
+  // The drawer doesn't block the page: choices can still be made with it
+  // open, and it updates as they are. A dot on the button, a tab, or a name
+  // in the "Here:" line marks a view of you that changed since you last
+  // looked at it.
+
   let reputationView = null;
+  let castOpen = false;
+  let castOpener = null;
+  let seenViews = {};
+  let wantCastOpen = false;
+  try {
+    // Reopen it only as a side column; the docked bar always starts collapsed.
+    wantCastOpen = localStorage.getItem("memory-graph:show-reputation") === "1" && !isDocked();
+  } catch (error) { /* closed by default */ }
+
+  function isDocked() {
+    return typeof window.matchMedia === "function" && window.matchMedia(DOCKED_QUERY).matches;
+  }
+
+  function castAvailable() {
+    if (!engine || engine.ended) return false;
+    return engine.reputationOf().traits.length > 0 || castCharacters().length > 0;
+  }
+
+  function openCast(id, opener) {
+    if (!castAvailable()) return;
+    reputationView = id;
+    castOpener = opener || castButton;
+    setCastOpen(true);
+    // On phones the bar stays where it was tapped, so focus stays on it.
+    (isDocked() ? castBar : castClose).focus();
+  }
+
+  function closeCast() {
+    setCastOpen(false);
+    // The name that opened it may have been re-rendered since. On phones the
+    // title-row button is hidden, and the bar takes its place.
+    const fallback = isDocked() ? castBar : castButton;
+    const target = castOpener && castOpener.isConnected !== false && castOpener !== castButton ? castOpener : fallback;
+    castOpener = null;
+    if (!target.hidden) target.focus();
+  }
+
+  function setCastOpen(open) {
+    castOpen = open;
+    wantCastOpen = open;
+    try { localStorage.setItem("memory-graph:show-reputation", open ? "1" : "0"); } catch (error) { /* per-viewer preference only */ }
+    renderReputationPanel();
+  }
+
+  // What would count as news about a view: which traits it has, which way
+  // each points, and the act behind it. (Not the exact scores, which drift
+  // as old memories fade.)
+  function viewSignature(id) {
+    if (isHidden(id)) return "|";
+    const view = engine.reputationOf(id === null ? undefined : id);
+    return view.traits.map(function (trait) {
+      return trait.trait + (trait.score > 0 ? "+" : "-");
+    }).join(",") + "|" + (view.memory || "");
+  }
+
+  function reputationChanged(id) {
+    if (!engine) return false;
+    const key = id === null ? "" : id;
+    const seen = seenViews[key] === undefined ? "|" : seenViews[key];
+    return viewSignature(id) !== seen;
+  }
+
+  function markSeen(id) {
+    seenViews[id === null ? "" : id] = viewSignature(id);
+  }
 
   function castCharacters() {
     const story = selectedStory.definition;
@@ -681,72 +972,106 @@
     engine.nodeVisits.forEach(function (nodeId) {
       (story.nodes[nodeId].present || []).forEach(function (id) { met.add(id); });
     });
+    return hereFirst(Array.from(met));
+  }
+
+  // Characters sorted with whoever is here now first, then in story order.
+  function hereFirst(ids) {
     const here = currentPresent();
-    const order = Object.keys(story.characters);
-    return Array.from(met).sort(function (a, b) {
+    const order = Object.keys(selectedStory.definition.characters);
+    return ids.sort(function (a, b) {
       return (here.indexOf(b) !== -1) - (here.indexOf(a) !== -1) || order.indexOf(a) - order.indexOf(b);
     });
   }
 
   function renderReputationPanel() {
-    if (!reputationPanel || !reputationTabs || !reputationBody) return;
-    const characters = engine ? castCharacters() : [];
-    const overall = engine ? engine.reputationOf() : null;
-    reputationPanel.hidden = !overall || (overall.traits.length === 0 && characters.length === 0);
-    if (reputationPanel.hidden) return;
+    const available = castAvailable();
+    // On phones it's always there as a bar while there's a cast (docked),
+    // and open means expanded. Wider, it's a drawer that's shown or not.
+    const docked = available && isDocked();
+    castButton.hidden = !available;
+    castOpen = available && wantCastOpen;
+    castDrawer.hidden = !(castOpen || docked);
+    castDrawer.className = "cast-drawer" + (docked ? " is-docked" : "") + (docked && !castOpen ? " is-collapsed" : "");
+    castDrawerBody.hidden = !castOpen;
+    castButton.setAttribute("aria-expanded", String(castOpen));
+    castBar.setAttribute("aria-expanded", String(castOpen));
+    document.body.classList.toggle("cast-open", castOpen);
+    document.body.classList.toggle("cast-docked", docked);
+    if (!available) {
+      castDot.hidden = true;
+      castBarDot.hidden = true;
+      return;
+    }
+    const characters = castCharacters();
     if (reputationView !== null && characters.indexOf(reputationView) === -1) reputationView = null;
+    if (castOpen) markSeen(reputationView);
+    const ids = [null].concat(characters);
+    const unseen = !castOpen && ids.some(reputationChanged);
+    castDot.hidden = !unseen;
+    castBarDot.hidden = !unseen;
 
     const here = currentPresent();
-    const views = [null].concat(characters).map(function (id) {
-      return id === null ? overall : engine.reputationOf(id);
-    });
-    // One scale for every view, so bars can be compared between people.
-    const scale = Math.max(1, Math.max.apply(null, views.map(function (view) {
-      return Math.max.apply(null, [0].concat(view.traits.map(function (t) { return Math.abs(t.score); })));
-    })));
+    castBarHere.textContent = here.length === 0 ? "" : "Here: " + here.map(function (id) {
+      return engine.characterName(id);
+    }).join(", ");
+    const views = ids.map(function (id) { return engine.reputationOf(id === null ? undefined : id); });
+    const scale = sharedScale(views);
 
     reputationTabs.replaceChildren();
-    views.forEach(function (view) {
+    views.forEach(function (view, index) {
+      const id = ids[index];
       const tab = document.createElement("button");
       tab.type = "button";
-      tab.className = "reputation-tab";
-      const isHere = view.character !== null && here.indexOf(view.character) !== -1;
-      tab.textContent = view.name === null ? "Overall" : view.name + (isHere ? " · here" : "");
-      tab.setAttribute("aria-pressed", String(view.character === reputationView));
+      const changed = reputationChanged(id);
+      tab.className = "reputation-tab" + (changed ? " is-changed" : "");
+      const isHere = id !== null && here.indexOf(id) !== -1;
+      tab.textContent = id === null ? "Overall" : view.name + (isHere ? " · here" : "");
+      if (changed) tab.setAttribute("aria-label", tab.textContent + ", changed");
+      tab.setAttribute("aria-pressed", String(id === reputationView));
       tab.addEventListener("click", function () {
-        reputationView = view.character;
+        reputationView = id;
         renderReputationPanel();
       });
       reputationTabs.appendChild(tab);
     });
 
-    const view = views.find(function (v) { return v.character === reputationView; }) || overall;
+    const view = views[ids.indexOf(reputationView)];
     reputationBody.replaceChildren();
-    if (view.character !== null) {
-      const description = engine.characterDescription(view.character);
+    if (reputationView !== null) {
+      const description = engine.characterDescription(reputationView);
       if (description) reputationBody.appendChild(reputationNote(description, "reputation-description"));
-      if (selectedStory.definition.characters[view.character].hidden === true) {
-        reputationBody.appendChild(reputationNote(opinionOf(view.character)));
+      if (isHidden(reputationView)) {
+        reputationBody.appendChild(reputationNote(opinionOf(reputationView)));
         return;
       }
     }
+    appendReputation(reputationBody, view, scale, false);
+  }
+
+  // One scale for every view, so bars can be compared between people.
+  function sharedScale(views) {
+    return Math.max(1, Math.max.apply(null, views.map(function (view) {
+      return Math.max.apply(null, [0].concat(view.traits.map(function (t) { return Math.abs(t.score); })));
+    })));
+  }
+
+  // A view's bars and the act behind it, or a line saying there's no view yet.
+  function appendReputation(parent, view, scale, atEnding) {
     if (view.traits.length === 0) {
-      reputationBody.appendChild(reputationNote(view.name === null
-        ? "Nothing you've done has defined you yet."
+      parent.appendChild(reputationNote(view.name === null
+        ? overallVerdict(view.traits, atEnding)
         : view.name + " hasn't made up their mind about you yet."));
       return;
     }
+    if (atEnding) parent.appendChild(reputationNote(overallVerdict(view.traits, true), "reputation-description"));
     const list = document.createElement("ul");
     list.className = "reputation-rows";
     view.traits.forEach(function (trait) {
       list.appendChild(reputationRow(trait, scale));
     });
-    reputationBody.appendChild(list);
-    if (view.memory) {
-      reputationBody.appendChild(reputationNote((view.name === null
-        ? "What people remember most: you "
-        : "What " + view.name + " remembers most: you ") + view.memory + "."));
-    }
+    parent.appendChild(list);
+    if (view.memory) parent.appendChild(reputationNote(memoryLine(view.name, view.memory, atEnding)));
   }
 
   function reputationRow(trait, scale) {
@@ -826,21 +1151,19 @@
 
   function setTagsVisible(visible) {
     document.body.classList.toggle("hide-memory-tags", !visible);
-    if (tagsButton) {
-      tagsButton.setAttribute("aria-pressed", String(visible));
-      tagsButton.textContent = visible ? "Memory tags: on" : "Memory tags: off";
-    }
+    tagsButton.setAttribute("aria-checked", String(visible));
     try { localStorage.setItem("memory-graph:show-tags", visible ? "1" : "0"); } catch (error) { /* per-viewer preference only */ }
   }
 
   function renderView(view) {
-    if (storyKicker) storyKicker.textContent = view.ended ? "ENDING" : "STORY IN PROGRESS";
     storyTitle.textContent = selectedStory.definition.title;
+    // The view open in Who's who updates in front of you, so it isn't news.
+    if (castOpen && castAvailable()) markSeen(reputationView);
     storyText.replaceChildren();
     transcript.forEach(function (entry, index) {
       storyText.appendChild(renderEntry(entry, index === transcript.length - 1));
     });
-    if (nodeCounter) nodeCounter.textContent = view.nodeId.replace(/[_-]+/g, " ");
+    updateLink();
     choiceList.replaceChildren();
     endingActions.hidden = !view.ended;
 
@@ -862,10 +1185,8 @@
           );
           renderView(nextView);
           storyText.lastElementChild.scrollIntoView({ block: "nearest", inline: "nearest" });
-          updateMemory();
           setStatus("");
         } catch (error) {
-          updateMemory();
           setStatus(error.message, true);
         }
       });
@@ -874,30 +1195,20 @@
 
     renderReputationPanel();
     renderEndingSummary(view);
-    updateMemory();
-    updateRestoreButton();
   }
 
   function renderEndingSummary(view) {
-    if (!endingSummary) return;
     endingSummary.hidden = !view.ended;
     if (!view.ended) return;
 
-    endingTraces.replaceChildren();
-    const related = engine.graph.related("player", 4);
-    if (endingSummaryEmpty) endingSummaryEmpty.hidden = related.length > 0;
-    related.forEach(function (item) {
-      const trace = document.createElement("span");
-      const concept = document.createElement("span");
-      const count = document.createElement("span");
-      trace.className = "ending-trace";
-      concept.textContent = item.concept;
-      count.className = "ending-trace-count";
-      count.textContent = item.seen + " memor" + (item.seen === 1 ? "y" : "ies");
-      trace.append(concept, count);
-      endingTraces.appendChild(trace);
-    });
-    renderReputation();
+    // Who knows anything about you, whoever is here at the end first.
+    const people = hereFirst(engine.knownCharacters({ includeHidden: true }));
+    const overall = engine.reputationOf();
+    const views = people.map(function (id) { return engine.reputationOf(id); });
+    const scale = sharedScale([overall].concat(views.filter(function (v) { return !isHidden(v.character); })));
+    endingOverall.replaceChildren();
+    appendReputation(endingOverall, overall, scale, true);
+    renderEndingPeople(views);
 
     const choices = engine.choiceHistory.map(function (entry) {
       const node = selectedStory.definition.nodes[entry.nodeId];
@@ -915,27 +1226,25 @@
     });
   }
 
-  // Each character's view of the player, built from what they witnessed or heard.
-  function renderReputation() {
-    if (!endingReputation || !endingReputationList) return;
-    const reputation = engine.describeReputation();
-    endingReputation.hidden = reputation.length === 0;
+  // A card for each person: their verdict on you and the act behind it,
+  // built from what they witnessed or heard. Hidden characters keep it secret.
+  function renderEndingPeople(views) {
+    endingReputationList.hidden = views.length === 0;
     endingReputationList.replaceChildren();
-    reputation.forEach(function (entry) {
+    views.forEach(function (view) {
       const item = document.createElement("li");
+      item.className = "ending-person";
       const name = document.createElement("span");
-      name.className = "ending-reputation-name";
-      name.textContent = entry.name;
-      const verdict = entry.traits.length === 0
-        ? " has no settled opinion of you."
-        : " remembers you as " + entry.traits.slice(0, 2).map(function (trait) {
-          return trait.label;
-        }).join(" and ") + ".";
-      item.append(name, document.createTextNode(verdict));
-      if (entry.memory) {
+      name.className = "ending-person-name";
+      name.textContent = view.name;
+      const opinion = document.createElement("span");
+      opinion.className = "ending-person-verdict";
+      opinion.textContent = opinionOf(view.character, true);
+      item.append(name, opinion);
+      if (view.memory && !isHidden(view.character)) {
         const memory = document.createElement("span");
-        memory.className = "ending-reputation-memory";
-        memory.textContent = "Mostly, that you " + entry.memory + ".";
+        memory.className = "ending-person-memory";
+        memory.textContent = memoryLine(view.name, view.memory, true);
         item.appendChild(memory);
       }
       endingReputationList.appendChild(item);
@@ -948,9 +1257,7 @@
     }
     try {
       engine.reset({ keepMemory: keepMemory });
-      const view = engine.start();
-      transcript = [storyEntry(view)];
-      renderView(view);
+      beginRun(engine.start(), !keepMemory, false);
       setStatus(keepMemory
         ? "A new run has started. Earlier memories remain."
         : "Memory cleared. A fresh run has started.");
@@ -959,183 +1266,23 @@
     }
   }
 
-  function saveProgress() {
-    if (!engine || !selectedStory) {
-      return;
-    }
-    try {
-      localStorage.setItem(storageKey(selectedStory), JSON.stringify({
-        graph: engine.graph.toJSON(),
-        engine: engine.toJSON(),
-        transcript: transcript
-      }));
-      storageUnavailable = false;
-      updateRestoreButton();
-      setStatus("Progress and memory saved on this device.");
-    } catch (error) {
-      setStatus("Could not save progress: " + error.message, true);
-    }
-  }
-
-  function restoreProgress() {
-    if (!selectedStory) {
-      return;
-    }
-    try {
-      const serialized = localStorage.getItem(storageKey(selectedStory));
-      if (!serialized) {
-        setStatus("There is no saved progress for this story.", true);
-        updateRestoreButton();
-        return;
-      }
-      const saved = JSON.parse(serialized);
-      const graph = window.MemoryGraph.fromJSON(saved.graph);
-      const restored = new window.NarrativeEngine(selectedStory.definition, {
-        graph: graph
-      });
-      const view = restored.loadState(saved.engine);
-      if (!view) {
-        throw new Error("The save does not contain a started story.");
-      }
-      let restoredTranscript;
-      if (saved.transcript === undefined) {
-        restoredTranscript = [storyEntry(view)];
-      } else {
-        if (!Array.isArray(saved.transcript) || saved.transcript.length === 0 ||
-            saved.transcript.length % 2 !== 1 ||
-            !saved.transcript.every(function (entry, index) {
-              return entry && typeof entry.text === "string" &&
-                entry.type === (index % 2 === 0 ? "story" : "choice");
-            })) {
-          throw new Error("The saved story transcript is invalid.");
-        }
-        restoredTranscript = saved.transcript.map(function (entry) {
-          return restoreEntry(entry);
-        });
-      }
-      engine = restored;
-      transcript = restoredTranscript;
-      renderView(view);
-      setStatus(saved.transcript === undefined
-        ? "Saved progress restored. Earlier story text is unavailable in this older save."
-        : "Saved progress and memory restored.");
-    } catch (error) {
-      setStatus("Could not restore progress: " + error.message, true);
-    }
-  }
-
-  function updateRestoreButton() {
-    if (!selectedStory || !restoreButton) {
-      if (restoreButton) restoreButton.disabled = true;
-      return;
-    }
-    try {
-      restoreButton.disabled = localStorage.getItem(storageKey(selectedStory)) === null;
-    } catch (error) {
-      storageUnavailable = true;
-      restoreButton.disabled = true;
-      setStatus("Saved progress is unavailable: " + error.message, true);
-    }
-  }
-
-  function updateMemory() {
-    if (!memoryTotal || !memoryList) {
-      return;
-    }
-    if (!engine) {
-      memoryTotal.replaceChildren(document.createTextNode("0 "));
-      const suffix = document.createElement("span");
-      suffix.textContent = "memories recorded";
-      memoryTotal.appendChild(suffix);
-      memoryList.replaceChildren();
-      appendMemoryMessage("Your story is waiting for its first memory.");
-      return;
-    }
-
-    const events = engine.graph.events;
-    memoryTotal.replaceChildren();
-    memoryTotal.appendChild(document.createTextNode(String(events.length) + " "));
-    const suffix = document.createElement("span");
-    suffix.textContent = "memories recorded";
-    memoryTotal.appendChild(suffix);
-
-    memoryList.replaceChildren();
-    const related = engine.graph.related("player", 6);
-    if (related.length > 0) {
-      related.forEach(function (item) {
-        appendMemoryRow(item.concept, item.score, item.seen);
-      });
-      return;
-    }
-
-    const frequencies = new Map();
-    for (const event of events) {
-      for (const concept of event.concepts) {
-        frequencies.set(concept, (frequencies.get(concept) || 0) + 1);
-      }
-    }
-    const frequent = Array.from(frequencies.entries())
-      .sort(function (a, b) {
-        return b[1] - a[1] || compareText(a[0], b[0]);
-      })
-      .slice(0, 6);
-    if (frequent.length === 0) {
-      appendMemoryMessage("Your story is waiting for its first memory.");
-      return;
-    }
-    frequent.forEach(function (entry) {
-      appendMemoryRow(entry[0], entry[1], entry[1]);
-    });
-  }
-
-  function appendMemoryRow(concept, score, seen) {
-    if (!memoryList) return;
-    const row = document.createElement("div");
-    row.className = "memory-row";
-    const name = document.createElement("span");
-    name.textContent = concept;
-    const strength = document.createElement("span");
-    strength.textContent = "×" + score + " · " + seen + " event" + (seen === 1 ? "" : "s");
-    row.append(name, strength);
-    memoryList.appendChild(row);
-  }
-
-  function appendMemoryMessage(message) {
-    if (!memoryList) return;
-    const empty = document.createElement("p");
-    empty.className = "memory-empty";
-    empty.textContent = message;
-    memoryList.appendChild(empty);
-  }
-
   function clearPlayer() {
     selectedStory = null;
     engine = null;
     transcript = [];
-    if (storyKicker) storyKicker.textContent = "WAITING FOR A STORY";
+    runLinkable = false;
+    updateLink();
     storyTitle.textContent = "The next choice is yours.";
     storyText.textContent = "Choose a story above to step into a world that remembers.";
-    if (nodeCounter) nodeCounter.textContent = "";
     choiceList.replaceChildren();
-    if (endingSummary) endingSummary.hidden = true;
-    if (reputationPanel) reputationPanel.hidden = true;
+    endingSummary.hidden = true;
+    renderReputationPanel();
     endingActions.hidden = true;
-    if (saveButton) saveButton.disabled = true;
-    if (restoreButton) restoreButton.disabled = true;
-    updateMemory();
   }
 
   function setStatus(message, isError) {
-    if (!statusMessage) return;
-    const storageNote = storageUnavailable && !isError
-      ? " Saved progress is unavailable in this browser."
-      : "";
-    statusMessage.textContent = (message || "") + storageNote;
+    statusMessage.textContent = message || "";
     statusMessage.dataset.error = isError ? "true" : "false";
-  }
-
-  function storageKey(story) {
-    return "memory-graph:" + encodeURIComponent(story.definition.id);
   }
 
   function compareText(a, b) {
@@ -1143,12 +1290,7 @@
   }
 
   function showDebugInfo() {
-    if (!debugPanel || !debugContent) {
-      console.error('Debug panel or content not found');
-      return;
-    }
-    const graphState = engine ? engine.graph.toJSON() : null;
-    renderGraphVisualization(graphState);
+    renderGraphVisualization();
     const debugData = {
       "Current Story": selectedStory ? selectedStory.definition.title : "None",
       "Story ID": selectedStory ? selectedStory.definition.id : "None",
@@ -1157,9 +1299,9 @@
       "Stories": stories.map(function (story) {
         return story.definition.title;
       }),
-      "Memory Graph": graphState ? {
-        "Events Count": graphState.events.length,
-        "Events": graphState.events.map(function (event) {
+      "Memory Graph": engine ? {
+        "Events Count": engine.graph.events.length,
+        "Events": engine.graph.events.map(function (event) {
           return {
             "id": event.id,
             "concepts": event.concepts,
@@ -1169,29 +1311,34 @@
       } : "No engine loaded"
     };
     
-    if (engine && engine.graph) {
+    if (engine) {
       const related = engine.graph.related("player", 10);
       debugData["Related Concepts (Player)"] = related.length > 0
         ? related.map(function (item) {
           return { concept: item.concept, score: item.score, seen: item.seen };
         })
         : "None";
-      debugData["Perspectives"] = engine.describeReputation().map(function (entry) {
+      debugData["Perspectives"] = engine.knownCharacters({ includeHidden: true }).map(function (id) {
+        const view = engine.reputationOf(id);
         return {
-          character: entry.name,
-          knownEvents: entry.knownEvents,
-          traits: entry.traits.map(function (trait) {
+          character: view.name,
+          knownEvents: Object.keys(engine.knowledge[id]).length,
+          traits: view.traits.map(function (trait) {
             return trait.trait + " " + trait.score.toFixed(2);
           }),
-          strongestMemory: entry.memory
+          strongestMemory: view.memory
         };
       });
     }
 
     debugContent.textContent = JSON.stringify(debugData, null, 2);
+    renderGlance();
     renderCheckResults(null);
     renderSceneStart();
+    debugTitle.textContent = "Writer tools" + (selectedStory ? " · " + selectedStory.definition.title : "");
+    const opening = debugPanel.hidden;
     debugPanel.hidden = false;
+    setWriterTab(writerTab, opening);
   }
 
   // ---- Start from a scene ----------------------------------------------
@@ -1235,7 +1382,6 @@
   }
 
   function renderSceneStart() {
-    if (!sceneSelect || !scenePresets || !sceneStartButton) return;
     sceneSelect.replaceChildren();
     scenePresets.replaceChildren();
     sceneStartButton.disabled = !selectedStory || !engine;
@@ -1273,12 +1419,10 @@
       fresh.apply(chosen);
       const view = fresh.start(sceneSelect.value);
       engine = fresh;
-      reputationView = null;
-      transcript = [storyEntry(view)];
-      renderView(view);
+      beginRun(view, false, true);
       debugPanel.hidden = true;
-      setStatus("Started at " + sceneSelect.value.replace(/_/g, " ") + " with " + chosen.length +
-        " thing" + (chosen.length === 1 ? "" : "s") + " already in place.");
+      setStatus("Started at " + sceneSelect.value.replace(/_/g, " ") + " with " +
+        plural(chosen.length, "thing") + " already in place.");
     } catch (error) {
       setStatus("Could not start there: " + error.message + " Tick what the scene needs, such as the variables it shows.", true);
     }
@@ -1292,45 +1436,154 @@
   const CHECK_RUNS = 300;
 
   function runStoryCheck() {
-    if (!selectedStory || !window.StoryCheck) return;
+    if (!selectedStory) return;
     try {
-      renderCheckResults(window.StoryCheck.check(selectedStory.definition, { runs: CHECK_RUNS }));
+      const result = checkSelectedStory();
+      renderCheckResults(result);
+      renderGlance();
     } catch (error) {
       renderCheckResults(null);
-      appendCheckLine("Check failed: " + error.message, true);
+      checkLine(checkResults, "Check failed: " + error.message, true);
     }
   }
 
+  function checkSelectedStory() {
+    const result = window.StoryCheck.check(selectedStory.definition, { runs: CHECK_RUNS });
+    lastCheck = { story: selectedStory, result: result };
+    return result;
+  }
+
+  function currentCheck() {
+    return lastCheck !== null && lastCheck.story === selectedStory ? lastCheck.result : null;
+  }
+
+  // ---- Story at a glance and the story map ------------------------------
+  // The numbers come from StoryMap.js; the map itself is storyMapView.js.
+
+  function renderGlance() {
+    glanceResults.replaceChildren();
+    mapButton.disabled = !selectedStory;
+    if (!selectedStory) return;
+    let analysis;
+    try {
+      analysis = window.StoryMap.analyse(selectedStory.definition, { lines: selectedStory.lines, todos: selectedStory.todos });
+    } catch (error) {
+      checkLine(glanceResults, "Couldn't measure this story: " + error.message, true);
+      return;
+    }
+    const stats = analysis.stats;
+    checkLine(glanceResults, plural(stats.scenes, "scene") + ", " + plural(stats.endings, "ending") + ", " +
+      plural(stats.choices, "choice") + " and " + plural(stats.characters, "character") + ". " +
+      stats.words.toLocaleString("en") + " words, " + Math.round(stats.conditionalShare * 100) +
+      "% of them shown only sometimes.");
+    checkLine(glanceResults, "Scenes run from " + plural(stats.sceneWords.min.words, "word") + " (" +
+      stats.sceneWords.min.id.replace(/_/g, " ") + ") to " + plural(stats.sceneWords.max.words, "word") + " (" +
+      stats.sceneWords.max.id.replace(/_/g, " ") + "), about " + plural(stats.sceneWords.median.words, "word") + " typically." +
+      (stats.shortestRoute === null ? "" : " The shortest route to an ending is " + plural(stats.shortestRoute, "choice") + "."));
+    const check = currentCheck();
+    if (check !== null && check.lengths.choices) {
+      checkLine(glanceResults, "In " + check.runs + " random runs a playthrough took " + check.lengths.choices.min + "–" +
+        check.lengths.choices.max + " choices and " + check.lengths.words.min.toLocaleString("en") + "–" +
+        check.lengths.words.max.toLocaleString("en") + " words (usually about " +
+        check.lengths.words.median.toLocaleString("en") + ").");
+    }
+    const problems = analysis.problems.filter(function (problem) { return problem.severity !== "note"; });
+    if (problems.length > 0) {
+      checkLine(glanceResults, plural(problems.length, "structure or memory problem") +
+        ": open the story map to see where.", true);
+    }
+  }
+
+  function checkLine(parent, text, isProblem) {
+    const line = document.createElement("p");
+    line.className = "check-line" + (isProblem ? " is-problem" : "");
+    line.textContent = text;
+    parent.appendChild(line);
+  }
+
+  // Shows one of Writer tools' tabs. The map is drawn when its tab opens,
+  // so it always reflects the current run and the latest check.
+  function setWriterTab(tab, focus) {
+    writerTab = WRITER_TABS.indexOf(tab) === -1 ? "overview" : tab;
+    WRITER_TABS.forEach(function (id) {
+      writerTabs[id].setAttribute("aria-selected", String(id === writerTab));
+      writerTabs[id].tabIndex = id === writerTab ? 0 : -1;
+    });
+    Object.keys(writerPanes).forEach(function (id) {
+      writerPanes[id].hidden = writerPanes[id] !== writerPanes[writerTab];
+    });
+    mapPane.setAttribute("aria-labelledby", "writer-tab-" + (writerTab === "cast" ? "cast" : "map"));
+    if ((writerTab === "map" || writerTab === "cast") && selectedStory) {
+      window.StoryMapView.show(mapPane, storyMapOptions(), writerTab);
+    } else if (writerTab === "map" || writerTab === "cast") {
+      mapPane.replaceChildren();
+      const note = document.createElement("p");
+      note.className = "check-line writer-empty";
+      note.textContent = "Choose a story to see its map.";
+      mapPane.appendChild(note);
+    }
+    if (focus) writerTabs[writerTab].focus();
+  }
+
+  function closeWriterTools() {
+    if (debugPanel.hidden) return;
+    debugPanel.hidden = true;
+    menuButton.focus();
+  }
+
+  function storyMapOptions() {
+    return {
+      story: selectedStory,
+      check: currentCheck(),
+      path: engine ? { nodes: engine.nodeVisits.slice(), current: engine.currentNodeId } : null,
+      runCheck: function () {
+        const result = checkSelectedStory();
+        renderGlance();
+        return result;
+      },
+      startAt: startFromMap,
+      showTab: function (tab) { setWriterTab(tab); }
+    };
+  }
+
+  // The map's "Start from this scene…": opens Start from a scene in Writer
+  // tools with that scene chosen, so the writer can tick what came before.
+  function startFromMap(sceneId) {
+    setWriterTab("overview");
+    sceneSelect.value = sceneId;
+    sceneSelect.closest(".scene-start").scrollIntoView({ block: "start" });
+    sceneSelect.focus();
+  }
+
   function renderCheckResults(result) {
-    if (!checkResults) return;
     checkResults.replaceChildren();
-    if (checkButton) checkButton.disabled = !selectedStory || !window.StoryCheck;
+    checkButton.disabled = !selectedStory;
     if (!selectedStory) {
-      appendCheckLine("Choose a story to check it.");
+      checkLine(checkResults, "Choose a story to check it.");
       return;
     }
     const warnings = result ? result.warnings : selectedStory.warnings;
     appendCheckList(warnings.length === 0
       ? "No authoring warnings."
-      : warnings.length + " authoring warning" + (warnings.length === 1 ? "" : "s") + ":",
+      : plural(warnings.length, "authoring warning") + ":",
     warnings.map(function (warning) { return formatWarning(warning, selectedStory); }), warnings.length > 0);
     const todos = selectedStory.todos || [];
     if (todos.length > 0) {
-      appendCheckList(todos.length + " TODO note" + (todos.length === 1 ? "" : "s") + ":", todos.map(function (todo) {
+      appendCheckList(plural(todos.length, "TODO note") + ":", todos.map(function (todo) {
         return "line " + todo.line + ": " + (todo.text || "(no note)");
       }), false);
     }
     if (!result) {
-      appendCheckLine("Check story plays " + CHECK_RUNS + " random runs and lists anything they never reached.");
+      checkLine(checkResults, "Check story plays " + CHECK_RUNS + " random runs and lists anything they never reached.");
       return;
     }
     appendCheckList(result.errors.length === 0
       ? "All " + result.runs + " random runs finished cleanly."
-      : result.errors.length + " kind" + (result.errors.length === 1 ? "" : "s") + " of failure:",
+      : plural(result.errors.length, "kind") + " of failure:",
     result.errors.map(function (error) { return "Seed " + error.seed + ": " + error.message; }),
     result.errors.length > 0);
     appendCheckList("Endings reached:", Object.keys(result.endings).map(function (id) {
-      return id + ": " + result.endings[id] + " run" + (result.endings[id] === 1 ? "" : "s");
+      return id + ": " + plural(result.endings[id], "run");
     }), Object.keys(result.endings).some(function (id) { return result.endings[id] === 0; }));
     appendCheckList(result.unvisitedNodes.length === 0
       ? "Every node was reached."
@@ -1341,15 +1594,8 @@
     result.missedBranches.length > 0);
   }
 
-  function appendCheckLine(text, isProblem) {
-    const line = document.createElement("p");
-    line.className = "check-line" + (isProblem ? " is-problem" : "");
-    line.textContent = text;
-    checkResults.appendChild(line);
-  }
-
   function appendCheckList(heading, items, isProblem) {
-    appendCheckLine(heading, isProblem);
+    checkLine(checkResults, heading, isProblem);
     if (items.length === 0) return;
     const list = document.createElement("ul");
     list.className = "check-list";
@@ -1361,38 +1607,28 @@
     checkResults.appendChild(list);
   }
 
-  function renderGraphVisualization(graphState) {
-    if (!graphVisualization || !graphSummary || !graphEmpty) return;
-
+  function renderGraphVisualization() {
     graphVisualization.replaceChildren();
     const nodesById = new Map();
-    const associationsByPair = new Map();
-    const events = graphState ? graphState.events : [];
-
-    events.forEach(function (event) {
-      event.concepts.forEach(function (concept) {
-        let node = nodesById.get(concept);
-        if (!node) {
-          node = { id: concept, eventCount: 0 };
-          nodesById.set(concept, node);
-        }
-        node.eventCount += 1;
-      });
-
-      for (let i = 0; i < event.concepts.length; i += 1) {
-        for (let j = i + 1; j < event.concepts.length; j += 1) {
-          const pair = [event.concepts[i], event.concepts[j]].sort(compareText);
-          const key = JSON.stringify(pair);
-          let edge = associationsByPair.get(key);
-          if (!edge) {
-            edge = { source: pair[0], target: pair[1], score: 0, seen: 0 };
-            associationsByPair.set(key, edge);
+    const associations = [];
+    if (engine) {
+      engine.graph.events.forEach(function (event) {
+        event.concepts.forEach(function (concept) {
+          let node = nodesById.get(concept);
+          if (!node) {
+            node = { id: concept, eventCount: 0 };
+            nodesById.set(concept, node);
           }
-          edge.score += event.strength;
-          edge.seen += 1;
-        }
-      }
-    });
+          node.eventCount += 1;
+        });
+      });
+      // The graph keeps each link both ways; draw it once.
+      engine.graph.associations.forEach(function (neighbours, source) {
+        neighbours.forEach(function (edge, target) {
+          if (source < target) associations.push({ source: source, target: target, score: edge.score, seen: edge.seen });
+        });
+      });
+    }
 
     const nodes = Array.from(nodesById.values())
       .sort(function (a, b) { return compareText(a.id, b.id); })
@@ -1406,11 +1642,7 @@
           radius: Math.min(25, 13 + Math.sqrt(node.eventCount) * 2)
         };
       });
-    const associations = Array.from(associationsByPair.values());
-    graphSummary.textContent = [
-      formatGraphCount(nodes.length, "concept"),
-      formatGraphCount(associations.length, "association")
-    ].join(" · ");
+    graphSummary.textContent = plural(nodes.length, "concept") + " · " + plural(associations.length, "association");
     graphEmpty.hidden = nodes.length > 0;
     graphVisualization.hidden = nodes.length === 0;
     if (nodes.length === 0) return;
@@ -1427,8 +1659,8 @@
     graphVisualization.setAttribute("viewBox", "0 0 " + width + " " + height);
     graphVisualization.setAttribute(
       "aria-label",
-      "Memory graph with " + formatGraphCount(nodes.length, "concept") + " and " +
-        formatGraphCount(associations.length, "association") + "."
+      "Memory graph with " + plural(nodes.length, "concept") + " and " +
+        plural(associations.length, "association") + "."
     );
 
     const edgeLayer = createSvgElement("g");
@@ -1446,7 +1678,7 @@
       line.setAttribute("stroke-width", String(Math.min(6, 1 + Math.log2(edge.score + 1))));
       const title = createSvgElement("title");
       title.textContent = edge.source + " ↔ " + edge.target +
-        " · " + edge.seen + " shared memor" + (edge.seen === 1 ? "y" : "ies");
+        " · " + plural(edge.seen, "shared memory", "shared memories");
       line.appendChild(title);
       edgeLayer.appendChild(line);
     });
@@ -1477,8 +1709,7 @@
       });
       group.appendChild(label);
       const title = createSvgElement("title");
-      title.textContent = node.label + " · " + node.eventCount +
-        " memor" + (node.eventCount === 1 ? "y event" : "y events");
+      title.textContent = node.label + " · " + plural(node.eventCount, "memory event");
       group.appendChild(title);
       nodeLayer.appendChild(group);
     });
@@ -1639,11 +1870,4 @@
   function createSvgElement(name) {
     return document.createElementNS(SVG_NAMESPACE, name);
   }
-
-  function formatGraphCount(count, label) {
-    return count + " " + label + (count === 1 ? "" : "s");
-  }
-  
-  // Expose globally for testing
-  window.storyPlayerDebugInfo = showDebugInfo;
 }());

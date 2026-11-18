@@ -53,9 +53,7 @@ the story author.
 -   Support branching stories that can later converge on shared nodes.
 -   Allow the same memory graph to persist across chapters or play
     sessions.
--   Make memory inspectable and serializable for debugging and saving.
--   Make it straightforward to add custom operations and conditions in
-    JavaScript.
+-   Make memory inspectable for debugging.
 
 ## 3. Non-goals for the MVP
 
@@ -84,7 +82,7 @@ launch method. Use ordered classic `<script src="...">` tags for the
 library and demo scripts; do not use ES-module imports or `fetch()` to
 load local files. Built-in stories are written as `stories/<name>.txt`.
 Because a `file://` page can't read text files itself,
-`node scripts/build-stories.js` wraps each one in
+`node tools/build-stories.js` wraps each one in
 `stories/built/<name>.js`, whose only statement is
 `registerStoryText("<name>.txt", [lines…])` with the file's lines
 unchanged, and writes `stories/built/manifest.js`, which sets
@@ -101,12 +99,19 @@ Use the existing project structure:
 ``` text
   index.html
   scripts/
-    MemoryGraph.js
-    NarrativeEngine.js
-    StoryText.js            # reads the story text format; used by the demo, build and tests
-    StoryCheck.js           # random-playthrough checker; used by tests and the demo
+    core/                   # the library: no DOM, no authoring tools
+      MemoryGraph.js
+      NarrativeEngine.js
+    authoring/              # reading and measuring stories; no DOM
+      StoryText.js          # reads the story text format; used by the demo, build and tests
+      StoryCheck.js         # random-playthrough checker; used by tests and the demo
+      StoryMap.js           # story measurements and scene-map layout
+    player/
+      storyPlayer.js        # demo UI only; not part of the core library
+    writer/
+      storyMapView.js       # demo UI: the Story map tabs of Writer tools
+  tools/
     build-stories.js        # Node only: wraps stories/*.txt into stories/built/
-    storyPlayer.js          # demo UI only; not part of the core library
   styles/
     shared.css
   stories/
@@ -118,9 +123,9 @@ Use the existing project structure:
   tests/                    # dependency-free unit tests using Node's built-in runner
 ```
 
-Load `MemoryGraph.js`, `NarrativeEngine.js`, `StoryText.js`,
-`StoryCheck.js`, `stories/built/manifest.js`, and `storyPlayer.js` in that
-order from `index.html`; `storyPlayer.js` loads the story files itself.
+Load `core/MemoryGraph.js`, `core/NarrativeEngine.js`, `authoring/StoryText.js`,
+`authoring/StoryCheck.js`, `authoring/StoryMap.js`, `writer/storyMapView.js`,
+`stories/built/manifest.js`, and `player/storyPlayer.js` in that order from `index.html`; `storyPlayer.js` loads the story files itself.
 The scripts expose `MemoryGraph`, `NarrativeEngine`, and `StoryText`
 through explicit `window` properties. `storyPlayer.js`
 is the browser demo entry point; core scripts must not depend on the
@@ -166,10 +171,11 @@ The parser's own conveniences, all of which produce ordinary story data:
 Use readable strings such as `"wolf"`, `"help"`, `"hunter"`, and
 `"mercy"` as keys throughout the public API.
 
-Normalize concept names consistently by trimming whitespace. For the
-MVP, preserve case rather than silently lowercasing; story authors
-should use consistent spelling and case. Reject empty strings and
-non-string concept values with clear errors.
+Names (concepts, characters, traits, variables, scenes) are used exactly
+as written: case is preserved, and a name with spaces around it is
+rejected rather than trimmed, so every use of a name matches. StoryText
+only ever produces trimmed names. Reject empty strings and non-string
+concept values with clear errors.
 
 ### 5.2 Memories are events, not just edges
 
@@ -196,7 +202,7 @@ No story used them, so they were removed to keep the library small.
 
 ### 5.4 Deterministic and explainable
 
-For the same saved state, story, and player choices, results should be
+For the same story and player choices, results should be
 deterministic. Do not introduce random selection in the MVP.
 
 Queries should return scores and enough detail to inspect why a result
@@ -207,19 +213,11 @@ was returned.
 ### 6.1 Constructor
 
 ``` js
-const graph = new MemoryGraph(options);
+const graph = new MemoryGraph();
 ```
 
-Suggested options:
-
-``` js
-{
-  maxEvents: 10000 // optional; default is unlimited
-}
-```
-
-If `maxEvents` is configured and the graph is at capacity, `remember()`
-throws before changing graph state. The MVP does not evict old events.
+The graph has no options and never evicts old events. Each engine
+creates its own.
 
 ### 6.2 Required public API
 
@@ -264,43 +262,26 @@ Example result:
 
 ``` js
 [
-  { concept: "wolf", score: 4, seen: 4, lastSeen: 12 },
-  { concept: "mercy", score: 3, seen: 3, lastSeen: 10 }
+  { concept: "wolf", score: 4, seen: 4 },
+  { concept: "mercy", score: 3, seen: 3 }
 ]
 ```
 
-`seen` is the number of events that strengthened that edge. `lastSeen`
-is the latest event sequence that strengthened it. Break score ties by
-ascending alphabetical concept name.
+`seen` is the number of events that strengthened that edge. Break score
+ties by ascending alphabetical concept name.
 
 #### `associationScore(a, b)`
 
 Return the direct association score, or `0` if no edge exists.
 
-#### `findMemories(concept, limit = 20)`
+#### `events` and `sequence`
 
-Return recent or relevant event records containing a concept, using a
-concept-to-event index, ordered newest-first by event sequence.
-
-#### `toJSON()` and static `fromJSON(data)`
-
-Support saving and restoring all information needed to continue
-learning:
-
--   events and metadata
--   association scores and counts, or enough source data to rebuild them
--   sequence counter and ID counter
-
-`toJSON()` writes version 2. `fromJSON()` also accepts version 1 saves and
-ignores their retired `transitions` list.
-
-Validate loaded data and provide useful errors for malformed input. Do
-not serialize `Map` objects directly; convert them to plain
-JSON-compatible objects or arrays.
+The event log, oldest first, and the sequence number of the latest event.
+Event IDs are `"event-" + sequence`. Read them; don't change them.
 
 #### `clear()`
 
-Clear all stored events, indexes, associations, and counters.
+Clear all stored events, associations, and the sequence counter.
 
 ### 6.3 Association construction
 
@@ -318,35 +299,21 @@ memory event explicitly groups them.
 
 ### 6.4 Memory metadata
 
-Metadata is descriptive and searchable by application code. The MVP does
-not need arbitrary metadata query syntax, but it must preserve metadata
-through serialization.
-
-Suggested metadata fields include:
-
-``` js
-{
-  scene: "forest_encounter",
-  actor: "player",
-  target: "wolf",
-  turn: 12,
-  source: "choice"
-}
-```
+Metadata is a JSON-compatible object copied onto the event. The engine
+uses it for a remember's `summary` and `subject`; stories can't set
+other fields.
 
 ## 7. NarrativeEngine specification
 
 ### 7.1 Constructor
 
 ``` js
-const engine = new NarrativeEngine(storyDefinition, {
-  graph,
-  initialVariables: {}
-});
+const engine = new NarrativeEngine(storyDefinition, { onBranch });
 ```
 
-The graph may be supplied by the caller. If omitted, the engine creates
-a new `MemoryGraph`.
+`onBranch` is optional; Story check uses it to see which text, choices
+and routes were used. The engine validates the story once, here, and
+creates its own `MemoryGraph` (`engine.graph`). Variables start unset.
 
 The engine owns:
 
@@ -355,9 +322,7 @@ The engine owns:
 -   visit history
 -   choice history
 -   variables
--   graph reference
--   registered operations
--   registered conditions
+-   the graph
 
 ### 7.2 Required public API
 
@@ -366,10 +331,8 @@ engine.start();                 // start at story.start
 engine.start("intro");          // optional explicit start node
 engine.getView();               // current renderable scene
 engine.choose(0);               // choose visible choice by index
-engine.goTo("node_id");         // explicit navigation helper
 engine.reset({ keepMemory: true });
-engine.toJSON();                // serializable runtime state
-engine.loadState(data);         // restore runtime state
+engine.apply(operations);       // run operations outside a choice (Start from a scene)
 ```
 
 `getView()` should return plain data suitable for a website UI:
@@ -396,8 +359,7 @@ started throws a clear error.
 time it is called. It evaluates conditions and formats text and choices,
 but never runs `onEnter`, operations, or navigation and never mutates
 engine or graph state. `onEnter` runs only as part of entering a node.
-Custom condition handlers must also be side-effect-free so repeated
-`getView()` calls remain safe. The MVP does not require view caching.
+The MVP does not require view caching.
 
 ### 7.3 Node lifecycle
 
@@ -411,7 +373,7 @@ When entering a node:
 6.  Return the resulting view.
 
 A node is not automatically replayed. It remains current until the player
-chooses an available choice or calls `goTo()`. Revisiting a node runs its
+chooses an available choice. Revisiting a node runs its
 `onEnter` operations again. Ending nodes are explicitly marked
 `"ending": true` and have no choices. Every non-ending node must have at
 least one choice, and every choice must have a `goto` route. There is no
@@ -423,11 +385,8 @@ The player displays the optional `synopsis` string in the story picker.
 Stories without one remain playable and display "No synopsis provided."
 The player shows the current run's story text and selected choices in order,
 including the text as it was originally presented. The transcript grows with
-the page and resets for a new run. The player script supports per-story
-save/restore controls when the corresponding elements are present, but the
-current `index.html` does not expose those controls. When enabled, the save
-includes the transcript; older saves without one can only display the current
-passage and later choices.
+the page and resets for a new run. Runs are not saved: a reload starts
+again (a story link can replay the current run's choices).
 
 Example:
 
@@ -971,16 +930,17 @@ engine.linkWeight("player", "lie", "mira"); // number
 engine.traitScore("kind", "mira");        // number
 engine.traitScores("mira");               // { trait: score }
 engine.recall({ perspective: "mira", about: { trait: "kind" } }); // or null
-engine.describeReputation();              // per-character summary for UIs
+engine.reputationOf("mira");              // { character, name, traits, memory }; omit for overall
+engine.knownCharacters();                 // who knows anything, in story order
 engine.characterName("mira");
 engine.subjectName("ellis");              // "you" for the player, else a name
 engine.traitLabel("kind");
 ```
 
-`describeReputation()` lists each character who knows at least one
-event, with their positive traits in descending order and the memory
-recalled for their dominant trait. The demo shows it at every ending as
-"How the people you met remember you".
+`reputationOf(id)` gives one character's view: every trait scoring at
+least 0.05 either way (strongest first, with label and colour) and the
+memory recalled for their dominant trait. The demo shows one for each of
+`knownCharacters({ includeHidden: true })` at every ending.
 
 Perspectives are computed from the event log on demand; nothing is
 cached.
@@ -1051,13 +1011,12 @@ mechanical ones. Traits may set `"color": "#rrggbb"` for their tags;
 otherwise the demo picks a stable colour per trait.
 
 Causes are presentation data. `getView()` stays read-only, and
-`view.arrival` is not part of saved engine state.
+`view.arrival` is not part of the engine's run state.
 
 The demo shows each cause as a coloured, bracketed tag after the text it
 explains, with the explanation in a tooltip on hover or keyboard focus.
-**Memory tags: on/off** in the header hides them for players who prefer
-an uninterrupted read; that preference is stored per browser. Saved
-transcripts keep their tags.
+The **Memory tags** switch in the **⋯** menu hides them for players who prefer
+an uninterrupted read; that preference is stored per browser.
 
 ### 12.9 Presence and descriptions
 
@@ -1070,9 +1029,8 @@ is in the scene. The engine itself only validates and reports them:
 -   `{ "type": "describe", "character": "grey", "description": "…" }`
     replaces a character's description for the rest of the run (it may use
     placeholders). `engine.characterDescription(id)` returns the current
-    description or `null`. Descriptions are run progress: saved in
-    `toJSON()` as `descriptions` (optional when loading) and cleared by
-    `reset()`, even when memory is kept.
+    description or `null`. Descriptions are run progress, cleared by
+    `reset()` even when memory is kept.
 -   `engine.apply(operations)` validates and runs operations outside any
     choice, before or during a run. Authoring tools use it to set up a
     scene, such as the demo's **Start from a scene**.
@@ -1104,15 +1062,14 @@ operations remembered about the player:
 
 The tag reads like `↑ merciful · Mira saw`, or `↑ a thief · no one saw`.
 A choice that remembers nothing about the player has no echo. Like
-`arrival`, the echo is presentation-only and is not saved in engine
-state. The demo attaches it to the picked choice in the transcript, and
-saved transcripts keep it.
+`arrival`, the echo is presentation-only and is not part of the run
+state. The demo attaches it to the picked choice in the transcript.
 
 **Hidden characters.** `"characters": { "file": { "hidden": true } }`
 keeps a character out of echoes and the live panel, so a secret
 watcher is never revealed by the interface. Hidden characters still
-witness, gossip, and appear in the ending summary, where their
-`describeReputation()` entry has `hidden: true`.
+witness, gossip, and appear in the ending summary, where the demo keeps
+what they think of you secret.
 
 **Engine API.**
 
@@ -1188,23 +1145,11 @@ Maintain:
 -   current node ID
 -   ended flag
 
-`NarrativeEngine.toJSON()` (state version 2) serializes engine runtime
-state only, including knowledge; `loadState()` also accepts version 1
-states, which load with no knowledge. It does
-not include the story definition or graph. Serialize the graph separately
-with `MemoryGraph.toJSON()`. Restore both using the same story definition:
-load graph data into a `MemoryGraph`, pass that graph to the
-`NarrativeEngine`, then load the engine state. Validate that the saved
-current node exists in the supplied story.
-
-Support resetting story progress while optionally retaining graph
-memory. `keepMemory: false` clears the supplied graph and all character
-knowledge; `keepMemory: true`
-leaves both unchanged, so characters remember earlier runs.
-
-The demo also supports per-story local storage when save/restore controls
-are added to its markup. The current page exposes only the ending actions
-to restart while keeping memory or clear memory and restart.
+Runs are not saved. Support resetting story progress while optionally
+retaining graph memory. `keepMemory: false` clears the graph and all
+character knowledge; `keepMemory: true` leaves both unchanged, so
+characters remember earlier runs. The demo's ending actions restart
+while keeping memory or clear memory and restart.
 
 ``` js
 engine.reset({ keepMemory: true });
@@ -1241,27 +1186,11 @@ reachability cannot detect.
 Errors should identify the story, node, choice, and offending field
 where possible. Do not silently ignore malformed rules.
 
-## 16. Extensibility and authoring tools
+## 16. Authoring tools
 
-Expose registries on the engine:
-
-``` js
-engine.operations.register("customOperation", (operation, context) => {
-  // custom behaviour
-});
-
-engine.conditions.register("customCondition", (condition, context) => {
-  return true;
-});
-```
-
-The exact registry API can be simpler, but it must be documented and
-must not require editing core engine methods to add a custom operation
-or condition.
-
-Custom handlers receive a controlled context containing the engine,
-graph, variables, current node, and helper methods. They must not
-receive unrestricted access to browser globals through story data.
+The engine has a fixed set of operations and conditions: the ones the
+story text format can write. There is no registry for custom ones; a new
+kind is added to the engine and to StoryText together.
 
 Never use `eval`, `Function`, or execute arbitrary JavaScript strings
 from story data.
@@ -1279,17 +1208,13 @@ valid but almost certainly mistakes. It never throws for them:
 -   a summary with no subject, one that starts with "you", or one that
     ends with punctuation;
 -   a character who never witnesses or hears about anything;
--   a variable that is read but never set (and isn't an initial
-    variable);
+-   a variable that is read but never set;
 -   a placeholder that isn't `{name:…}` or `{var:…}`, or `{summary}`
     outside a recall format;
 -   a macro that is never used.
 
 A concept warning suggests the closest remembered concept when one is
 within a few edits ("did you mean 'lie'?").
-
-Concepts produced only by custom operations are reported too; treat
-those warnings as expected.
 
 ### 16.2 Branch coverage
 
@@ -1312,16 +1237,46 @@ seeded random playthroughs (default 500) and returns:
   unvisitedNodes: ["node_id"],
   missedBranches: ["node 'x' text variant 1"],
   endings: { ending_id: count },          // unreached endings count 0
-  warnings: [{ location, message }]       // engine.lint()
+  warnings: [{ location, message }],      // engine.lint()
+  nodeRuns: { node_id: runs },            // runs that reached each node
+  routeRuns: { "from>to": runs },         // runs that went from one node to the next
+  lengths: { choices: { min, median, max }, words: { min, median, max } }
 }
 ```
 
-The demo's **Graph State** panel shows the selected story's warnings with
+The demo's **Writer tools** panel (the **⋯** menu) shows the selected story's warnings with
 their source lines, its TODO notes, and a **Check story** button that runs
 300 playthroughs. Uploads that have warnings say so in the status line.
 **Start from a scene** starts a fresh run at any node after applying the
 `set` operations and summarised `remember` operations the author ticks
 from the story's own operations.
+
+### 16.3.1 Story map
+
+`StoryMap.analyse(definition, { lines, todos })` reads a story without
+playing it. It returns per-scene facts (line, words, choices and their
+conditions, `present`, remembers, memory checks, TODOs), the arrows between
+scenes, a static structure report (`unreachable`, `deadEnds`, `chokePoints`,
+`shortestRoute`, treating every condition as possibly true), statistics, and
+a memory index: for each concept and trait, the scenes that set it up and the
+checks that read it. Each memory check gets a `status`: `ok`; `never`
+(nothing remembers it); `earlier` (nothing before it in a single run can set
+it up, so only kept memory makes it true); or `unseen` (it can be set up
+first, but the character it asks about never witnesses it and no gossip or
+reveal reaches them). Macros are expanded where they are used.
+`StoryMap.layout(analysis)` places scenes in rows (start at the top, endings
+on the bottom row, loops drawn back upwards), orders each row to reduce
+crossings, and routes arrows through waypoints.
+
+`storyMapView.js` draws this into Writer tools' **Story map** and **Who's in
+each scene** tabs (`StoryMapView.show(host, options, tab)`), colouring it by structure,
+by a Story check's `nodeRuns` and `routeRuns`, by the current run's
+`nodeVisits`, or by one memory's set-ups and checks, with a scene-by-character
+presence table. Writer tools is one full-screen panel with four tabs
+(Overview, Story map, Who's in each scene, Memory graph); it reopens on the
+tab it was closed on, and the map is redrawn whenever its tab is shown so it
+reflects the current run and the latest Story check. The Overview tab shows
+the statistics as **Story at a glance**.
 
 ### 16.4 Watching a story file
 
@@ -1342,9 +1297,8 @@ Write automated tests for:
 -   remembering three concepts creates all three pairwise links
 -   duplicate concepts in one event do not create duplicate links
 -   repeated events increase scores and `seen`
--   event metadata and event lookup work
--   serialization and restoration preserve query results, and version 1
-    saves still load
+-   event metadata is copied, and invalid events leave the graph unchanged
+-   `clear()` empties the graph and restarts event IDs
 
 ### NarrativeEngine
 
@@ -1369,7 +1323,6 @@ Write automated tests for:
     rules are rejected as unknown
 -   macros execute and recursive macros fail clearly
 -   history and variables update correctly
--   graph and engine state serialize and restore separately
 -   reset can retain or clear graph memory as requested
 -   witnesses learn only what they saw; gossip passes it on at reduced
     belief; reveal teaches from the world log
@@ -1383,8 +1336,7 @@ Write automated tests for:
 -   choice echoes sum trait pushes, name only non-hidden witnesses, and are
     absent when nothing about the player was remembered; `reputationOf`
     and `knownCharacters`
--   knowledge survives save/load (state version 2), accepts version 1
-    saves, and follows `reset({ keepMemory })`
+-   knowledge follows `reset({ keepMemory })`
 -   malformed stories fail validation with useful errors
 -   `{name:…}` and `{var:…}` placeholders, including in summaries
 -   non-player subjects: reputations, recall, and explanations phrased
@@ -1405,7 +1357,6 @@ Write automated tests for:
     characters' views stay secret), and `describe` updates the cast panel
 -   **Start from a scene** starts at the chosen node with ticked memories
 -   the transcript preserves the text and choices shown during a run
--   saved transcripts restore correctly, including older saves without one
 -   graph-state diagnostics include each event's sequence number
 -   an upload made while built-in stories are loading is not overwritten
 -   endings list how each witness remembers the player
@@ -1420,7 +1371,7 @@ Write automated tests for:
 -   each piece of syntax produces the story data described in 4.1
 -   mistakes are reported with their line number and a suggestion
 -   `lineFor` maps engine locations back to source lines
--   the engine reports `present`, applies and saves `describe`, joins
+-   the engine reports `present`, applies `describe`, joins
     closing punctuation without a space, and `apply()` runs operations
 
 ### Built-in stories
@@ -1429,7 +1380,7 @@ Write automated tests for:
     finish without errors or dead ends and between them reach every node;
     each story offers at least three endings and has no authoring
     warnings. Branches no run used are reported as test diagnostics.
--   `stories/built/` matches what `build-stories.js` would write.
+-   `stories/built/` matches what `tools/build-stories.js` would write.
 
 ### Browser (`file://`)
 
@@ -1450,27 +1401,24 @@ The implementation is complete when:
     and reputation, variables, and visit history.
 6.  Conditional text and conditional routing work.
 7.  Branches can diverge and later converge.
-8.  An engine save and graph save can be restored independently with the
-    same story definition.
-9.  A small example story demonstrates memory affecting later dialogue
+8.  A small example story demonstrates memory affecting later dialogue
     or available choices.
-10. The demo runs by opening `index.html` directly with `file://`, without
+9.  The demo runs by opening `index.html` directly with `file://`, without
     a build or local-server step. Built-in stories are available immediately;
     users may optionally replace them for the current page session by
     uploading a folder or `.txt` story files.
-11. The automated test requirements above pass.
+10. The automated test requirements above pass.
 
 ## 19. Suggested implementation order
 
-1.  Implement and test `MemoryGraph` event storage, associations,
-    serialization, and event lookup.
+1.  Implement and test `MemoryGraph` event storage and associations.
 2.  (Removed: activation spreading and transitions.)
 3.  Implement `NarrativeEngine` node lifecycle and `getView()` /
     `choose()`.
 4.  Add operations and condition evaluation.
 5.  Add conditional text and routing.
-6.  Add macros and extension registries.
-7.  Add save/restore and validation.
+6.  Add macros.
+7.  Add validation.
 8.  Create the sample story and browser demo.
 9.  Run the automated tests and document any intentionally deferred
     features.

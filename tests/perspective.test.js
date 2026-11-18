@@ -2,8 +2,8 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const MemoryGraph = require("../scripts/MemoryGraph.js");
-const NarrativeEngine = require("../scripts/NarrativeEngine.js");
+require("../scripts/core/MemoryGraph.js");
+const NarrativeEngine = require("../scripts/core/NarrativeEngine.js");
 
 // A small village: the player lies in front of Mira, then may confess or
 // keep a promise in front of Tomas. Mira can later gossip to Tomas.
@@ -150,9 +150,7 @@ test("'all' witnesses, reveal, knows, and dominantTrait", function () {
   const reveal = new NarrativeEngine(story);
   reveal.start();
   reveal.choose(0);
-  reveal.goTo("river");
-  reveal._executeOperations([{ type: "reveal", to: ["reeve"], about: { concepts: ["lie"] } }],
-    { nodeId: "river", choiceId: null, path: "test" });
+  reveal.apply([{ type: "reveal", to: ["reeve"], about: { concepts: ["lie"] } }]);
   assert.equal(reveal.getView().choices.length, 4);
 });
 
@@ -172,8 +170,8 @@ test("perspective association conditions use a character's memory", function () 
 });
 
 test("memory.halfLife fades older events in perspectives but not the raw graph", function () {
-  const graph = new MemoryGraph();
-  const engine = new NarrativeEngine(makeStory({ memory: { halfLife: 1 } }), { graph: graph });
+  const engine = new NarrativeEngine(makeStory({ memory: { halfLife: 1 } }));
+  const graph = engine.graph;
   engine.start();
   engine.choose(0);
   assert.equal(engine.traitScore("untrustworthy", "mira"), 1);
@@ -182,42 +180,26 @@ test("memory.halfLife fades older events in perspectives but not the raw graph",
   assert.equal(graph.associationScore("player", "lie"), 1);
 });
 
-test("knowledge survives save/load and keepMemory resets, and clears on a full reset", function () {
-  const graph = new MemoryGraph();
-  const engine = new NarrativeEngine(makeStory(), { graph: graph });
+test("knowledge survives keepMemory resets, and clears on a full reset", function () {
+  const engine = new NarrativeEngine(makeStory());
   engine.start();
   engine.choose(0);
-  const saved = engine.toJSON();
-  assert.equal(saved.version, 2);
-  assert.deepEqual(saved.knowledge, { mira: { "event-1": 1 } });
-
-  const restored = new NarrativeEngine(makeStory(), { graph: MemoryGraph.fromJSON(graph.toJSON()) });
-  restored.loadState(saved);
-  assert.equal(restored.traitScore("untrustworthy", "mira"), 1);
-
-  const older = Object.assign({}, saved, { version: 1 });
-  delete older.knowledge;
-  const fromV1 = new NarrativeEngine(makeStory(), { graph: MemoryGraph.fromJSON(graph.toJSON()) });
-  fromV1.loadState(older);
-  assert.equal(fromV1.traitScore("untrustworthy", "mira"), 0);
-
+  assert.deepEqual(engine.knowledge, { mira: { "event-1": 1 } });
   engine.reset({ keepMemory: true });
   assert.equal(engine.traitScore("untrustworthy", "mira"), 1);
   engine.reset();
   assert.deepEqual(engine.knowledge, {});
-  assert.throws(function () {
-    restored.loadState(Object.assign({}, saved, { knowledge: { stranger: {} } }));
-  }, /unknown character/);
 });
 
-test("describeReputation summarizes each character's view of the player", function () {
+test("reputationOf summarizes a character's view of the player", function () {
   const engine = new NarrativeEngine(makeStory());
   engine.start();
   engine.choose(1);
-  const reputation = engine.describeReputation();
-  assert.deepEqual(reputation.map(function (entry) { return entry.name; }), ["Mira", "Tomas", "reeve"]);
-  assert.deepEqual(reputation[0].traits.map(function (t) { return t.label; }), ["kind"]);
-  assert.equal(reputation[0].memory, "carried her flour");
+  assert.deepEqual(engine.knownCharacters().map(function (id) { return engine.reputationOf(id).name; }),
+    ["Mira", "Tomas", "reeve"]);
+  const mira = engine.reputationOf("mira");
+  assert.deepEqual(mira.traits.map(function (t) { return t.label; }), ["kind"]);
+  assert.equal(mira.memory, "carried her flour");
 });
 
 test("memory-driven text segments explain which remembered acts caused them", function () {
@@ -315,7 +297,6 @@ test("reputationOf and knownCharacters support live displays", function () {
     [["untrustworthy", -2], ["kind", 1]]);
   assert.equal(tomas.name, "Tomas");
   assert.equal(engine.reputationOf().name, null);
-  assert.equal(engine.describeReputation().find(function (r) { return r.character === "reeve"; }).hidden, true);
 });
 
 test("validation rejects unknown characters, traits, and malformed parts", function () {

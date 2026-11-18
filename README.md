@@ -19,22 +19,29 @@ stay at the same point.
 Choices add memories to the current story's graph. Each
 character remembers only what they witnessed or were told, and gossip spreads
 between them, so a player who lies, steals or shows mercy is treated
-accordingly by the people who know. Every ending lists how each character
-remembers you, and the act that defines you to them. When something
+accordingly by the people who know. Every ending sums up how you'll be
+remembered: how you're seen overall, then a card for each person who knows
+anything about you, with the act that defines you to them. When something
 happens because of what a character remembers, the text is followed by a
 coloured tag such as *(fear)* or *(Mira: a liar)*; hover over it, or focus
-it with the keyboard, to see which of your choices caused it. **Memory
-tags: on/off** in the header hides the tags. After each choice, a small
+it with the keyboard, to see which of your choices caused it. The **Memory
+tags** switch in the **⋯** menu hides the tags. After each choice, a small
 note on it shows which way it pushed you and who saw it (for example
 *↑ merciful · Mira saw*). Each scene starts with who is there
 (*Here: Captain Hale, Jory*), and hovering over a character's name shows
-who they are and how they see you. The collapsible **Who's who** panel
-above the choices lists everyone you've met, with whoever is here first:
-their description, their current view of you as bars, and the act they
-remember most. At an
+who they are and how they see you. The **Who's who** button beside the
+story title opens a drawer listing everyone you've met, with whoever is
+here first: their description, their current view of you as bars, and the
+act they remember most. Clicking a name in the story opens it on that
+person. A dot on the button, a tab or a name means that person's view of
+you has changed since you last looked. The drawer stays open while you play;
+on wider screens it sits beside the story and the page makes room for
+it. On phones and small tablets it docks as a bar
+along the bottom (showing who's here) that you tap to expand and collapse. At an
 ending, **Begin again · keep memory** starts a new run with that graph intact;
-**Clear memory & restart** starts over with an empty graph. The **Graph State**
-button (`i`) shows the current story and its graph data.
+**Clear memory & restart** starts over with an empty graph. The **⋯** menu also
+has **How memory works**, a short explainer for players, and **Writer
+tools**, which shows the current story and its graph data.
 
 ## Write a story
 
@@ -65,15 +72,19 @@ present witness. Traits turn specific acts into judgements such as "a liar"
 or "kind". Characters can gossip, be shown evidence, or be talked out of
 what they believe, and text can change with what they remember.
 
-While you write, open **Graph State** (the `i` button). It lists likely
+While you write, open **Writer tools** in the **⋯** menu. It fills the
+screen, with tabs for an overview, the story map, who's in each scene, and
+the memory graph. The overview lists likely
 mistakes with their line numbers, such as a concept you test for but never
 remember, and your `// TODO` notes. **Check story** plays the story 300
 times at random and reports crashes, dead ends, how often each ending came
 up, and any text no run ever showed. **Start from a scene** jumps to any
-scene with the memories you choose already in place.
+scene with the memories you choose already in place. The **Story map** tab draws
+every scene and choice, and can colour them by how often random runs reach
+them, by your current run, or by where a memory is set up and pays off.
 
 To add a built-in story, save it as `stories/<name>.txt` and run
-`node scripts/build-stories.js`. This wraps each story in
+`node tools/build-stories.js`. This wraps each story in
 `stories/built/<name>.js`, which the page can load from `file://`, and
 lists it in the picker. The tests fail if the built files are out of date.
 
@@ -114,17 +125,26 @@ serve the folder locally if you want to preview it inside VS Code.
 
 ## Project layout
 
-- `scripts/MemoryGraph.js` — the memory event log and concept associations.
-- `scripts/NarrativeEngine.js` — story validation, state, operations,
-  conditions, perspectives, and authoring warnings.
-- `scripts/StoryCheck.js` — random playthroughs that report problems; used
-  by the tests and the **Check story** button.
-- `scripts/StoryText.js` — reads the story text format and builds the story
-  data the engine plays, with line-numbered errors.
-- `scripts/build-stories.js` — wraps `stories/*.txt` into `stories/built/`
-  so the page can load them from `file://`.
-- `scripts/storyPlayer.js` — browser demo, built-in story loading, uploads,
-  and watching a story file while you edit it.
+Scripts are grouped by layer; each folder uses only the ones listed before it.
+
+- `scripts/core/` — the library, with no DOM:
+  - `MemoryGraph.js` — the memory event log and concept associations.
+  - `NarrativeEngine.js` — story validation, state, operations, conditions,
+    perspectives, and authoring warnings.
+- `scripts/authoring/` — reading and measuring stories, with no DOM:
+  - `StoryText.js` — reads the story text format and builds the story data
+    the engine plays, with line-numbered errors.
+  - `StoryCheck.js` — random playthroughs that report problems; used by the
+    tests and the **Check story** button.
+  - `StoryMap.js` — measures a story and lays out its scene map: word
+    counts, dead ends, choke points, and where each memory is set up and
+    checked.
+- `scripts/writer/storyMapView.js` — the **Story map** and **Who's in each
+  scene** tabs of Writer tools.
+- `scripts/player/storyPlayer.js` — browser demo, built-in story loading,
+  uploads, and watching a story file while you edit it.
+- `tools/build-stories.js` — wraps `stories/*.txt` into `stories/built/` so
+  the page can load them from `file://`.
 - `stories/*.txt` — built-in stories. `stories/built/` is generated from
   them; don't edit it by hand.
 - `docs/` — the story-writing guide and a starter template.

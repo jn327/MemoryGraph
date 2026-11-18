@@ -2,8 +2,8 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const MemoryGraph = require("../scripts/MemoryGraph.js");
-const NarrativeEngine = require("../scripts/NarrativeEngine.js");
+require("../scripts/core/MemoryGraph.js");
+const NarrativeEngine = require("../scripts/core/NarrativeEngine.js");
 
 function makeStory(overrides) {
   const story = {
@@ -66,11 +66,10 @@ function makeStory(overrides) {
 }
 
 test("start runs onEnter once, views are read-only, and branches converge", function () {
-  const graph = new MemoryGraph();
-  const engine = new NarrativeEngine(makeStory(), {
-    graph: graph,
-    initialVariables: { entries: 0 }
-  });
+  const engine = new NarrativeEngine(makeStory());
+  const snapshot = function () {
+    return JSON.stringify([engine.nodeVisits, engine.choiceHistory, engine.variables, engine.graph.events]);
+  };
   assert.throws(function () { engine.getView(); }, /has not started/);
   assert.deepEqual(engine.start(), {
     nodeId: "start",
@@ -82,17 +81,15 @@ test("start runs onEnter once, views are read-only, and branches converge", func
     ],
     ended: false
   });
-  const stateBeforeViews = engine.toJSON();
-  const memoryBeforeViews = graph.toJSON();
+  const beforeViews = snapshot();
   engine.getView();
   engine.getView();
-  assert.deepEqual(engine.toJSON(), stateBeforeViews);
-  assert.deepEqual(graph.toJSON(), memoryBeforeViews);
+  assert.equal(snapshot(), beforeViews);
   const view = engine.choose(0);
   assert.equal(view.nodeId, "merge");
   assert.equal(view.text, "You are remembered kindly.");
   assert.equal(engine.variables.helped, true);
-  assert.equal(engine.toJSON().choiceHistory.length, 1);
+  assert.equal(engine.choiceHistory.length, 1);
 });
 
 test("visible choice indexes exclude hidden choices and cannot select them", function () {
@@ -131,21 +128,16 @@ test("failed choice operation stops execution but keeps prior effects and histor
   const story = makeStory();
   story.nodes.start.choices[0].do = [
     { type: "remember", concepts: ["player", "help"] },
-    { type: "fail" }
+    { type: "set", variable: "word", value: "yes" },
+    { type: "inc", variable: "word" }
   ];
-  const engine = new NarrativeEngine(story, {
-    operationHandlers: {
-      fail: function () {
-        throw new Error("intentional failure");
-      }
-    }
-  });
+  const engine = new NarrativeEngine(story);
 
   engine.start();
 
-  assert.throws(function () { engine.choose(0); }, /test_story.*start.*help.*operation 1.*intentional failure/);
+  assert.throws(function () { engine.choose(0); }, /test_story.*start.*help.*operation 2.*must be numeric/);
   assert.equal(engine.graph.associationScore("player", "help"), 1);
-  assert.equal(engine.toJSON().choiceHistory.length, 0);
+  assert.equal(engine.choiceHistory.length, 0);
   assert.equal(engine.currentNodeId, "start");
 });
 
@@ -159,9 +151,8 @@ test("conditions support nested logic and type-safe variable comparisons", funct
       { type: "not", condition: { type: "variable", name: "count", operator: "gte", value: 1 } }
     ]
   };
-  const engine = new NarrativeEngine(story, {
-    initialVariables: { count: "1" }
-  });
+  story.nodes.start.onEnter.push({ type: "set", variable: "count", value: "1" });
+  const engine = new NarrativeEngine(story);
   assert.equal(engine.start().choices.length, 2);
 });
 
@@ -174,7 +165,7 @@ test("conditional text and routes use first match then fallback", function () {
   assert.equal(engine.getView().ended, true);
 });
 
-test("variable operations update serializable state", function () {
+test("variable operations update state", function () {
   const story = makeStory();
   story.nodes.start.onEnter.push(
     { type: "set", variable: "trust", value: 2 },
@@ -184,7 +175,6 @@ test("variable operations update serializable state", function () {
   engine.start();
 
   assert.equal(engine.variables.trust, 1);
-  assert.equal(engine.toJSON().variables.trust, 1);
 });
 
 test("retired activation and transition rules are rejected", function () {
@@ -214,8 +204,9 @@ test("macros execute and recursive macros fail validation", function () {
   assert.throws(function () { new NarrativeEngine(recursive); }, /recursive action macro/);
 });
 
-test("condition macros, revisits, and explicit navigation use current history", function () {
+test("condition macros and revisits use current history", function () {
   const story = makeStory();
+  story.nodes.merge.choices.push({ id: "back", text: "Back", goto: "start" });
   story.macros.wasVisited = {
     condition: { type: "visited", node: "merge" }
   };
@@ -223,38 +214,27 @@ test("condition macros, revisits, and explicit navigation use current history", 
     type: "macroCondition",
     name: "wasVisited"
   };
-  const engine = new NarrativeEngine(story, {
-    initialVariables: { entries: 0 }
-  });
+  const engine = new NarrativeEngine(story);
   engine.start();
   assert.equal(engine.getView().choices.length, 1);
-  engine.goTo("merge");
-  assert.equal(engine.getView().choices[0].id, "finish");
-  engine.goTo("start");
+  engine.choose(0);
+  assert.equal(engine.choose(1).choices.length, 2);
   assert.equal(engine.variables.entries, 2);
   assert.equal(engine.nodeVisits.filter(function (nodeId) {
     return nodeId === "start";
   }).length, 2);
 });
 
-test("runtime state restores independently from graph and reset controls memory", function () {
-  const story = makeStory();
-  const graph = new MemoryGraph();
-  const engine = new NarrativeEngine(story, { graph: graph });
+test("reset keeps or clears memory", function () {
+  const engine = new NarrativeEngine(makeStory());
   engine.start();
   engine.choose(0);
-  const savedEngine = JSON.parse(JSON.stringify(engine.toJSON()));
-  const savedGraph = JSON.parse(JSON.stringify(graph.toJSON()));
-  const restoredGraph = MemoryGraph.fromJSON(savedGraph);
-  const restoredEngine = new NarrativeEngine(story, { graph: restoredGraph });
-  assert.equal(restoredEngine.loadState(savedEngine).nodeId, "merge");
-  assert.deepEqual(restoredEngine.toJSON(), savedEngine);
-
-  restoredEngine.reset({ keepMemory: true });
-  assert.equal(restoredEngine.graph.events.length, 2);
-  restoredEngine.start();
-  restoredEngine.reset({ keepMemory: false });
-  assert.equal(restoredEngine.graph.events.length, 0);
+  engine.reset({ keepMemory: true });
+  assert.equal(engine.graph.events.length, 2);
+  assert.equal(engine.currentNodeId, null);
+  engine.start();
+  engine.reset({ keepMemory: false });
+  assert.equal(engine.graph.events.length, 0);
 });
 
 test("story validation rejects missing fallbacks and unreachable endings", function () {
@@ -280,37 +260,4 @@ test("story validation rejects missing fallbacks and unreachable endings", funct
   assert.throws(function () {
     new NarrativeEngine(unreachableEnd);
   }, /no reachable explicitly marked ending/);
-});
-
-test("registered custom operation and condition handlers are available to stories", function () {
-  const story = makeStory();
-  story.nodes.start.onEnter = [{ type: "customSet", value: 3 }];
-  story.nodes.start.choices[0].showIf = { type: "customCheck", minimum: 3 };
-  const engine = new NarrativeEngine(story, {
-    operationHandlers: {
-      customSet: function (operation, context) {
-        context.setVariable("custom", operation.value);
-      }
-    },
-    conditionHandlers: {
-      customCheck: function (condition, context) {
-        return context.variables.custom >= condition.minimum;
-      }
-    }
-  });
-
-  assert.equal(engine.start().choices[0].id, "help");
-  assert.equal(engine.variables.custom, 3);
-});
-
-test("custom handlers can be registered after construction but before start", function () {
-  const story = makeStory();
-  story.nodes.start.onEnter = [{ type: "customSet", value: 4 }];
-  const engine = new NarrativeEngine(story);
-  engine.operations.register("customSet", function (operation, context) {
-    context.setVariable("value", operation.value);
-  });
-
-  assert.equal(engine.start().nodeId, "start");
-  assert.equal(engine.variables.value, 4);
 });
